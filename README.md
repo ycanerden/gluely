@@ -2,7 +2,7 @@
 
 **An open-source GTM brain.** Your agent does the thinking. Gluely keeps the memory, the rules and the learning loop.
 
-Gluely isn't an outbound tool. Bring any scraper, sequencer, CRM and agent. Every GTM motion runs the same loop, so Gluely is the base you build on, and your outcomes keep improving your ICP, personas and messaging.
+Gluely isn't an outbound tool, and it doesn't pick your vendors. Bring any scraper, sequencer, CRM, data store and agent. We can recommend, but we never require. Every GTM motion runs the same loop, so Gluely is the base you build on, and your outcomes keep improving your ICP, personas and messaging.
 
 ![The Gluely loop](docs/flow.svg)
 
@@ -19,7 +19,7 @@ gluely doctor     # where you stand and what to do next
 gluely flow       # the loop, drawn from your real state
 ```
 
-Then open Claude Code or Cursor in that folder and run `/setup-gluely`. It interviews you, reads your real deals and fills your brain.
+Then open your agent in that folder and run `/setup-gluely`. It maps your stack, asks for read-only connections, analyzes your real deals and challenges your ICP before it writes anything.
 
 ## How it works
 
@@ -38,6 +38,8 @@ gluely test add --kind reply --input "Who else uses this?" --expect question
 gluely test          # compares this context version with the last, and fails on a regression
 ```
 
+**Keep your stack.** `gluely stack set store Snowflake` works, and so does `gluely stack set store "a spreadsheet"`. See [docs/stack.md](docs/stack.md) for options and [docs/store-contract.md](docs/store-contract.md) for how any data store will plug in.
+
 **Build on it.** Add your own signals in `workspace.yaml`, your own plays in `plays/`, and your own tests in `tests/`, with no change to core.
 
 ## Status
@@ -46,8 +48,8 @@ Phase 0 of 5: the brain pack.
 
 | Phase | Adds | Status |
 |---|---|---|
-| 0 | Context, plays, skills, brain tests | Working |
-| 1 | The database: Person 360, content, imports, read-only MCP | Next |
+| 0 | Stack map, onboarding, context, plays, skills, brain tests | Working |
+| 1 | The ledger on any store: Person 360, content, imports, read-only MCP | Next |
 | 2 | Work queue, excuses linked to signals, opt-outs | Planned |
 | 3 | Conversations, BDR drafts, reply-to-demo rate | Planned |
 | 4 | CRM, transcripts, won and lost, the full loop | Planned |
@@ -58,8 +60,6 @@ Phase 0 of 5: the brain pack.
 /plugin marketplace add <this-repo>
 /plugin install gluely@gluely
 ```
-
-The skills are shaped after [pstack](https://github.com/cursor/plugins/tree/main/pstack) by Lauren Tan.
 
 ## License
 

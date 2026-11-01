@@ -6,7 +6,8 @@ const ICONS = { working: '●', started: '◐', later: '○', tool: '▢' };
 const PAINT = { working: color.green, started: color.yellow, later: color.dim, tool: color.cyan };
 
 export function buildFlow(state) {
-  const { context, plays, tests } = state;
+  const { context, plays, tests, stack } = state;
+  const yours = (layer, fallback) => (stack[layer] ? `${stack[layer]}, your choice` : fallback);
   const filled = context.confirmed + context.draft;
   const stage = (id, label, status, detail) => ({ id, label, status, detail });
   return {
@@ -17,14 +18,14 @@ export function buildFlow(state) {
       stage('signals', 'Signals', 'later', 'content, inbound, job switch. Phase 1'),
       stage('excuse', 'Excuse', 'started', 'rules and draft check work. Link to signals in phase 2'),
       stage('gate', 'Exclusion gate', 'started', `${context.excluded_companies} companies excluded. Full gate in phase 1`),
-      stage('enrichment', 'Enrichment', 'tool', 'any tool you like. Gluely imports the result'),
-      stage('outbound', 'Outbound tool', 'tool', 'any tool you like. Gluely never sends'),
-      stage('database', 'Database', 'later', 'Person 360, every decision. Phase 1'),
-      stage('crm', 'CRM', 'tool', 'stays clean. Sales-ready sync in phase 4'),
+      stage('enrichment', 'Enrichment', 'tool', yours('enrichment', 'any tool you like')),
+      stage('outbound', 'Outbound tool', 'tool', `${yours('outreach', 'any tool you like')}. Gluely never sends`),
+      stage('database', 'Database', 'later', `Person 360 in ${stack.store || 'any store'}. Phase 1`),
+      stage('crm', 'CRM', 'tool', `${yours('crm', 'any CRM')}. Sales-ready sync in phase 4`),
       stage('replies', 'Replies', 'later', 'opt-outs in phase 2, labels in phase 3'),
       stage('bdr', 'BDR agent', 'later', 'reply to demo. Phase 3'),
       stage('sales', 'Sales reps, demo, close', 'tool', 'won and lost tracked in phase 4'),
-      stage('transcripts', 'Transcripts', 'later', 'whole calls, with consent. Phase 4'),
+      stage('transcripts', 'Transcripts', 'later', `${stack.transcripts ? `${stack.transcripts}, ` : ''}with consent. Phase 4`),
       stage('learning', 'Learning', 'started', `${tests.deterministic.total + tests.reasoned.total} brain tests. Corrections become tests`),
     ],
   };

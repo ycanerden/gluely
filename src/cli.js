@@ -8,6 +8,7 @@ import { initWorkspace } from './init.js';
 import { color, fail, GluelyError, mark, printIssues } from './output.js';
 import { validatePlays } from './plays.js';
 import { HOSTS, installSkills, listSkills } from './skills.js';
+import { loadStack, setStack } from './stack.js';
 import { CHANNELS } from './vocab.js';
 import { contextVersion, GLUELY_ROOT, requireWorkspace } from './workspace.js';
 
@@ -32,6 +33,10 @@ Tests
   gluely test pending                                            cases waiting for your agent
   gluely test submit <id> <answer> --by <agent/model>            record your agent's answer
   gluely test add --kind <k> --input <t> --expect <e>            turn a correction into a test
+
+Stack
+  gluely stack                                                   the tools you use, by layer
+  gluely stack set <layer> <any tool name>                       name a tool. Any tool works
 
 Skills
   gluely skills list | install [--host claude,cursor]            the GTM skill pack
@@ -201,6 +206,26 @@ const commands = {
         for (const id of r.improved) console.log(`  ${mark.ok()} ${id} got better under this context`);
         if (r.pending.length) console.log(`${mark.next()} ${r.pending.length} waiting for your agent: run /gtm-mode`);
         for (const bad of data.invalid) console.log(`  ${mark.bad()} ${bad.file}: ${bad.id || 'case'} ${bad.problem}`);
+      },
+    };
+  },
+
+  stack(args) {
+    const ws = requireWorkspace();
+    if (args._[0] === 'set') {
+      const data = setStack(ws, args._[1], args._.slice(2).join(' '));
+      return { data, render: () => line(true, `${data.layer} is ${data.tool}`) };
+    }
+    if (args._[0]) fail('usage', 'Usage: gluely stack | gluely stack set <layer> <any tool name>');
+    const data = loadStack(ws);
+    return {
+      data,
+      render() {
+        console.log(color.bold('Your stack') + color.dim('   any tool works'));
+        for (const layer of data.layers) {
+          const hint = color.dim(`for example ${layer.options.slice(0, 3).join(', ')}`);
+          console.log(`${layer.label.padEnd(13)} ${layer.tool || hint}`);
+        }
       },
     };
   },

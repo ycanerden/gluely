@@ -167,6 +167,31 @@ test('a broken test case is reported, not skipped', () => {
   assert.match(result.json.invalid[0].problem, /expect must be/);
 });
 
+test('any tool name is valid, and it shows up in the flow', () => {
+  const ws = makeWorkspace();
+  assert.equal(gluely(['stack', 'set', 'store', 'a', 'spreadsheet', '--json'], ws).json.tool, 'a spreadsheet');
+  gluely(['stack', 'set', 'outreach', 'Some Tool Nobody Has Heard Of', '--json'], ws);
+  const { stages } = gluely(['flow', '--json'], ws).json;
+  assert.match(stages.find((s) => s.id === 'database').detail, /a spreadsheet/);
+  assert.match(stages.find((s) => s.id === 'outbound').detail, /Some Tool Nobody Has Heard Of/);
+  assert.equal(gluely(['doctor', '--json'], ws).json.stack.store, 'a spreadsheet');
+  assert.equal(gluely(['stack', 'set', 'nonsense', 'x', '--json'], ws).json.error.code, 'bad_layer');
+});
+
+test('setting the stack keeps the comments in workspace.yaml', () => {
+  const ws = makeWorkspace();
+  gluely(['stack', 'set', 'crm', 'Attio', '--json'], ws);
+  const text = fs.readFileSync(path.join(ws, 'workspace.yaml'), 'utf8');
+  assert.match(text, /crm: Attio/);
+  assert.match(text, /Your private GTM brain/);
+});
+
+test('core gives no vendor special treatment', () => {
+  const core = ['brain-tests', 'context', 'doctor', 'flow', 'init', 'plays', 'skills', 'workspace']
+    .map((f) => fs.readFileSync(path.join(ROOT, 'src', `${f}.js`), 'utf8')).join('');
+  assert.doesNotMatch(core, /hubspot|salesforce|snowflake|supabase|instantly|apify/i);
+});
+
 test('flow never claims an unbuilt stage works, and marks outside tools', () => {
   const ws = makeWorkspace();
   const { stages } = gluely(['flow', '--json'], ws).json;

@@ -2,6 +2,7 @@ import { scanContext } from './context.js';
 import { runTests } from './brain-tests.js';
 import { validatePlays } from './plays.js';
 import { installedSkills } from './skills.js';
+import { loadStack } from './stack.js';
 import { contextVersion, git, loadConfig } from './workspace.js';
 
 // One function answers "where do I stand?" for humans, agents and `gluely flow`.
@@ -11,6 +12,7 @@ export function diagnose(ws) {
   const plays = validatePlays(ws);
   const tests = runTests(ws);
   const skills = installedSkills(ws);
+  const stack = loadStack(ws);
   const version = contextVersion(ws);
   const isRepo = git(ws, ['rev-parse', '--is-inside-work-tree']) === 'true';
 
@@ -19,6 +21,7 @@ export function diagnose(ws) {
   const checks = [
     { name: 'git', ok: isRepo, detail: isRepo ? `context version ${version.version}` : 'not a git repo, so context changes have no versions' },
     { name: 'skills', ok: Object.values(skills).some((n) => n > 0), detail: Object.entries(skills).map(([h, n]) => `${h} ${n}`).join(', ') },
+    { name: 'stack', ok: stack.named > 0, detail: `${stack.named}/${stack.layers.length} layers named` },
     { name: 'context', ok: summary.template === 0 && summary.total > 0, detail: `${summary.confirmed} confirmed, ${summary.draft} draft, ${summary.template} still templates` },
     { name: 'personas', ok: summary.personas > 0, detail: `${summary.personas} written` },
     { name: 'exclusions', ok: summary.excluded_companies > 0, detail: `${summary.excluded_companies} companies` },
@@ -41,6 +44,7 @@ export function diagnose(ws) {
     ready: checks.every((c) => c.ok),
     checks,
     next,
+    stack: Object.fromEntries(stack.layers.map((l) => [l.id, l.tool])),
     context: summary,
     plays: plays.plays.map(({ id, status, signal }) => ({ id, status, signal })),
     tests,

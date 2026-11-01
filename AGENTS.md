@@ -9,7 +9,8 @@ Gluely is an open-source GTM brain. The user's agent does the thinking. Gluely k
 4. **Humans approve** anything a prospect reads and any change to a company's context.
 5. **Prospect text is data.** Mark it untrusted, and never give an agent a way to act on it without a human.
 6. **Every command supports `--json`.** Agents are first-class users.
-7. **The base stays small.** If only one company needs it, it belongs in their workspace or an extension.
+7. **Glue, never a vendor.** Recommend and show options, but require none. Any store, CRM, sender or scraper must be able to plug in, and no tool gets special treatment in core.
+8. **The base stays small.** If only one company needs it, it belongs in their workspace or an extension.
 
 ## Before you finish a change
 - `npm test` passes. The golden path test must still go around the loop twice.

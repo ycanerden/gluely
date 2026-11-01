@@ -4,6 +4,9 @@ company:
   domain: "{{domain}}"
   motion: {{motion}}
 
+# The tools you already use. Any tool works: run `gluely stack` to see the layers.
+stack: {}
+
 # Refresh a person's data when it's older than this, and only when a play needs them.
 refresh_days:
   default: 90
