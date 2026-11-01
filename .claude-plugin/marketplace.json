@@ -1,0 +1,8 @@
+{
+  "name": "gluely",
+  "owner": { "name": "Gluely contributors" },
+  "description": "An open-source GTM brain.",
+  "plugins": [
+    { "name": "gluely", "source": "./", "description": "GTM skills for your own agent, backed by the gluely CLI.", "version": "0.0.1" }
+  ]
+}

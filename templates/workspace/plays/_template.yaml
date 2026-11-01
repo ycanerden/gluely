@@ -1,0 +1,23 @@
+id: play-id
+status: draft
+priority: 50
+hypothesis: >
+  One testable sentence: who, why now, and what you expect to happen.
+signal:
+  type: signal.post_engagement
+  source: any tool you like
+  window_days: 14
+audience:
+  personas: []
+  icp_band: [hot, warm]
+excuse:
+  angle: What makes reaching out honest and useful
+  variants: [a]
+action:
+  channels: [email]
+  tool: any tool you like
+success:
+  primary: meeting_booked
+kill:
+  after_touches: 100
+  if: "meeting_rate < 0.5% and positive_rate < 1%"

@@ -1,0 +1,14 @@
+# Your private GTM brain. This repo holds company data, so keep it private.
+company:
+  name: "{{company}}"
+  domain: "{{domain}}"
+  motion: {{motion}}
+
+# Refresh a person's data when it's older than this, and only when a play needs them.
+refresh_days:
+  default: 90
+  employment: 30
+
+# The base is meant to be built on. Add your own signal types here.
+extensions:
+  signals: []

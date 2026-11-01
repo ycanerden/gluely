@@ -1,0 +1,11 @@
+{
+  "name": "gluely",
+  "displayName": "Gluely",
+  "version": "0.0.1",
+  "description": "An open-source GTM brain. Skills for context, plays, excuses, replies and the learning loop.",
+  "author": { "name": "Gluely contributors" },
+  "license": "MIT",
+  "keywords": ["gtm", "sales", "skills", "learning-loop"],
+  "category": "productivity",
+  "skills": "./skills/"
+}

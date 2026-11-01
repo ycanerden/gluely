@@ -1,0 +1,11 @@
+# Rule tests run with no model. Add your own with: gluely test add --kind voice
+- id: voice-rejects-banned-opener
+  kind: voice
+  channel: email
+  input: "Hi Jane, I hope this finds you well. Do you have time this week?"
+  expect: fail
+- id: voice-accepts-short-honest-note
+  kind: voice
+  channel: email
+  input: "Hi Jane, congrats on the new role. Worth 15 minutes next week?"
+  expect: pass
