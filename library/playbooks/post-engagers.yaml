@@ -1,0 +1,67 @@
+id: post-engagers
+name: Post engagers
+summary: Continue a conversation someone already started in public.
+hypothesis: >
+  People who comment on posts about our problem are more likely to reply than cold
+  contacts with the same title.
+signal: { type: signal.post_engagement, window_days: 14 }
+steps:
+  - id: posts
+    ask: Whose posts will you watch?
+    why: Your own team's posts are the warmest. Competitors' posts need strict exclusions.
+    type: choice
+    writes: signal.source
+    options: [Your team's posts, Your company page, Competitors' posts, Founders in your category]
+  - id: volume
+    ask: Roughly how many people engage with those posts each month?
+    why: This sets what you pay to collect them.
+    type: number
+  - id: data
+    ask: How will you collect the engagers?
+    why: Any export works. Keep the post, because it shows which content attracts your ICP.
+    type: tool
+    job: signal-data
+    writes: signal.tool
+  - id: strength
+    ask: What counts as a real signal?
+    why: Comments are far stronger than likes.
+    type: choice
+    writes: signal.min_strength
+    options: [Comments only, Comments and reposts, Any reaction]
+  - id: persona
+    ask: Who is worth contacting?
+    why: Followers include job seekers and vendors, so filter by title first.
+    type: persona
+    writes: audience.personas
+  - id: contact
+    ask: Where will you find contact details?
+    why: Only enrich people who pass your gate.
+    type: tool
+    job: contact-data
+    writes: enrich.tool
+  - id: excuse
+    ask: What is your honest reason to reach out?
+    why: Refer to the topic, and never quote their comment back at them.
+    type: excuse
+    writes: excuse.angle
+  - id: send
+    ask: What will send the message?
+    why: Gluely never sends. A human approves first, then your tool does it.
+    type: tool
+    job: outreach
+    writes: action.tool
+  - id: budget
+    ask: What is the most this play may spend each month?
+    why: Gluely checks every estimate against this before anything spends credits.
+    type: number
+    writes: budget.monthly_limit
+  - id: kill
+    ask: When should this play die?
+    why: Decide now, while you're honest.
+    type: kill
+cost:
+  volume: volume
+  lines:
+    - { step: data, label: Collect engagers, unit: person, count: checked }
+    - { step: contact, label: Find contact details, unit: lookup, count: eligible }
+    - { step: send, label: Send messages, unit: message, count: touches }

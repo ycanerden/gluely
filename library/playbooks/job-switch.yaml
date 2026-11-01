@@ -1,0 +1,68 @@
+id: job-switch
+name: Job switch
+summary: Reach people who already know you, right after they move.
+hypothesis: >
+  People who knew us at their last company are more likely to take a meeting in their
+  first 90 days at a new one than cold contacts with the same title.
+signal: { type: signal.job_switch, window_days: 90 }
+steps:
+  - id: watchlist
+    ask: Who do you want to watch?
+    why: The warmer the list, the better the excuse.
+    type: choice
+    writes: signal.source
+    options: [Past champions, Happy customers' users, Closed-lost contacts, Product power users, Your own network]
+  - id: list-size
+    ask: Roughly how many people are on that list?
+    why: Job moves are rare, so volume decides whether this play can teach you anything.
+    type: number
+    estimate: { yearly_rate: [0.1, 0.2], unit: moves }
+  - id: data
+    ask: Where will you check if they moved?
+    why: Any source works. It only needs to tell you each person's current company.
+    type: tool
+    job: person-data
+    writes: signal.tool
+  - id: map
+    ask: What will you match each person on?
+    why: Gluely gives each person one ID. Work emails die when someone moves, so LinkedIn is the safer anchor.
+    type: choice
+    writes: mapping.key
+    options: [LinkedIn URL, LinkedIn URL and work email, Work email only]
+  - id: persona
+    ask: Who is worth contacting after they move?
+    why: Most people land somewhere you can't sell to, so score the new company too.
+    type: persona
+    writes: audience.personas
+  - id: contact
+    ask: Where will you find their new contact details?
+    why: Their old work email is now dead.
+    type: tool
+    job: contact-data
+    writes: enrich.tool
+  - id: excuse
+    ask: What is your honest reason to reach out?
+    why: A new job is the excuse. Your history with them is what makes it warm.
+    type: excuse
+    writes: excuse.angle
+  - id: send
+    ask: What will send the message?
+    why: Gluely never sends. A human approves first, then your tool does it.
+    type: tool
+    job: outreach
+    writes: action.tool
+  - id: budget
+    ask: What is the most this play may spend each month?
+    why: Gluely checks every estimate against this before anything spends credits.
+    type: number
+    writes: budget.monthly_limit
+  - id: kill
+    ask: When should this play die?
+    why: Decide now, while you're honest. A play that can't die eats budget forever.
+    type: kill
+cost:
+  volume: list-size
+  lines:
+    - { step: data, label: Check the list, unit: check, count: checked }
+    - { step: contact, label: Find contact details, unit: lookup, count: eligible }
+    - { step: send, label: Send messages, unit: message, count: touches }

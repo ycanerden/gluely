@@ -15,7 +15,7 @@ git clone <this-repo> gluely && cd gluely && npm install && npm link
 
 gluely init ../my-brain --company "Acme" --domain acme.example --motion sales_led
 cd ../my-brain
-gluely doctor     # where you stand and what to do next
+gluely            # your home screen
 gluely flow       # the loop, drawn from your real state
 ```
 
@@ -27,9 +27,9 @@ Then open your agent in that folder and run `/setup-gluely`. It maps your stack,
 
 | Layer | What it is | Who owns it |
 |---|---|---|
-| Skills | `/setup-gluely`, `/gtm-mode`, playbooks, principles | Open source |
+| Skills | `/setup-gluely`, `/gtm-mode`, `/check-cost`, playbooks, principles | Open source |
 | CLI | Rules, checks and tests. Every command supports `--json` | Open source |
-| Brain | `context/`, `plays/`, `tests/` | You, in a private repo |
+| Brain | `context/`, `plays/`, `tests/`, `learning/`, `prices.yaml` | You, in a private repo |
 
 **Every correction becomes a test.** At startup volume, rates are mostly noise, but corrections aren't. Tell the brain it got something wrong and it keeps the lesson:
 
@@ -38,13 +38,28 @@ gluely test add --kind reply --input "Who else uses this?" --expect question
 gluely test          # compares this context version with the last, and fails on a regression
 ```
 
+**Set up a play one question at a time.** `gluely plays start` walks you through a playbook: job switch, post engagers, hiring signal, inbound demo request or own network. At each step it shows your options, saves your answer and tells you the honest arithmetic. If you stop, it picks up where you left off. Agents use the same steps with `gluely plays next` and `gluely plays answer --json`.
+
+**Know the cost before you spend a credit.** `gluely cost <play>` works out the monthly bill from your own prices, which stay in your workspace. A missing price stays missing and is never counted as free. Spending needs a budget and a person's approval in a terminal, and that approval lapses when a price or the volume changes. `/check-cost` is the skill your agent runs first. Gluely can't stop a tool from spending, so this is a check your agent follows, not a lock on your accounts.
+
+**It learns how you write.** Each play answer and test correction lands in `learning/log.jsonl` on its own, and your agent logs each edit and preference with `gluely log add`. `gluely recall --area voice` gives your agent those lessons before it writes, and `--scope` keeps each person's voice separate. `gluely learn` shows what keeps coming up, so you can promote it into a rule that `gluely check draft` enforces. You approve every promotion.
+
+```bash
+gluely log add --kind correction --area voice --scope can \
+  --before "Quick question" --after "One question" --why "Too salesy"
+gluely recall --area voice --scope can
+gluely learn
+```
+
+**A tool library that ranks nobody.** `gluely tools` lists tools by the job they do, in alphabetical order, with yours first. Add your own with `gluely tools add`, or type any tool at any step. The library holds no prices and no scores.
+
 **Keep your stack.** `gluely stack set store Snowflake` works, and so does `gluely stack set store "a spreadsheet"`. See [docs/stack.md](docs/stack.md) for options and [docs/store-contract.md](docs/store-contract.md) for how any data store will plug in.
 
 **Build on it.** Add your own signals in `workspace.yaml`, your own plays in `plays/`, and your own tests in `tests/`, with no change to core.
 
 ## Landing page
 
-Open `site/index.html`. It's one file with no build step and no outside scripts. Click a brick to swap the tool.
+Open `site/index.html`. It uses no outside scripts. The bricks swap their own tools, and clicking one swaps it yourself. `site/data.js` is generated from `library/` with `node scripts/site-data.mjs`, so the page shows what the CLI really offers.
 
 ## Status
 
@@ -52,7 +67,7 @@ Phase 0 of 5: the brain pack.
 
 | Phase | Adds | Status |
 |---|---|---|
-| 0 | Stack map, onboarding, context, plays, skills, brain tests | Working |
+| 0 | Stack map, onboarding, context, guided plays, tool library, cost checks, decision log, skills, brain tests | Working |
 | 1 | The ledger on any store: Person 360, content, imports, read-only MCP | Next |
 | 2 | Work queue, excuses linked to signals, opt-outs | Planned |
 | 3 | Conversations, BDR drafts, reply-to-demo rate | Planned |

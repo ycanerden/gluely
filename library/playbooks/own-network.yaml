@@ -1,0 +1,47 @@
+id: own-network
+name: Own network
+summary: Ask a teammate for an intro instead of writing cold.
+hypothesis: >
+  A warm intro from a teammate gets more meetings than a cold message to the same person.
+signal: { type: signal.connection, window_days: 90 }
+steps:
+  - id: data
+    ask: Where do your team's connections come from?
+    why: Each teammate exports their own, and agrees to its use.
+    type: tool
+    job: person-data
+    writes: signal.tool
+  - id: volume
+    ask: How many connections will you go through each month?
+    why: Intros take your team's time, so keep this small.
+    type: number
+  - id: persona
+    ask: Who is worth an intro?
+    why: Intros are precious, so spend them on your best fit.
+    type: persona
+    writes: audience.personas
+  - id: excuse
+    ask: What will you ask your teammate?
+    why: The message goes to your teammate, never to the prospect.
+    type: excuse
+    writes: excuse.angle
+  - id: send
+    ask: How will the intro request go out?
+    why: Never send from someone's account without their clear yes.
+    type: tool
+    job: outreach
+    writes: action.tool
+  - id: budget
+    ask: What is the most this play may spend each month?
+    why: Gluely checks every estimate against this before anything spends credits.
+    type: number
+    writes: budget.monthly_limit
+  - id: kill
+    ask: When should this play die?
+    why: Decide now, while you're honest.
+    type: kill
+cost:
+  volume: volume
+  lines:
+    - { step: data, label: Check connections, unit: person, count: checked }
+    - { step: send, label: Ask for intros, unit: message, count: touches }

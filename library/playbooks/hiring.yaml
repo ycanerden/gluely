@@ -1,0 +1,59 @@
+id: hiring
+name: Hiring signal
+summary: Reach a company when a job post reveals the problem you solve.
+hypothesis: >
+  Companies hiring for a role tied to our problem have budget and pain right now.
+signal: { type: signal.hiring, window_days: 30 }
+steps:
+  - id: roles
+    ask: Which job titles reveal your problem?
+    why: Pick a role that means they feel the pain, not just any growth.
+    type: text
+    writes: signal.source
+  - id: volume
+    ask: Roughly how many matching job posts appear each month?
+    why: This sets what you pay to collect them.
+    type: number
+  - id: data
+    ask: Where will you find the job posts?
+    why: Any feed works. Company size and country help you filter early.
+    type: tool
+    job: hiring-data
+    writes: signal.tool
+  - id: persona
+    ask: Who at the company should you contact?
+    why: The person hiring usually owns the problem.
+    type: persona
+    writes: audience.personas
+  - id: contact
+    ask: Where will you find their contact details?
+    why: Check exclusions before you pay for data.
+    type: tool
+    job: contact-data
+    writes: enrich.tool
+  - id: excuse
+    ask: What is your honest reason to reach out?
+    why: Mention the hire, then what that hire usually needs.
+    type: excuse
+    writes: excuse.angle
+  - id: send
+    ask: What will send the message?
+    why: Gluely never sends. A human approves first, then your tool does it.
+    type: tool
+    job: outreach
+    writes: action.tool
+  - id: budget
+    ask: What is the most this play may spend each month?
+    why: Gluely checks every estimate against this before anything spends credits.
+    type: number
+    writes: budget.monthly_limit
+  - id: kill
+    ask: When should this play die?
+    why: Decide now, while you're honest.
+    type: kill
+cost:
+  volume: volume
+  lines:
+    - { step: data, label: Collect job posts, unit: post, count: checked }
+    - { step: contact, label: Find contact details, unit: lookup, count: eligible }
+    - { step: send, label: Send messages, unit: message, count: touches }

@@ -2,15 +2,21 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { addCase, checkCompany, checkDraft, pendingCases, runTests, submitAnswer } from './brain-tests.js';
 import { scanContext } from './context.js';
+import { estimateCost, setAssumptions, setPrice } from './cost.js';
 import { diagnose } from './doctor.js';
 import { buildFlow, renderFlow } from './flow.js';
 import { initWorkspace } from './init.js';
+import { addTool, loadLibrary, loadPlaybooks, toolsForJob } from './library.js';
+import { addEntry, dropEntry, learn, listEntries, logCorrection, promoteEntry, recall } from './log.js';
 import { color, fail, GluelyError, mark, printIssues } from './output.js';
 import { validatePlays } from './plays.js';
+import { answerStep, nextStep, startPlay } from './playbooks.js';
 import { HOSTS, installSkills, listSkills } from './skills.js';
 import { loadStack, setStack } from './stack.js';
 import { CHANNELS } from './vocab.js';
-import { contextVersion, GLUELY_ROOT, requireWorkspace } from './workspace.js';
+import { beside, Cancelled, interactive, mascot, say } from './ui.js';
+import { confirmApproval, costFlow, pickPlaybook, renderCost, walkPlay } from './walk.js';
+import { contextVersion, findWorkspace, GLUELY_ROOT, requireWorkspace } from './workspace.js';
 
 const VERSION = JSON.parse(fs.readFileSync(path.join(GLUELY_ROOT, 'package.json'), 'utf8')).version;
 const BOOLEAN_FLAGS = new Set(['json', 'help', 'version', 'no-git', 'no-skills', 'strict']);
@@ -19,12 +25,16 @@ const HELP = `gluely ${VERSION}: an open-source GTM brain. Your agent thinks. Gl
 
 Start
   gluely init <dir> --company <name> [--domain d] [--motion m]   create your private workspace
+  gluely                                                         your home screen
   gluely doctor                                                  where you stand and what to do next
   gluely flow                                                    the loop, drawn from real state
 
 Brain
   gluely context check | version                                 is the context filled and valid?
+  gluely plays start [playbook] [--as id]                        set up a play, one question at a time
+  gluely plays next <id> | answer <id> <step> <value>            the same steps, for agents
   gluely plays list | validate | new <id>                        hypotheses with kill rules
+  gluely playbooks                                               example plays to start from
   gluely check draft --channel <c> (--text <t> | --file <f>)     test a draft against your voice
   gluely check company <domain>                                  is this company excluded?
 
@@ -34,9 +44,24 @@ Tests
   gluely test submit <id> <answer> --by <agent/model>            record your agent's answer
   gluely test add --kind <k> --input <t> --expect <e>            turn a correction into a test
 
-Stack
+Learning
+  gluely log                                                     every decision and correction
+  gluely log add --kind <k> --area <a> --text <t> [--why <w>]    keep a decision or human input
+  gluely log add --kind correction --area voice --before <b> --after <a>   keep an edit
+  gluely recall --area <a> [--scope <person>]                    lessons to read before writing
+  gluely learn                                                   what keeps coming up
+  gluely log promote <id> --to <file> | drop <id> --why <why>    close a lesson
+
+Cost
+  gluely cost <play> [--fit 30%] [--touches 2] [--checks 1]      estimate before spending credits
+  gluely cost price <tool> --job <j> --each <n> | --credits <n>  add your own price
+  gluely cost approve <play>                                     a person approves the estimate
+
+Tools
   gluely stack                                                   the tools you use, by layer
   gluely stack set <layer> <any tool name>                       name a tool. Any tool works
+  gluely tools [job]                                             the tool library, by job
+  gluely tools add <name> --job <job> [--access <kind>]          add your own tool
 
 Skills
   gluely skills list | install [--host claude,cursor]            the GTM skill pack
@@ -119,11 +144,23 @@ const commands = {
     };
   },
 
-  plays(args) {
+  async plays(args) {
     const ws = requireWorkspace();
     const sub = args._[0] || 'list';
     if (sub === 'new') return newPlay(ws, args._[1]);
-    if (!['list', 'validate'].includes(sub)) fail('usage', 'Usage: gluely plays list | validate | new <id>');
+    if (sub === 'start') return startCommand(ws, args);
+    if (sub === 'next') {
+      if (!args._[1]) fail('usage', 'Usage: gluely plays next <id>');
+      const data = nextStep(ws, args._[1]);
+      return { data, render: () => renderStep(data) };
+    }
+    if (sub === 'answer') {
+      const [, id, step, ...value] = args._;
+      if (!id || !step) fail('usage', 'Usage: gluely plays answer <id> <step> <value> --by <agent/model>');
+      const data = answerStep(ws, id, step, value.join(' '), args.flags.by);
+      return { data, render: () => { line(true, `Saved ${step}: ${data.saved.value}`); renderStep(data.next); } };
+    }
+    if (!['list', 'validate'].includes(sub)) fail('usage', 'Usage: gluely plays start | next | answer | list | validate | new <id>');
     const data = validatePlays(ws);
     const failed = data.issues.some((i) => i.level === 'error');
     return {
@@ -186,6 +223,7 @@ const commands = {
     if (sub === 'add') {
       const { kind, input, expect, channel, why } = args.flags;
       const data = addCase(ws, { kind, input, expect, channel, why });
+      logCorrection(ws, data, args.flags.by);
       return { data, render: () => line(true, `Correction saved as test ${data.id}`) };
     }
     if (sub) fail('usage', 'Usage: gluely test [pending | submit | add]');
@@ -230,6 +268,133 @@ const commands = {
     };
   },
 
+  tools(args) {
+    const ws = findWorkspace();
+    if (args._[0] === 'add') {
+      if (!ws) requireWorkspace();
+      const data = addTool(ws, { name: args._.slice(1).join(' '), job: args.flags.job, access: args.flags.access });
+      return { data, render: () => line(true, `${data.name} is in your library for ${data.jobs[0]}`) };
+    }
+    const library = loadLibrary(ws);
+    const yours = ws ? loadStack(ws).layers.map((l) => l.tool).filter(Boolean) : [];
+    const jobs = args._[0] ? [args._[0]] : Object.keys(library.jobs);
+    const data = {
+      note: 'Listed alphabetically, with your own tools first. Gluely ranks nobody and any tool works.',
+      jobs: jobs.map((job) => ({ job, label: library.jobs[job], tools: toolsForJob(ws, job, yours) })),
+    };
+    return {
+      data,
+      render() {
+        console.log(color.bold('Tool library') + color.dim('   listed alphabetically, nobody is ranked, any tool works'));
+        for (const group of data.jobs) {
+          console.log(`\n${color.bold(group.label)} ${color.dim(group.job)}`);
+          if (args._[0]) for (const tool of group.tools) console.log(`  ${tool.name.padEnd(22)} ${tool.yours ? color.green('yours  ') : '       '}${color.dim(tool.hint)}`);
+          else console.log(`  ${group.tools.map((t) => (t.yours ? color.green(t.name) : t.name)).join(', ')}`);
+        }
+        console.log(`\n${mark.next()} ${color.dim('gluely tools <job> shows the details. gluely tools add puts your own in.')}`);
+      },
+    };
+  },
+
+  playbooks() {
+    const data = { playbooks: loadPlaybooks().map(({ id, name, summary, steps }) => ({ id, name, summary, steps: steps.length })) };
+    return {
+      data,
+      render() {
+        console.log(color.bold('Playbooks') + color.dim('   start one with gluely plays start <id>'));
+        for (const book of data.playbooks) console.log(`  ${book.id.padEnd(15)} ${book.name.padEnd(22)} ${color.dim(book.summary)}`);
+      },
+    };
+  },
+
+  async cost(args) {
+    const ws = requireWorkspace();
+    const sub = args._[0];
+    if (sub === 'price') {
+      const { job, each, credits, monthly, currency, by } = args.flags;
+      const data = setPrice(ws, { tool: args._.slice(1).join(' '), job, each, credits, monthly, currency, by, creditPrice: args.flags['credit-price'], creditsLeft: args.flags['credits-left'] });
+      return { data, render: () => line(true, `Saved your price for ${data.tool}`) };
+    }
+    if (sub === 'approve') {
+      if (!args._[1]) fail('usage', 'Usage: gluely cost approve <play>');
+      if (!interactive() || args.flags.json) fail('needs_a_person', 'Only a person can approve spending.', `Ask them to run gluely cost approve ${args._[1]} in a terminal.`);
+      const data = await confirmApproval(ws, args._[1]);
+      return { data, render() {}, exit: data.can_spend ? 0 : 1 };
+    }
+    if (!sub) fail('usage', 'Usage: gluely cost <play> | price <tool> | approve <play>');
+    setAssumptions(ws, sub, args.flags);
+    if (interactive() && !args.flags.json) {
+      const data = await costFlow(ws, sub);
+      return { data, render() {}, exit: data.can_spend ? 0 : 1 };
+    }
+    const data = estimateCost(ws, sub);
+    return { data, render: () => renderCost(data), exit: data.can_spend ? 0 : 1 };
+  },
+
+  log(args) {
+    const ws = requireWorkspace();
+    const sub = args._[0];
+    if (sub === 'add') {
+      const { kind, area, text, why, before, after, scope, play, by, from } = args.flags;
+      const data = addEntry(ws, { kind, area, text, why, before, after, scope, play, by, source: from || 'human' });
+      return { data, render: () => line(true, `Kept as ${data.id}`) };
+    }
+    if (sub === 'promote') {
+      const data = promoteEntry(ws, args._[1], args.flags.to);
+      return { data, render: () => line(true, `${data.id} now lives in ${data.to}`) };
+    }
+    if (sub === 'drop') {
+      const data = dropEntry(ws, args._[1], args.flags.why);
+      return { data, render: () => line(true, `Dropped ${data.id}`) };
+    }
+    if (sub) fail('usage', 'Usage: gluely log [add | promote <id> | drop <id>]');
+    const { kind, area, play, scope, limit } = args.flags;
+    const data = listEntries(ws, { kind, area, play, scope, limit: limit ? Number(limit) : undefined });
+    return {
+      data,
+      render() {
+        if (!data.total) console.log(color.dim('Nothing logged yet. Decisions land here as you go.'));
+        for (const e of data.entries) {
+          const state = e.state === 'open' ? '' : color.dim(` ${e.state}`);
+          console.log(`${color.dim(e.at.slice(0, 10))} ${e.id}  ${e.kind.padEnd(10)} ${e.area.padEnd(9)} ${e.text}${state}`);
+        }
+      },
+    };
+  },
+
+  recall(args) {
+    const { area, scope, play, limit } = args.flags;
+    const data = recall(requireWorkspace(), { area, scope, play, limit: limit ? Number(limit) : undefined });
+    return {
+      data,
+      render() {
+        console.log(color.bold(`Lessons for ${data.area}`) + (data.read_first ? color.dim(`   read ${data.read_first} first`) : ''));
+        if (!data.lessons.length) console.log(color.dim('No lessons yet.'));
+        for (const l of data.lessons) console.log(`  ${l.after ? `${l.before} ${color.dim('became')} ${l.after}` : l.text}${l.why ? color.dim(`  because ${l.why}`) : ''}`);
+      },
+    };
+  },
+
+  learn() {
+    const data = learn(requireWorkspace());
+    return {
+      data,
+      render() {
+        console.log(color.bold('What your brain has learned') + color.dim(`   ${data.decisions} decisions, ${data.promoted} lessons promoted, ${data.dropped} dropped`));
+        if (!data.open) console.log(color.dim('Nothing is waiting. New corrections and inputs land here.'));
+        for (const group of data.areas) {
+          console.log(`\n${color.bold(group.area)} ${color.dim(`${group.open} open${group.home ? `, belongs in ${group.home}` : ''}`)}`);
+          for (const e of group.entries) console.log(`  ${e.id}  ${e.text}${e.why ? color.dim(`  because ${e.why}`) : ''}`);
+        }
+        const removed = data.edits.keeps_removing.slice(0, 5);
+        if (removed.length) console.log(`\n${color.bold('You keep removing')}  ${removed.map((w) => `"${w.word}" ${w.times}x`).join(', ')}`);
+        const added = data.edits.keeps_adding.slice(0, 5);
+        if (added.length) console.log(`${color.bold('You keep adding')}    ${added.map((w) => `"${w.word}" ${w.times}x`).join(', ')}`);
+        if (data.open) console.log(`\n${mark.next()} Ask your agent to turn these into context changes and tests. You approve each one.`);
+      },
+    };
+  },
+
   skills(args) {
     const sub = args._[0] || 'list';
     if (sub === 'list') {
@@ -249,6 +414,70 @@ const commands = {
   },
 };
 
+async function startCommand(ws, args) {
+  const humans = interactive() && !args.flags.json;
+  if (!args._[1] && !humans) fail('usage', 'Usage: gluely plays start <playbook> [--as id]', 'Run gluely playbooks --json to see them.');
+  const playbook = args._[1] || await pickPlaybook();
+  const id = args.flags.as || playbook;
+  if (humans) {
+    await walkPlay(ws, playbook, id);
+    return { data: null, render() {} };
+  }
+  const data = startPlay(ws, playbook, id);
+  return { data, render: () => renderStep(data) };
+}
+
+function renderStep(state) {
+  if (state.done) { line(true, `${state.play} has every answer. Next: gluely cost ${state.play}`); return; }
+  const { step } = state;
+  console.log(`${state.number}/${state.total}  ${color.bold(step.ask)}\n${color.dim(step.why)}`);
+  for (const option of step.options || []) console.log(`  ${option.value === option.label ? option.label : `${option.value}: ${option.label}`}`);
+  console.log(`${mark.next()} gluely plays answer ${state.play} ${step.id} <value>`);
+}
+
+function renderHome(state) {
+  const ready = state.stack ? Object.values(state.stack).filter(Boolean) : [];
+  const count = (status) => state.plays.filter((p) => p.status === status).length;
+  const r = state.tests.reasoned;
+  const d = state.tests.deterministic;
+  const label = (text) => color.dim(text.padEnd(9));
+  const info = [
+    color.bold(`Gluely  ${state.company.name || 'your workspace'}`),
+    color.dim(`context ${state.context_version}`),
+    '',
+    `${label('Stack')}${ready.length ? ready.join(', ') : 'no tools named yet'}`,
+    `${label('Plays')}${count('active')} active, ${count('draft')} draft`,
+    `${label('Tests')}${d.passed}/${d.total} rules, ${r.correct}/${r.answered} agent answers correct`,
+    `${label('Learned')}${state.learning.open} open, ${state.learning.promoted} promoted, ${state.learning.decisions} decisions`,
+  ];
+  console.log();
+  console.log(beside(mascot(), info));
+  console.log();
+  say(`${mark.next()} ${color.bold(state.next.step)}: ${state.next.how}`);
+  say(color.dim('plays start, tools, cost, learn, flow. gluely --help shows everything.'));
+  console.log();
+}
+
+function renderWelcome() {
+  const info = [
+    color.bold('Gluely'),
+    'Glue for your GTM stack.',
+    '',
+    `${mark.next()} Create your brain: gluely init <dir> --company <name>`,
+    color.dim('gluely --help shows everything.'),
+  ];
+  console.log();
+  console.log(beside(mascot(), info));
+  console.log();
+}
+
+function home() {
+  const ws = findWorkspace();
+  if (!ws) return { data: { workspace: null, next: 'gluely init <dir> --company <name>' }, render: renderWelcome };
+  const data = diagnose(ws);
+  return { data, render: () => renderHome(data) };
+}
+
 function newPlay(ws, id) {
   if (!id || !/^[a-z0-9-]+$/.test(id)) fail('usage', 'Usage: gluely plays new <id>. Use lowercase letters, numbers and dashes.');
   const target = path.join(ws, 'plays', `${id}.yaml`);
@@ -265,14 +494,15 @@ export async function main(argv) {
     const [name, ...rest] = args._;
     args._ = rest;
     if (args.flags.version) { console.log(VERSION); return 0; }
-    if (args.flags.help || !name) { console.log(HELP); return 0; }
-    const command = commands[name];
+    if (args.flags.help) { console.log(HELP); return 0; }
+    const command = name ? commands[name] : home;
     if (!command) fail('unknown_command', `Unknown command "${name}".`, 'Run gluely --help.');
-    const { data, render, exit = 0 } = command(args);
+    const { data, render, exit = 0 } = await command(args);
     if (args.flags.json) console.log(JSON.stringify(data, null, 2));
     else render();
     return exit;
   } catch (error) {
+    if (error instanceof Cancelled) { say(); say(color.dim('Stopped. Your answers are saved, so run the same command to pick up here.')); return 130; }
     if (!(error instanceof GluelyError)) throw error;
     if (wantsJson) console.log(JSON.stringify({ ok: false, error: { code: error.code, message: error.message, hint: error.hint } }, null, 2));
     else {

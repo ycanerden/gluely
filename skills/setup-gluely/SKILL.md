@@ -14,6 +14,7 @@ Read `../principle-challenge-the-brief/SKILL.md`, `../principle-recommend-never-
 - Ask one question at a time, and wait for the answer.
 - Look before you ask: never ask for something a connection can tell you.
 - Say why you're asking, in a few words.
+- Log as you go. Each decision and preference the founder gives you goes in with `gluely log add`, so nothing from this hour is lost.
 - Never ask anyone to paste an API key or password into chat.
 - Every connection is read-only and needs a clear yes first.
 
@@ -53,6 +54,10 @@ Count things. Say how many deals sit behind each claim. Under five won deals, sa
 
 Run `../gtm-mode/playbooks/challenge-icp.md`. Don't skip it, even if the founder sounds sure. This step is the point of onboarding.
 
+Log what they changed their mind about, and why: `gluely log add --kind decision --area icp --text "<decision>" --why "<evidence>" --by <agent/model> --json`.
+
+Then learn how they write. Ask for three messages they sent and were happy with, then ask what they never say. If several people send, do this for each of them. Log each preference with `gluely log add --kind input --area voice --scope <person> --text "<preference>" --json`, and turn the rules into `limits` and `banned` in `voice.md`.
+
 ## 6. Write the brain
 
 Write one claim per file, in the founder's words:
@@ -74,4 +79,6 @@ Every judgment call from the challenge becomes a test, with `gluely test add`. A
 
 Write `reports/onboarding-<date>.md` with: what the evidence showed, what the founder changed their mind about, what's still unproven, and which single play to try first, with the volume arithmetic.
 
-Show that report, then ask before committing. Run `gluely flow` and show it. Hand over to `/gtm-mode`.
+Run `gluely learn --json` and show what the brain kept from this session. Show the report, then ask before committing. Run `gluely flow` and show it.
+
+Suggest one first play from `gluely playbooks --json`, and hand over to `/gtm-mode` to set it up step by step. Nothing spends credits until `/check-cost` has been approved.

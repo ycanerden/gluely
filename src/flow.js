@@ -14,7 +14,7 @@ export function buildFlow(state) {
     context_version: state.context_version,
     stages: [
       stage('context', 'Context', filled ? 'working' : 'started', `${filled}/${context.total} files filled, ${context.personas} personas`),
-      stage('plays', 'Plays and ideas', plays.length ? 'working' : 'started', `${plays.length} plays, ${plays.filter((p) => p.status === 'active').length} active`),
+      stage('plays', 'Plays and ideas', plays.length ? 'working' : 'started', `${plays.length} plays, ${plays.filter((p) => p.status === 'active').length} active. Costs checked before spending`),
       stage('signals', 'Signals', 'later', 'content, inbound, job switch. Phase 1'),
       stage('excuse', 'Excuse', 'started', 'rules and draft check work. Link to signals in phase 2'),
       stage('gate', 'Exclusion gate', 'started', `${context.excluded_companies} companies excluded. Full gate in phase 1`),
@@ -26,7 +26,7 @@ export function buildFlow(state) {
       stage('bdr', 'BDR agent', 'later', 'reply to demo. Phase 3'),
       stage('sales', 'Sales reps, demo, close', 'tool', 'won and lost tracked in phase 4'),
       stage('transcripts', 'Transcripts', 'later', `${stack.transcripts ? `${stack.transcripts}, ` : ''}with consent. Phase 4`),
-      stage('learning', 'Learning', 'started', `${tests.deterministic.total + tests.reasoned.total} brain tests. Corrections become tests`),
+      stage('learning', 'Learning', 'started', `${tests.deterministic.total + tests.reasoned.total} brain tests, ${state.learning.open} open lessons, ${state.learning.promoted} promoted`),
     ],
   };
 }

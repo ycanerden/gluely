@@ -1,6 +1,7 @@
 // The drawing, walked for real. The loop must go around twice and the second round
 // must use what the first round learned. Every phase extends this test.
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 import { test } from 'node:test';
 import { commit, fillContext, gluely, makeWorkspace, write } from './helpers.js';
 
@@ -81,4 +82,34 @@ Hot is 70 or more.
   const third = gluely(['test', '--json'], ws);
   assert.equal(third.code, 1);
   assert.deepEqual(third.json.reasoned.regressions, ['reply-clear-yes']);
+});
+
+test('golden path: human edits become a rule that stops the same mistake for good', () => {
+  const ws = makeWorkspace();
+  fillContext(ws);
+  const draft = 'Quick thought on the new team.';
+  assert.equal(gluely(['check', 'draft', '--channel', 'email', '--text', draft, '--json'], ws).code, 0);
+
+  const edit = (before, after) => gluely(['log', 'add', '--kind', 'correction', '--area', 'voice', '--scope', 'can', '--before', before, '--after', after, '--why', 'Too salesy', '--json'], ws).json.id;
+  const ids = [edit('Quick question for you', 'One question for you'), edit('Quick thought on pricing', 'A thought on pricing')];
+
+  const lessons = gluely(['recall', '--area', 'voice', '--scope', 'can', '--json'], ws).json;
+  assert.equal(lessons.lessons.length, 2);
+  assert.equal(lessons.read_first, 'context/messaging/voice.md');
+
+  const learned = gluely(['learn', '--json'], ws).json;
+  assert.deepEqual(learned.edits.keeps_removing.map((w) => [w.word, w.times]), [['quick', 2]]);
+  assert.equal(learned.areas[0].home, 'context/messaging/voice.md');
+
+  const voice = `${ws}/context/messaging/voice.md`;
+  const before = fs.readFileSync(voice, 'utf8');
+  const rule = before.replace('banned:\n', 'banned:\n  - quick\n');
+  fs.writeFileSync(voice, rule);
+  commit(ws, 'Ban a word the founder keeps removing');
+
+  const blocked = gluely(['check', 'draft', '--channel', 'email', '--text', draft, '--json'], ws);
+  assert.equal(blocked.code, 1, blocked.out);
+  for (const id of ids) gluely(['log', 'promote', id, '--to', 'context/messaging/voice.md', '--json'], ws);
+  assert.equal(gluely(['learn', '--json'], ws).json.open, 0);
+  assert.equal(gluely(['recall', '--area', 'voice', '--json'], ws).json.lessons.length, 2);
 });

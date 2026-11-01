@@ -125,8 +125,51 @@ a { color: inherit; }
 .vault .actions { margin-top: 1.5rem; }
 footer { position: relative; z-index: 2; background: var(--layer-4); padding: 0 clamp(1.25rem, 5vw, 4rem) 3rem calc(var(--glue-x) + var(--glue-w) + var(--text-gap)); font-size: 1rem; color: #cfc7f0; }
 
+
+/* Extra strata. Each new layer steps one shade deeper, so the page still reads as a descent. */
+.layer-play { background: #3d2d9c; --next: #392a96; }
+.layer-cost { background: #392a96; --next: #35268c; }
+.layer-tools { background: #35268c; --next: var(--layer-2); }
+.layer-1 { --next: #3d2d9c; }
+.layer-2 { --next: #2f2280; }
+.layer-learn { background: #2f2280; --next: var(--layer-3); }
+.play-head { position: relative; z-index: 2; max-width: 44rem; margin-bottom: 1.75rem; }
+.play-tabs { position: relative; z-index: 2; display: flex; flex-wrap: wrap; gap: 0.6rem; margin-bottom: 1.25rem; }
+.tab {
+  font: 400 1.35rem/1 "Jersey 20", sans-serif; color: var(--milk); background: transparent; cursor: pointer;
+  border: 0; box-shadow: inset 0 0 0 var(--pixel) var(--milk); padding: 0.55rem 0.8rem 0.65rem;
+}
+.tab:hover { background: rgb(255 244 214 / 0.14); }
+.tab[aria-pressed="true"] { color: var(--ink); background: var(--honey); box-shadow: none; }
+.play-grid { position: relative; z-index: 2; display: grid; gap: clamp(1.5rem, 3vw, 2.5rem); grid-template-columns: minmax(0, 38rem) minmax(0, 20rem); align-items: start; }
+.play-term { white-space: normal; min-height: 25rem; display: flex; flex-direction: column; gap: 0.2rem; }
+.play-bar { color: var(--honey); letter-spacing: -0.02em; }
+.play-ask { font: 400 1.9rem/1.08 "Jersey 20", sans-serif; margin-top: 0.6rem; }
+.play-why { color: #b7aee0; margin-bottom: 0.7rem; }
+.play-options { list-style: none; padding: 0; display: grid; gap: 0.15rem; }
+.option {
+  width: 100%; text-align: left; font: inherit; color: var(--milk); background: transparent; border: 0;
+  padding: 0.12rem 0.5rem; cursor: pointer; display: flex; gap: 0.6rem; white-space: pre-wrap;
+}
+.option:hover, .option:focus-visible { background: rgb(255 180 46 / 0.2); }
+.option .num { color: #b7aee0; }
+.play-hint { color: #b7aee0; min-height: 3.2em; font-size: 0.85em; padding: 0.5rem 0.5rem 0; }
+.play-saved { color: var(--mint); }
+.play-yaml { white-space: pre-wrap; margin-top: 0.4rem; }
+.play-again { align-self: flex-start; margin-top: auto; }
+.play-side { font-size: 1rem; }
+.play-side h3 { font: 400 1.6rem/1.1 "Jersey 20", sans-serif; margin-bottom: 0.4rem; }
+.play-side ol { padding-left: 1.4rem; margin-top: 0.6rem; }
+.play-side li { color: #cfc7f0; }
+.play-side li.done { color: var(--mint); }
+.play-side li.now { color: var(--honey); }
+.tool-grid { position: relative; z-index: 2; list-style: none; padding: 0; display: grid; gap: 0.5rem; grid-template-columns: repeat(auto-fill, minmax(11.5rem, 1fr)); max-width: 62rem; }
+.tool-grid li { background: var(--milk); color: var(--ink); padding: 0.5rem 0.7rem 0.6rem; box-shadow: var(--pixel) var(--pixel) 0 var(--ink); font-size: 0.85rem; line-height: 1.25; }
+.tool-grid strong { display: block; font: 400 1.35rem/1.05 "Jersey 20", sans-serif; }
+
 @media (max-width: 1080px) {
-  .layer-inner { grid-template-columns: minmax(0, 1fr); }
+  .layer-inner, .play-grid { grid-template-columns: minmax(0, 1fr); }
+  .play-term { min-height: 0; }
 }
 @media (max-width: 859px) {
   :root { --step-2: 2.4rem; --text-gap: 1.25rem; }
@@ -155,7 +198,7 @@ footer { position: relative; z-index: 2; background: var(--layer-4); padding: 0 
       <div class="actions">
         <a class="button" href="https://github.com/ycanerden/gluely">See the code on GitHub</a>
       </div>
-      <p class="swap-note" id="note" aria-live="polite">Try it: click a brick to swap the tool. The glue holds.</p>
+      <p class="swap-note" id="note" aria-live="polite">Your tools can change. Click a brick to swap one yourself.</p>
     </div>
   </section>
 
@@ -178,6 +221,50 @@ You said mid-market. Your deals say otherwise:
       </div>
     </section>
 
+    <section class="layer layer-play" id="play">
+      <span class="bead" aria-hidden="true"></span>
+      <div class="play-head">
+        <h2>Set up a play, one question at a time</h2>
+        <p>Pick a classic. Gluely asks about each step, shows your options and saves your answers. Press the answers to try it.</p>
+      </div>
+      <div class="play-tabs" role="group" aria-label="Choose a playbook" id="play-tabs"></div>
+      <div class="play-grid">
+        <div class="term play-term" id="play-term" aria-live="polite"></div>
+        <aside class="play-side" id="play-side"></aside>
+      </div>
+    </section>
+
+    <section class="layer layer-cost">
+      <span class="bead" aria-hidden="true"></span>
+      <div class="layer-inner">
+        <div>
+          <h2>Know the cost before you spend a credit</h2>
+          <p>Before a scrape or an enrichment run, Gluely works out the bill from your own prices. A missing price stays missing and is never counted as free. Your agent can read the estimate, but only a person can approve it. If a price or the volume changes, it needs approving again.</p>
+        </div>
+        <pre class="term" aria-label="Output from gluely cost, with made-up prices"><span class="cmd">$ gluely cost job-switch</span>
+<span class="dim"># example, with made-up prices</span>
+Check the list  412 checks           $4.12
+Find contacts   1 to 2.1 lookups     $0.06 to $0.12
+Send messages   2.1 to 4.1 messages  $0.00
+
+Total           $4.18 to $4.24
+Per person      $2.06 to $4.06
+
+<span class="cmd">→</span> Within your $150 limit. A person needs to
+  approve it before anything spends credits.</pre>
+      </div>
+    </section>
+
+    <section class="layer layer-tools" id="tools">
+      <span class="bead" aria-hidden="true"></span>
+      <div class="play-head">
+        <h2>A tool library that ranks nobody</h2>
+        <p>Every tool is listed by the job it does, in alphabetical order. Yours come first, and any tool you type in works.</p>
+      </div>
+      <div class="play-tabs" role="group" aria-label="Filter tools by job" id="tool-tabs"></div>
+      <ul class="tool-grid" id="tool-grid"></ul>
+    </section>
+
     <section class="layer layer-2">
       <span class="bead" aria-hidden="true"></span>
       <div class="layer-inner">
@@ -192,6 +279,28 @@ You said mid-market. Your deals say otherwise:
 
 <span class="cmd">$ gluely check company rival.example</span>
 <span class="no">✘ rival.example is excluded: competitor</span></pre>
+      </div>
+    </section>
+
+    <section class="layer layer-learn">
+      <span class="bead" aria-hidden="true"></span>
+      <div class="layer-inner">
+        <div>
+          <h2>It learns how you write</h2>
+          <p>Every decision and every edit you make is logged, with who made it and why. Your agent reads those lessons before it writes the next draft. When you keep changing the same thing, Gluely shows you, and you can turn it into a rule that holds for good.</p>
+        </div>
+        <pre class="term" aria-label="Output from gluely learn"><span class="cmd">$ gluely learn</span>
+<span class="dim"># example</span>
+voice 3 open, belongs in context/messaging/voice.md
+  I never use exclamation marks
+  Changed "Quick question" to "One question"
+
+You keep removing  "quick" 2x
+
+<span class="cmd">$ gluely check draft --channel email \
+    --text "Quick thought on the new team"</span>
+<span class="no">✘ Draft breaks your voice rules</span>
+<span class="no">  ✘ banned phrase: "quick"</span></pre>
       </div>
     </section>
 
@@ -221,7 +330,7 @@ Brain tests   <span class="dim">context 319e1d3</span>
           </div>
         </div>
         <ul class="status">
-          <li class="today"><strong>Works today</strong>Stack map, agent onboarding, plays, the skill pack and brain tests.</li>
+          <li class="today"><strong>Works today</strong>Stack map, agent onboarding, guided plays, the tool library, cost checks, the decision log and brain tests.</li>
           <li class="next"><strong>Next</strong>The ledger on any data store, with Person 360, content and imports.</li>
           <li><strong>After that</strong>Opt-outs, reply tracking, BDR drafts, CRM sync, transcripts and the full loop.</li>
         </ul>
@@ -468,20 +577,28 @@ Brain tests   <span class="dim">context 319e1d3</span>
   const start = () => { if (!timer) timer = setInterval(step, TICK); };
   const stop = () => { clearInterval(timer); timer = null; };
 
+  const toolName = (tool) => NAMES[tool] || tool.charAt(0) + tool.slice(1).toLowerCase();
+
+  function swap(brick, describe, spoken) {
+    brick.index = (brick.index + 1) % brick.tools.length;
+    brick.hop = 4;
+    describe();
+    if (!spoken) return;
+    note.textContent = `${toolName(brick.tools[brick.index])} is in as your ${brick.role}. Nothing else had to change.`;
+  }
+
+  const describers = [];
   const hits = BRICKS.map((brick, i) => {
     const button = document.createElement('button');
     button.type = 'button';
     button.className = 'brick-hit';
-    const describe = () => button.setAttribute('aria-label', `Swap your ${brick.role} tool. Now ${NAMES[brick.tools[brick.index]] || brick.tools[brick.index]}.`);
+    const describe = () => button.setAttribute('aria-label', `Swap your ${brick.role} tool. Now ${toolName(brick.tools[brick.index])}.`);
     describe();
+    describers[i] = describe;
     button.addEventListener('click', () => {
-      brick.index = (brick.index + 1) % brick.tools.length;
-      brick.hop = 4;
+      lastTouch = performance.now();
+      swap(brick, describe, true);
       alert = 12;
-      describe();
-      const tool = brick.tools[brick.index];
-      const name = NAMES[tool] || tool.charAt(0) + tool.slice(1).toLowerCase();
-      note.textContent = `${name} is in as your ${brick.role}. Nothing else had to change.`;
       if (tick < END) tick = END;
       start();
     });
@@ -531,11 +648,144 @@ Brain tests   <span class="dim">context 319e1d3</span>
     sprite(BRAIN, BRAIN_COLORS, 0, 0, (x, y, w, h, color) => { g.fillStyle = PAL[color]; g.fillRect(x, y, w, h); });
   }
 
+  // The tower swaps its own tools every few seconds, one brick at a time, so the point lands
+  // without a click. It stops for reduced motion, and waits a while after someone clicks.
+  const AUTO_EVERY = 2600, AUTO_REST = 9000;
+  let lastTouch = 0, autoBrick = 0;
+  setInterval(() => {
+    if (reduced.matches || document.hidden || tick <= END) return;
+    if (performance.now() - lastTouch < AUTO_REST) return;
+    autoBrick = (autoBrick + 2) % BRICKS.length;
+    swap(BRICKS[autoBrick], describers[autoBrick], false);
+  }, AUTO_EVERY);
+
   addEventListener('resize', layout);
   document.addEventListener('visibilitychange', () => (document.hidden ? stop() : start()));
   document.fonts?.ready.then(layout);
   layout();
   start();
+})();
+</script>
+<script src="data.js"></script>
+<script>
+// The play and the library come from data.js, which is generated from the same files the CLI reads.
+(() => {
+  const { playbooks, jobs, access, tools } = window.GLUELY;
+  const $ = (id) => document.getElementById(id);
+  const make = (tag, className, text) => {
+    const node = document.createElement(tag);
+    if (className) node.className = className;
+    if (text !== undefined) node.textContent = text;
+    return node;
+  };
+  const KILLS = ['After 100 touches, with under 0.5% meetings', 'After 50 touches, with no positive replies', 'After 300 touches, with under 0.5% meetings'];
+  const SAMPLE = {
+    persona: ['Head of sales', 'RevOps lead', 'Founder'],
+    excuse: ['You used us at your last company', 'A note about the new team', 'Write my own in the CLI'],
+    number: { 'list-size': ['200', '400', '1,000'], volume: ['50', '200', '500'], budget: ['$50', '$150', '$500'] },
+    text: ['Your own answer'],
+  };
+
+  let book = playbooks.find((b) => b.id === 'job-switch');
+  let at = 0;
+  let answers = [];
+
+  const optionsFor = (step) => {
+    if (step.type === 'tool') return tools.filter((t) => t.jobs.includes(step.job)).map((t) => ({ label: t.name, hint: access[t.access] })).concat({ label: 'Something else', hint: 'Type in any tool' });
+    if (step.type === 'choice') return step.options.map((label) => ({ label }));
+    if (step.type === 'kill') return KILLS.map((label) => ({ label }));
+    if (step.type === 'number') return (SAMPLE.number[step.id] || SAMPLE.number.volume).map((label) => ({ label }));
+    return (SAMPLE[step.type] || SAMPLE.text).map((label) => ({ label }));
+  };
+
+  function side() {
+    const panel = $('play-side');
+    panel.replaceChildren(make('h3', '', book.name), make('p', '', book.summary));
+    const list = make('ol');
+    book.steps.forEach((step, i) => list.append(make('li', i < at ? 'done' : i === at ? 'now' : '', step.ask)));
+    panel.append(list);
+  }
+
+  function draw() {
+    const term = $('play-term');
+    term.replaceChildren();
+    side();
+    if (at >= book.steps.length) { finish(term); return; }
+    const step = book.steps[at];
+    const filled = Math.round(((at + 1) / book.steps.length) * 20);
+    term.append(make('div', 'play-bar', `${'█'.repeat(filled)}${'░'.repeat(20 - filled)} step ${at + 1} of ${book.steps.length}`));
+    term.append(make('div', 'play-ask', step.ask), make('div', 'play-why', step.why));
+    const list = make('ul', 'play-options');
+    const hint = make('div', 'play-hint');
+    optionsFor(step).forEach((option, i) => {
+      const row = make('li');
+      const button = make('button', 'option');
+      button.type = 'button';
+      button.append(make('span', 'num', String(i + 1).padStart(2)), make('span', '', option.label));
+      const show = () => { hint.textContent = option.hint || ''; };
+      button.addEventListener('mouseenter', show);
+      button.addEventListener('focus', show);
+      button.addEventListener('click', () => {
+        answers.push({ step, label: option.label });
+        at++;
+        draw();
+        const next = $('play-term').querySelector('button');
+        if (next) next.focus({ preventScroll: true });
+      });
+      row.append(button);
+      list.append(row);
+    });
+    term.append(list, hint);
+  }
+
+  function finish(term) {
+    term.append(make('div', 'play-saved', `✔ plays/${book.id}.yaml is ready as a draft`));
+    const rows = answers.map((a) => `${a.step.id}: ${a.label}`).join('\n');
+    term.append(make('div', 'play-yaml', rows));
+    term.append(make('div', 'dim', 'Next, the cost check runs, then a person approves it.'));
+    const again = make('button', 'tab play-again', 'Start again');
+    again.type = 'button';
+    again.addEventListener('click', () => choose(book));
+    term.append(again);
+    again.focus({ preventScroll: true });
+  }
+
+  function choose(next) {
+    book = next;
+    at = 0;
+    answers = [];
+    document.querySelectorAll('#play-tabs .tab').forEach((tab) => tab.setAttribute('aria-pressed', String(tab.dataset.id === book.id)));
+    draw();
+  }
+
+  playbooks.forEach((item) => {
+    const tab = make('button', 'tab', item.name);
+    tab.type = 'button';
+    tab.dataset.id = item.id;
+    tab.setAttribute('aria-pressed', 'false');
+    tab.addEventListener('click', () => choose(item));
+    $('play-tabs').append(tab);
+  });
+  choose(book);
+
+  function showTools(job) {
+    document.querySelectorAll('#tool-tabs .tab').forEach((tab) => tab.setAttribute('aria-pressed', String(tab.dataset.job === job)));
+    const grid = $('tool-grid');
+    grid.replaceChildren();
+    tools.filter((t) => t.jobs.includes(job)).forEach((tool) => {
+      const item = make('li');
+      item.append(make('strong', '', tool.name), access[tool.access]);
+      grid.append(item);
+    });
+  }
+  Object.entries(jobs).forEach(([job, label]) => {
+    const tab = make('button', 'tab', label);
+    tab.type = 'button';
+    tab.dataset.job = job;
+    tab.addEventListener('click', () => showTools(job));
+    $('tool-tabs').append(tab);
+  });
+  showTools('person-data');
 })();
 </script>
 </body>

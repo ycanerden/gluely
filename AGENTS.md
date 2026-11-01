@@ -15,4 +15,6 @@ Gluely is an open-source GTM brain. The user's agent does the thinking. Gluely k
 ## Before you finish a change
 - `npm test` passes. The golden path test must still go around the loop twice.
 - `claude plugin validate .` passes if you touched skills or manifests.
+- The library in `library/` holds no prices and no rankings. Tools stay alphabetical, and any tool name is valid at any step.
+- Humans and agents go through the same step and cost functions. `src/ui.js` and `src/walk.js` only draw and ask.
 - `gluely flow` tells the truth: a stage is marked working only when it works.

@@ -1,0 +1,47 @@
+id: inbound-demo
+name: Inbound demo request
+summary: Answer people who asked, fast, and pull them out of all outbound.
+hypothesis: >
+  Replying to a demo request within one business hour books more meetings than a slower reply.
+signal: { type: signal.inbound_form, window_days: 7 }
+steps:
+  - id: form
+    ask: Where do demo requests come in?
+    why: Any form works. Gluely only needs the event.
+    type: tool
+    job: forms
+    writes: signal.tool
+  - id: volume
+    ask: Roughly how many demo requests come in each month?
+    why: This shows how much reply work to expect.
+    type: number
+  - id: persona
+    ask: Who should get a fast human reply?
+    why: Not every form fill is a buyer.
+    type: persona
+    writes: audience.personas
+  - id: excuse
+    ask: How will you open the reply?
+    why: They asked, so answer directly.
+    type: excuse
+    writes: excuse.angle
+  - id: book
+    ask: How will they book a time?
+    why: Fewer steps mean more meetings.
+    type: tool
+    job: booking
+    writes: action.tool
+  - id: budget
+    ask: What is the most this play may spend each month?
+    why: Gluely checks every estimate against this before anything spends credits.
+    type: number
+    writes: budget.monthly_limit
+  - id: kill
+    ask: When should you rethink this play?
+    why: Inbound never dies, but it can get slow.
+    type: kill
+cost:
+  volume: volume
+  lines:
+    - { step: form, label: Capture requests, unit: request, count: checked }
+    - { step: book, label: Book meetings, unit: booking, count: eligible }

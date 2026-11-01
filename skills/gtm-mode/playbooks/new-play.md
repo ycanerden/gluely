@@ -1,6 +1,6 @@
 # New play
 
-A play is a hypothesis you can kill, not a campaign.
+A play is a hypothesis you can kill, not a campaign. If `gluely playbooks --json` already has this play, use `run-play.md` instead.
 
 1. Get the idea in the founder's words.
 2. Name the signal. If it's new, add it under `extensions.signals` in `workspace.yaml`.

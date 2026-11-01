@@ -1,5 +1,6 @@
 import { scanContext } from './context.js';
 import { runTests } from './brain-tests.js';
+import { learn } from './log.js';
 import { validatePlays } from './plays.js';
 import { installedSkills } from './skills.js';
 import { loadStack } from './stack.js';
@@ -14,6 +15,7 @@ export function diagnose(ws) {
   const skills = installedSkills(ws);
   const stack = loadStack(ws);
   const version = contextVersion(ws);
+  const learned = learn(ws);
   const isRepo = git(ws, ['rev-parse', '--is-inside-work-tree']) === 'true';
 
   const { summary } = context;
@@ -34,7 +36,8 @@ export function diagnose(ws) {
   else if (errors.length) next = { step: 'Fix the errors', how: 'Run gluely context check, then gluely plays validate' };
   else if (!summary.excluded_companies) next = { step: 'Add your exclusions', how: 'List clients, investors and partners in context/exclusions/companies.csv' };
   else if (tests.reasoned.pending.length) next = { step: 'Test the brain', how: 'In your agent, run /gtm-mode and ask it to run the brain tests' };
-  else if (!plays.plays.some((p) => p.status === 'active')) next = { step: 'Choose a first play', how: 'In your agent, run /gtm-mode and ask for a new play' };
+  else if (learned.open >= 3) next = { step: `Review ${learned.open} open lessons`, how: 'Run gluely learn, or ask your agent to run the learn playbook' };
+  else if (!plays.plays.some((p) => p.status === 'active')) next = { step: 'Choose a first play', how: 'Run gluely plays start' };
   else next = { step: 'Run the play and log what you learn', how: 'In your agent, run /gtm-mode' };
 
   return {
@@ -48,5 +51,6 @@ export function diagnose(ws) {
     context: summary,
     plays: plays.plays.map(({ id, status, signal }) => ({ id, status, signal })),
     tests,
+    learning: { open: learned.open, promoted: learned.promoted, decisions: learned.decisions },
   };
 }
