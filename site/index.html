@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gluely: glue for your GTM stack</title>
+<meta name="description" content="Gluely is an open-source GTM brain. Keep your tools. Your agent does the thinking, and every correction teaches the brain.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' shape-rendering='crispEdges'%3E%3Cpath fill='%23ffb42e' d='M6 0h4v4H6z'/%3E%3Cpath fill='%23fff4d6' d='M3 5h10v1h1v7h-1v1H3v-1H2V6h1z'/%3E%3Cpath fill='%231c1636' d='M5 8h2v2H5zM9 8h2v2H9z'/%3E%3C/svg%3E">
+<style>
+@font-face { font-family: "Jersey 20"; src: url("fonts/jersey20.woff2") format("woff2"); font-weight: 400; font-display: swap; }
+@font-face { font-family: "Atkinson Hyperlegible Next"; src: url("fonts/atkinson.woff2") format("woff2"); font-weight: 200 800; font-display: swap; }
+
+:root {
+  --sky: #4a58cf;
+  --ink: #1c1636;
+  --milk: #fff4d6;
+  --honey: #ffb42e;
+  --coral: #ff5a6e;
+  --mint: #56dfa0;
+  --layer-1: #4231a6;
+  --layer-2: #35268c;
+  --layer-3: #291c70;
+  --layer-4: #1f1554;
+  --brain-h: 96px;
+  --glue-x: 120px;
+  --glue-w: 18px;
+  --copy-x: 460px;
+  --pixel: 4px;
+  --step-0: 1.125rem;
+  --step-1: 1.5rem;
+  --step-2: 3rem;
+  --step-3: clamp(4rem, 8vw, 7.5rem);
+  --text-gap: clamp(1.75rem, 4vw, 3.5rem);
+}
+
+* { box-sizing: border-box; margin: 0; }
+html { background: var(--layer-4); }
+body {
+  font: 400 var(--step-0)/1.55 "Atkinson Hyperlegible Next", system-ui, sans-serif;
+  color: var(--milk);
+  background: var(--sky);
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+h1, h2 { font-family: "Jersey 20", "Atkinson Hyperlegible Next", sans-serif; font-weight: 400; line-height: 0.98; text-wrap: balance; }
+h1 { font-size: var(--step-3); }
+h2 { font-size: var(--step-2); margin-bottom: 1rem; }
+p { max-width: 58ch; }
+code { white-space: nowrap; }
+a { color: inherit; }
+:focus-visible { outline: 4px solid var(--honey); outline-offset: 4px; }
+
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+
+/* Hero: the sky, where the stack gets glued */
+.hero { position: relative; min-height: min(92svh, 800px); background: var(--sky); overflow: hidden; display: flex; align-items: center; }
+.scene { position: absolute; inset: 0; }
+#world { display: block; image-rendering: pixelated; }
+.hero-copy { position: relative; z-index: 2; margin-left: var(--copy-x); padding: 3rem clamp(1.25rem, 4vw, 3rem) 5.5rem 0; width: min(38rem, calc(100vw - var(--copy-x))); }
+.lede { font-size: var(--step-1); line-height: 1.35; margin-top: 1.25rem; max-width: 30ch; }
+.actions { display: flex; flex-wrap: wrap; gap: 1rem; align-items: center; margin-top: 2rem; }
+.button {
+  font: 400 1.6rem/1 "Jersey 20", sans-serif;
+  display: inline-block; padding: 0.9rem 1.2rem 1rem; color: var(--ink); background: var(--honey);
+  text-decoration: none; box-shadow: var(--pixel) var(--pixel) 0 var(--ink);
+}
+.button:hover { background: var(--milk); }
+.button:active { box-shadow: none; transform: translate(var(--pixel), var(--pixel)); }
+.swap-note { margin-top: 1.25rem; font-size: 1rem; min-height: 3em; max-width: 44ch; }
+
+.brick-hit {
+  position: absolute; z-index: 3; padding: 0; border: 0; background: transparent; cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.brick-hit:hover { background: rgb(255 244 214 / 0.14); }
+
+/* The strata: scrolling down moves through the architecture */
+.strata { position: relative; }
+.glue {
+  position: absolute; z-index: 1; top: 0; bottom: calc(3.5rem + var(--brain-h) - var(--pixel)); left: var(--glue-x); width: var(--glue-w);
+  background: var(--milk); box-shadow: calc(var(--pixel) * -1) 0 0 var(--ink), var(--pixel) 0 0 var(--ink);
+}
+.layer { position: relative; padding: clamp(4rem, 9vw, 7rem) clamp(1.25rem, 5vw, 4rem) clamp(4rem, 9vw, 7rem) calc(var(--glue-x) + var(--glue-w) + var(--text-gap)); }
+.layer::after {
+  content: ""; position: absolute; left: 0; right: 0; bottom: -12px; height: 12px; z-index: 0;
+  background: var(--next);
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='12' shape-rendering='crispEdges'%3E%3Cpath d='M0 8h16v4H0zM0 4h4v4H0zM8 4h4v4H8zM4 0h4v4H4z'/%3E%3C/svg%3E") repeat-x;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='12' shape-rendering='crispEdges'%3E%3Cpath d='M0 8h16v4H0zM0 4h4v4H0zM8 4h4v4H8zM4 0h4v4H4z'/%3E%3C/svg%3E") repeat-x;
+  transform: translateY(-12px);
+}
+.layer-1 { background: var(--layer-1); --next: var(--layer-2); }
+.layer-2 { background: var(--layer-2); --next: var(--layer-3); }
+.layer-3 { background: var(--layer-3); --next: var(--layer-4); }
+.layer-4 { background: var(--layer-4); padding-bottom: clamp(7rem, 12vw, 9rem); }
+.layer-4::after { display: none; }
+.layer-inner { display: grid; gap: clamp(2rem, 4vw, 4rem); align-items: start; grid-template-columns: minmax(0, 24rem) minmax(0, 38rem); }
+.layer-inner > * { position: relative; z-index: 2; }
+
+/* Each layer's bead of glue, where the line passes through it */
+.bead {
+  position: absolute; z-index: 1; left: calc(var(--glue-x) - 12px); top: clamp(4.3rem, 9.2vw, 7.3rem);
+  width: calc(var(--glue-w) + 24px); height: 32px; background: var(--milk);
+  clip-path: polygon(0 8px, 8px 8px, 8px 0, calc(100% - 8px) 0, calc(100% - 8px) 8px, 100% 8px, 100% calc(100% - 8px), calc(100% - 8px) calc(100% - 8px), calc(100% - 8px) 100%, 8px 100%, 8px calc(100% - 8px), 0 calc(100% - 8px));
+}
+#brain {
+  position: absolute; z-index: 2; bottom: 3.5rem; left: calc(var(--glue-x) + var(--glue-w) / 2);
+  transform: translateX(-50%); image-rendering: pixelated;
+}
+
+.term {
+  font: 400 0.95rem/1.6 ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  color: var(--milk); background: #120c2e; padding: 1.25rem 1.4rem; overflow-x: auto; white-space: pre;
+  clip-path: polygon(0 8px, 8px 8px, 8px 0, calc(100% - 8px) 0, calc(100% - 8px) 8px, 100% 8px, 100% calc(100% - 8px), calc(100% - 8px) calc(100% - 8px), calc(100% - 8px) 100%, 8px 100%, 8px calc(100% - 8px), 0 calc(100% - 8px));
+}
+.term .cmd { color: var(--honey); }
+.term .ok { color: var(--mint); }
+.term .no { color: #ff8b98; }
+.term .dim { color: #b7aee0; }
+
+.status { list-style: none; padding: 0; display: grid; gap: 1.25rem; }
+.status strong { font: 400 1.8rem/1.1 "Jersey 20", sans-serif; display: block; }
+.status .today strong { color: var(--mint); }
+.status .next strong { color: var(--honey); }
+
+.vault .actions { margin-top: 1.5rem; }
+footer { position: relative; z-index: 2; background: var(--layer-4); padding: 0 clamp(1.25rem, 5vw, 4rem) 3rem calc(var(--glue-x) + var(--glue-w) + var(--text-gap)); font-size: 1rem; color: #cfc7f0; }
+
+@media (max-width: 1080px) {
+  .layer-inner { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 859px) {
+  :root { --step-2: 2.4rem; --text-gap: 1.25rem; }
+  .hero { display: block; min-height: 0; }
+  .scene { position: relative; inset: auto; height: 348px; }
+  .hero-copy { margin-left: 0; padding: 2.25rem 1.25rem 1.5rem; width: auto; }
+  .swap-note { min-height: 2.5em; margin-bottom: 0; }
+  .layer { padding-right: 1.25rem; }
+  .term { font-size: 0.8rem; padding: 1rem; white-space: pre-wrap; overflow-wrap: anywhere; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .button:active { transform: none; }
+}
+</style>
+</head>
+<body>
+
+<main>
+  <section class="hero" aria-labelledby="title">
+    <div class="scene" id="scene">
+      <canvas id="world" role="img" aria-label="A blob of glue sticks five tool bricks into one tower, and a line of glue runs down from it."></canvas>
+    </div>
+    <div class="hero-copy">
+      <h1 id="title">Glue for your GTM stack</h1>
+      <p class="lede">Keep your tools. Gluely is the open-source brain between them, and every correction teaches it something.</p>
+      <div class="actions">
+        <a class="button" href="https://github.com/ycanerden/gluely">See the code on GitHub</a>
+      </div>
+      <p class="swap-note" id="note" aria-live="polite">Try it: click a brick to swap the tool. The glue holds.</p>
+    </div>
+  </section>
+
+  <div class="strata">
+    <div class="glue" aria-hidden="true"></div>
+
+    <section class="layer layer-1">
+      <span class="bead" aria-hidden="true"></span>
+      <div class="layer-inner">
+        <div>
+          <h2>Your agent does the thinking</h2>
+          <p>Use Claude Code, Cursor, Grok or whatever you trust. Run <code>/setup-gluely</code> and it maps your stack, reads your real deals with your permission, and challenges your ICP before it writes anything down.</p>
+        </div>
+        <pre class="term" aria-label="An example of the agent challenging an ICP, with made-up numbers"><span class="dim"># example, with made-up numbers</span>
+
+You said mid-market. Your deals say otherwise:
+7 of 9 won deals had under 30 people.
+
+<span class="cmd">Who fits your ICP perfectly and never buys?</span></pre>
+      </div>
+    </section>
+
+    <section class="layer layer-2">
+      <span class="bead" aria-hidden="true"></span>
+      <div class="layer-inner">
+        <div>
+          <h2>Gluely checks the work</h2>
+          <p>It never sends a message and never calls a model. It holds your rules: your voice, your exclusions and your plays, each with a kill rule. Every command also speaks JSON, so your agent can use it too.</p>
+        </div>
+        <pre class="term" aria-label="Output from gluely check"><span class="cmd">$ gluely check draft --channel email \
+    --text "Hi Jane, I hope this finds you well"</span>
+<span class="no">✘ Draft breaks your voice rules</span>
+<span class="no">  ✘ banned phrase: "hope this finds you well"</span>
+
+<span class="cmd">$ gluely check company rival.example</span>
+<span class="no">✘ rival.example is excluded: competitor</span></pre>
+      </div>
+    </section>
+
+    <section class="layer layer-3">
+      <span class="bead" aria-hidden="true"></span>
+      <div class="layer-inner">
+        <div>
+          <h2>Every correction becomes a test</h2>
+          <p>Early on, reply rates are mostly noise, but your corrections aren't. Tell the brain it got something wrong and it keeps the lesson. Each context change is then tested against the last one, so you see it when the brain gets worse.</p>
+        </div>
+        <pre class="term" aria-label="Output from gluely test"><span class="cmd">$ gluely test</span>
+Brain tests   <span class="dim">context 319e1d3</span>
+<span class="ok">✔</span> Rule tests   4/4
+<span class="ok">✔</span> Agent tests  6/7 correct
+  <span class="no">✘ icp-warm-founder: answered hot, expected warm</span></pre>
+      </div>
+    </section>
+
+    <section class="layer layer-4 vault">
+      <canvas id="brain" role="img" aria-label="The line of glue ends in a pixel brain with a padlock on it."></canvas>
+      <div class="layer-inner">
+        <div>
+          <h2>Your brain stays yours</h2>
+          <p>Your context, plays and tests live in your own private repo. Gluely has no servers, so your data stays in your own stack. It is free, MIT licensed, and recommends tools without ever requiring one.</p>
+          <div class="actions">
+            <a class="button" href="https://github.com/ycanerden/gluely">Get Gluely on GitHub</a>
+          </div>
+        </div>
+        <ul class="status">
+          <li class="today"><strong>Works today</strong>Stack map, agent onboarding, plays, the skill pack and brain tests.</li>
+          <li class="next"><strong>Next</strong>The ledger on any data store, with Person 360, content and imports.</li>
+          <li><strong>After that</strong>Opt-outs, reply tracking, BDR drafts, CRM sync, transcripts and the full loop.</li>
+        </ul>
+      </div>
+    </section>
+  </div>
+</main>
+
+<footer>Gluely is open source, and it never sends a message for you.</footer>
+
+<script>
+(() => {
+  const PAL = {
+    sky: '#4a58cf', cloud: '#6271e2', ink: '#1c1636', milk: '#fff4d6', shade: '#e8d6a6', honey: '#ffb42e', honeyDark: '#d4851a',
+    coral: '#ff5a6e', coralDark: '#c93a5a', coralLight: '#ff9aa8', mint: '#56dfa0', mintDark: '#2fa877', blue: '#8fc7ff', blueDark: '#5a8fd8',
+    plum: '#b77bff', plumDark: '#8350cf', layer: '#4231a6',
+  };
+
+  const BRICKS = [
+    { role: 'data store', fill: 'plum', tools: ['SNOWFLAKE', 'SQLITE', 'SUPABASE', 'POSTGRES', 'BIGQUERY', 'YOURS'] },
+    { role: 'CRM', fill: 'blue', tools: ['HUBSPOT', 'ATTIO', 'SALESFORCE', 'PIPEDRIVE', 'A SPREADSHEET', 'YOURS'] },
+    { role: 'outreach', fill: 'mint', tools: ['INSTANTLY', 'LEMLIST', 'SMARTLEAD', 'HEYREACH', 'BY HAND', 'YOURS'] },
+    { role: 'signals', fill: 'honey', tools: ['APIFY', 'PHANTOMBUSTER', 'CLAY', 'UNIPILE', 'YOURS'] },
+    { role: 'agent', fill: 'coral', tools: ['CLAUDE CODE', 'CURSOR', 'CODEX', 'GROK', 'YOURS'] },
+  ].map((b) => ({ ...b, index: 0, hop: 0 }));
+
+  const NAMES = {
+    SQLITE: 'SQLite', HUBSPOT: 'HubSpot', BIGQUERY: 'BigQuery', POSTGRES: 'Postgres', PHANTOMBUSTER: 'PhantomBuster', HEYREACH: 'HeyReach',
+    'A SPREADSHEET': 'A spreadsheet', 'BY HAND': 'Sending by hand', 'CLAUDE CODE': 'Claude Code', YOURS: 'Your own tool',
+  };
+
+  // A 5x7 pixel font, one number per row.
+  const FONT = {
+    A:[14,17,17,31,17,17,17],B:[30,17,17,30,17,17,30],C:[14,17,16,16,16,17,14],D:[30,17,17,17,17,17,30],E:[31,16,16,30,16,16,31],
+    F:[31,16,16,30,16,16,16],G:[14,17,16,23,17,17,15],H:[17,17,17,31,17,17,17],I:[14,4,4,4,4,4,14],J:[7,2,2,2,2,18,12],
+    K:[17,18,20,24,20,18,17],L:[16,16,16,16,16,16,31],M:[17,27,21,21,17,17,17],N:[17,25,21,19,17,17,17],O:[14,17,17,17,17,17,14],
+    P:[30,17,17,30,16,16,16],Q:[14,17,17,17,21,18,13],R:[30,17,17,30,20,18,17],S:[15,16,16,14,1,1,30],T:[31,4,4,4,4,4,4],
+    U:[17,17,17,17,17,17,14],V:[17,17,17,17,17,10,4],W:[17,17,17,21,21,27,17],X:[17,17,10,4,10,17,17],Y:[17,17,10,4,4,4,4],
+    Z:[31,1,2,4,8,16,31],'!':[4,4,4,4,4,0,4],' ':[0,0,0,0,0,0,0],
+  };
+
+  const HERO = [
+    '........kkkk........',
+    '.......koooOk.......',
+    '.......koooOk.......',
+    '......kkkkkkkk......',
+    '.....kooooooOOk.....',
+    '.....kkkkkkkkkk.....',
+    '....kmmmmmmmmmmk....',
+    '...kmmmmmmmmmmmmk...',
+    '..kmmmmmmmmmmmmmmk..',
+    '..kmmmmmmmmmmmmmmk..',
+    '.kmmmmmmmmmmmmmmmmk.',
+    '.kmmmmmmmmmmmmmmmsk.',
+    '.kmmmmmmmmmmmmmmmsk.',
+    '.kmmmmmmmmmmmmmmssk.',
+    '.kmmmmmmmmmmmmmsssk.',
+    '.ksmmmmmmmmmmmssssk.',
+    '..kssssssssssssssk..',
+    '...kkkkkkkkkkkkkk...',
+  ];
+  const HERO_COLORS = { k: 'ink', o: 'honey', O: 'honeyDark', m: 'milk', s: 'shade' };
+
+  const BRAIN = [
+    '.......kkkkkk..kkkkkk.......',
+    '.....kkppppppkkppppppkk.....',
+    '....kppPPPppppkkppppPPpk....',
+    '...kpppppPpppkkppppPpppk....',
+    '..kppPpppppppkkpppppppPpk...',
+    '.kpppPPppppPpkkpPpppPPpppk..',
+    '.kppppppppPPpkkpPPppppppppk.',
+    'kppPPppppppppkkppppppppPPppk',
+    'kpppPPpppkkkkkkkkkkpppPPpppk',
+    'kppppppppkhhhhhhhhkppppppppk',
+    'kpppppPpkkhkkkkkkhkkpPpppppk',
+    '.kppPPppkhhkkkkkkhhkppPPppk.',
+    '.kppppppkhhhhhhhhhhkppppppk.',
+    '..kppppPkhhhhkkhhhhkPppppk..',
+    '...kpppPkhhhhkkhhhhkPpppk...',
+    '....kkppkhhhhhhhhhhkppkk....',
+    '......kkkHHHHHHHHHHkkk......',
+    '.........kkkkkkkkkk.........',
+  ];
+  const BRAIN_COLORS = { k: 'ink', p: 'coralLight', P: 'coralDark', h: 'honey', H: 'honeyDark' };
+
+  const BW = 104, BH = 20, SEAM = 4, HERO_W = 20, HERO_H = 18;
+  // Where glue runs over the brick below: x offset from the tower, then length. Kept clear of the labels.
+  const DRIPS = [[4, 9], [BW - 11, 13], [5, 6], [BW - 12, 10]];
+  const TICK = 1000 / 12;
+  const FALL_GAP = 8, START = 6;
+  const JUMP_AT = START + BRICKS.length * FALL_GAP + 4, JUMP_LEN = 12;
+  const END = JUMP_AT + JUMP_LEN;
+  const reduced = matchMedia('(prefers-reduced-motion: reduce)');
+
+  const canvas = document.getElementById('world');
+  const ctx = canvas.getContext('2d');
+  const scene = document.getElementById('scene');
+  const root = document.documentElement;
+  const note = document.getElementById('note');
+
+  let W = 0, H = 0, scale = 3, towerX = 0, groundY = 0, tick = reduced.matches ? END : 0, alert = 0, timer = null;
+
+  const rect = (x, y, w, h, color) => { ctx.fillStyle = PAL[color]; ctx.fillRect(x, y, w, h); };
+  const brickY = (i) => groundY - (i + 1) * BH - i * SEAM;
+  const brickFall = (i) => START + i * FALL_GAP;
+
+  function text(str, x, y, color) {
+    ctx.fillStyle = PAL[color];
+    for (const ch of str) {
+      (FONT[ch] || FONT[' ']).forEach((row, r) => {
+        for (let c = 0; c < 5; c++) if (row & (16 >> c)) ctx.fillRect(x + c, y + r, 1, 1);
+      });
+      x += 6;
+    }
+  }
+
+  function drawBrick(brick, x, y) {
+    rect(x, y, BW, BH, 'ink');
+    rect(x + 1, y + 1, BW - 2, BH - 2, brick.fill);
+    rect(x + 1, y + 1, BW - 2, 1, 'milk');
+    rect(x + 1, y + BH - 3, BW - 2, 2, `${brick.fill}Dark`);
+    const label = brick.tools[brick.index];
+    text(label, x + Math.floor((BW - label.length * 6 + 1) / 2), y + 6, 'ink');
+  }
+
+  function drawHero(x, y, lookX, blink) {
+    sprite(HERO, HERO_COLORS, x, y, rect);
+    for (const eyeX of [x + 5, x + 12]) {
+      if (blink) rect(eyeX, y + 11, 3, 1, 'ink');
+      else {
+        rect(eyeX, y + 9, 3, 4, 'ink');
+        rect(eyeX + (lookX > 0 ? 1 : 0), y + 9, 2, 2, 'milk');
+      }
+    }
+    rect(x + 8, y + 13, 1, 1, 'ink');
+    rect(x + 11, y + 13, 1, 1, 'ink');
+    rect(x + 9, y + 14, 2, 1, 'ink');
+    rect(x + 3, y + 13, 2, 1, 'coralLight');
+    rect(x + 15, y + 13, 2, 1, 'coralLight');
+  }
+
+  function sprite(rows, colors, x, y, paint) {
+    rows.forEach((row, r) => {
+      [...row].forEach((ch, c) => { if (ch !== '.') paint(x + c, y + r, 1, 1, colors[ch]); });
+    });
+  }
+
+  function drawCloud(x, y, size) {
+    rect(x + 6 * size, y, 10 * size, 2 * size, 'cloud');
+    rect(x + 2 * size, y + 2 * size, 20 * size, 2 * size, 'cloud');
+    rect(x, y + 4 * size, 28 * size, 2 * size, 'cloud');
+  }
+
+  function drawGround() {
+    rect(0, groundY, W, H - groundY, 'mint');
+    rect(0, groundY, W, 1, 'milk');
+    for (let y = groundY + 5; y < H; y++) {
+      const density = (y - groundY - 5) / Math.max(1, H - groundY - 5);
+      for (let x = (y % 2); x < W; x += 2) {
+        if (((x * 7 + y * 13) % 8) / 8 < density * 1.5) rect(x, y, 1, 1, 'mintDark');
+      }
+    }
+    rect(0, H - 2, W, 2, 'layer');
+    const beat = Math.floor(tick / 6) % 2;
+    for (let x = 9; x < W; x += 23 + (x % 7)) {
+      rect(x, groundY - 2 - ((x + beat) % 2), 1, 2 + ((x + beat) % 2), 'mintDark');
+      rect(x + 2, groundY - 1, 1, 1, 'mintDark');
+    }
+  }
+
+  // Glue squeezed out between two bricks, with one drip running down the brick below.
+  function drawSeam({ y, grown, drip: [dx, len] }) {
+    const x = towerX;
+    rect(x - 3, y, BW + 6, SEAM, 'ink');
+    rect(x - 2, y + 1, BW + 4, SEAM - 2, 'milk');
+    rect(x + 1, y, BW - 2, SEAM, 'milk');
+    rect(x + 1, y + SEAM - 1, BW - 2, 1, 'shade');
+    const length = Math.max(0, Math.min(len, grown));
+    if (!length) return;
+    const top = y + SEAM - 1;
+    rect(x + dx - 1, top, 8, length + 1, 'ink');
+    rect(x + dx, top + length + 1, 6, 1, 'ink');
+    rect(x + dx, top, 6, length + 1, 'milk');
+    rect(x + dx + 4, top + 1, 2, length, 'shade');
+  }
+
+  function render() {
+    rect(0, 0, W, H, 'sky');
+    const sway = Math.floor(tick / 36) % 2;
+    drawCloud(W - 62 + sway, 14, 2);
+    drawCloud(W - 40 - sway, 58, 1);
+    drawCloud(towerX + 4 - sway, 14, 1);
+
+    drawGround();
+
+    const glueX = towerX + 12;
+    const settled = BRICKS.filter((_, i) => tick >= brickFall(i) + 7).length;
+    if (settled) {
+      rect(glueX - 1, groundY - 1, 8, H - groundY + 1, 'ink');
+      rect(glueX, groundY - 1, 6, H - groundY + 1, 'milk');
+    }
+
+    const seams = [];
+    BRICKS.forEach((brick, i) => {
+      const t = tick - brickFall(i);
+      if (t < 0) return;
+      const target = brickY(i);
+      const y = Math.min(target, Math.round(-BH + t * t * 1.7));
+      const lift = brick.hop > 0 ? (brick.hop > 2 ? 2 : 1) : 0;
+      drawBrick(brick, towerX, y - lift);
+      const landed = y >= target;
+      if (landed && i > 0) seams.push({ y: target + BH, grown: t - FALL_GAP + 3, drip: DRIPS[i - 1] });
+    });
+    seams.forEach(drawSeam);
+
+    const topY = brickY(BRICKS.length - 1) - HERO_H;
+    const floorX = towerX + BW + 8;
+    const floorY = groundY - HERO_H;
+    const topX = towerX + Math.floor((BW - HERO_W) / 2);
+    let x = floorX, y = floorY;
+    if (tick >= END) { x = topX; y = topY; }
+    else if (tick >= JUMP_AT) {
+      const u = (tick - JUMP_AT) / JUMP_LEN;
+      x = Math.round(floorX + (topX - floorX) * u);
+      y = Math.round(floorY + (topY - floorY) * u - 30 * 4 * u * (1 - u));
+    } else {
+      const since = (tick - START) % FALL_GAP;
+      if (tick >= START + FALL_GAP - 1 && since < 3) y -= [2, 3, 1][since];
+    }
+    const blink = tick >= END && tick % 42 < 2;
+    drawHero(x, y, tick >= END ? 1 : -1, blink);
+    if (alert > 0 && alert % 4 > 0) text('!', x + HERO_W + 3, y + 2, 'milk');
+
+    for (const b of BRICKS) if (b.hop > 0) b.hop--;
+    if (alert > 0) alert--;
+  }
+
+  function step() {
+    render();
+    tick++;
+    const busy = alert > 0 || BRICKS.some((b) => b.hop > 0) || tick <= END;
+    if (reduced.matches && !busy) { stop(); return; }
+  }
+  const start = () => { if (!timer) timer = setInterval(step, TICK); };
+  const stop = () => { clearInterval(timer); timer = null; };
+
+  const hits = BRICKS.map((brick, i) => {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'brick-hit';
+    const describe = () => button.setAttribute('aria-label', `Swap your ${brick.role} tool. Now ${NAMES[brick.tools[brick.index]] || brick.tools[brick.index]}.`);
+    describe();
+    button.addEventListener('click', () => {
+      brick.index = (brick.index + 1) % brick.tools.length;
+      brick.hop = 4;
+      alert = 12;
+      describe();
+      const tool = brick.tools[brick.index];
+      const name = NAMES[tool] || tool.charAt(0) + tool.slice(1).toLowerCase();
+      note.textContent = `${name} is in as your ${brick.role}. Nothing else had to change.`;
+      if (tick < END) tick = END;
+      start();
+    });
+    scene.appendChild(button);
+    return button;
+  });
+
+  function layout() {
+    const wide = innerWidth >= 860;
+    const width = document.documentElement.clientWidth;
+    scale = innerWidth >= 1800 ? 5 : innerWidth >= 1280 ? 4 : wide ? 3 : 2;
+    const height = wide ? scene.clientHeight : 348;
+    W = Math.ceil(width / scale);
+    H = Math.ceil(height / scale);
+    canvas.width = W;
+    canvas.height = H;
+    canvas.style.width = `${W * scale}px`;
+    canvas.style.height = `${H * scale}px`;
+    groundY = H - 18;
+    towerX = wide ? Math.max(12, Math.round(W * 0.06)) : 10;
+
+    root.style.setProperty('--glue-x', `${(towerX + 12) * scale}px`);
+    root.style.setProperty('--glue-w', `${6 * scale}px`);
+    root.style.setProperty('--copy-x', `${(towerX + BW + HERO_W + 16) * scale}px`);
+    root.style.setProperty('--brain-h', `${BRAIN.length * scale}px`);
+    root.style.setProperty('--pixel', `${scale}px`);
+
+    hits.forEach((button, i) => {
+      Object.assign(button.style, {
+        left: `${towerX * scale}px`,
+        top: `${brickY(i) * scale}px`,
+        width: `${BW * scale}px`,
+        height: `${BH * scale}px`,
+      });
+    });
+    drawBrain();
+    render();
+  }
+
+  function drawBrain() {
+    const c = document.getElementById('brain');
+    c.width = BRAIN[0].length;
+    c.height = BRAIN.length;
+    c.style.width = `${c.width * scale}px`;
+    c.style.height = `${c.height * scale}px`;
+    const g = c.getContext('2d');
+    sprite(BRAIN, BRAIN_COLORS, 0, 0, (x, y, w, h, color) => { g.fillStyle = PAL[color]; g.fillRect(x, y, w, h); });
+  }
+
+  addEventListener('resize', layout);
+  document.addEventListener('visibilitychange', () => (document.hidden ? stop() : start()));
+  document.fonts?.ready.then(layout);
+  layout();
+  start();
+})();
+</script>
+</body>
+</html>

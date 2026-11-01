@@ -216,3 +216,10 @@ test('skills are complete and every playbook named by gtm-mode exists', () => {
     assert.ok(skills.includes(`principle-${name}`), name);
   }
 });
+
+test('the landing page runs with nothing from outside the repo', () => {
+  const html = fs.readFileSync(path.join(ROOT, 'site/index.html'), 'utf8');
+  assert.doesNotMatch(html, /<script[^>]+src=|<link[^>]+stylesheet|fonts\.googleapis/);
+  for (const [, font] of html.matchAll(/url\("(fonts\/[^"]+)"\)/g)) assert.ok(fs.existsSync(path.join(ROOT, 'site', font)), font);
+  assert.match(html, /made-up numbers/);
+});

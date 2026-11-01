@@ -42,6 +42,10 @@ gluely test          # compares this context version with the last, and fails on
 
 **Build on it.** Add your own signals in `workspace.yaml`, your own plays in `plays/`, and your own tests in `tests/`, with no change to core.
 
+## Landing page
+
+Open `site/index.html`. It's one file with no build step and no outside scripts. Click a brick to swap the tool.
+
 ## Status
 
 Phase 0 of 5: the brain pack.
