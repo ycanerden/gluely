@@ -232,10 +232,10 @@ const answers = {
   send: 'Unlisted Mailer', budget: '150', kill: '0',
 };
 
-function walk(ws) {
+function walk(ws, overrides = {}) {
   let state = gluely(['plays', 'start', 'job-switch', '--json'], ws).json;
   while (!state.done) {
-    const result = gluely(['plays', 'answer', 'job-switch', state.step.id, answers[state.step.id], '--by', 'test/model', '--json'], ws);
+    const result = gluely(['plays', 'answer', 'job-switch', state.step.id, { ...answers, ...overrides }[state.step.id], '--by', 'test/model', '--json'], ws);
     assert.equal(result.code, 0, result.out);
     state = result.json.next;
   }
@@ -424,6 +424,75 @@ test('the next step puts a command on its own line, so nobody types the word run
   assert.match(out, /^ +\$ gluely plays start$/m);
   assert.doesNotMatch(out, /Run gluely/);
   assert.match(out, /With your agent/);
+});
+
+test('a waterfall is saved as a recipe, and each try is priced on what the last one missed', () => {
+  const ws = makeWorkspace();
+  fillContext(ws);
+  walk(ws, { contact: 'Clay, Treg, Hunter' });
+  const play = YAML.parse(fs.readFileSync(path.join(ws, 'plays/job-switch.yaml'), 'utf8'));
+  assert.deepEqual(play.enrich.waterfall, { providers: ['Clay', 'Treg', 'Hunter'], stop_on: 'verified' });
+  assert.equal(play.enrich.tool, 'Clay');
+  assert.equal(gluely(['stack', '--json'], ws).json.layers.find((l) => l.id === 'enrichment').tool, 'Clay');
+  assert.equal(gluely(['plays', 'validate', '--json'], ws).code, 0);
+
+  const estimate = gluely(['cost', 'job-switch', '--json'], ws).json;
+  const tries = estimate.lines.filter((l) => l.step === 'contact');
+  assert.deepEqual(tries.map((t) => t.tool), ['Clay', 'Treg', 'Hunter']);
+  assert.ok(Math.abs(tries[1].units[1] - tries[0].units[1] / 2) < 1e-9);
+  assert.ok(Math.abs(tries[2].units[1] - tries[0].units[1] / 4) < 1e-9);
+  assert.equal(estimate.waterfall, true);
+  assert.ok(estimate.guessed.includes('hit_rate'));
+  assert.equal(estimate.missing_prices.length, 5);
+
+  gluely(['cost', 'job-switch', '--hit-rate', '80%', '--json'], ws);
+  const sharper = gluely(['cost', 'job-switch', '--json'], ws).json.lines.find((l) => l.tool === 'Treg');
+  assert.ok(Math.abs(sharper.units[1] - tries[0].units[1] * 0.2) < 1e-9);
+  assert.equal(gluely(['plays', 'answer', 'job-switch', 'contact', 'Clay, Clay', '--json'], ws).code, 1);
+});
+
+test('one tool at a waterfall step stays a normal tool', () => {
+  const ws = makeWorkspace();
+  fillContext(ws);
+  walk(ws);
+  const play = YAML.parse(fs.readFileSync(path.join(ws, 'plays/job-switch.yaml'), 'utf8'));
+  assert.equal(play.enrich.waterfall, undefined);
+  assert.equal(gluely(['cost', 'job-switch', '--json'], ws).json.waterfall, false);
+});
+
+test('the cost check warns when money goes before the filter, or a kill rule is too slow', () => {
+  const ws = makeWorkspace();
+  fillContext(ws);
+  walk(ws, { kill: '1' });
+  priced(ws);
+  const { warnings } = gluely(['cost', 'job-switch', '--json'], ws).json;
+  const early = warnings.find((w) => w.code === 'spend_before_filter');
+  assert.ok(early.share > 0.9);
+  assert.ok(Math.abs(early.sample_cost - 0.5) < 1e-9);
+  assert.ok(warnings.find((w) => w.code === 'kill_too_slow').months > 6);
+  assert.match(gluely(['cost', 'job-switch'], ws).out, /before your ICP filter/);
+
+  gluely(['plays', 'answer', 'job-switch', 'kill', '0', '--json'], ws);
+  const play = YAML.parse(fs.readFileSync(path.join(ws, 'plays/job-switch.yaml'), 'utf8'));
+  assert.deepEqual(play.kill, { after_days: 90, if: 'meetings == 0' });
+  assert.equal(gluely(['plays', 'validate', '--json'], ws).code, 0);
+  assert.equal(gluely(['cost', 'job-switch', '--json'], ws).json.warnings.some((w) => w.code === 'kill_too_slow'), false);
+});
+
+test('a kill rule still has to exist, whichever kind it is', () => {
+  const ws = makeWorkspace();
+  fillContext(ws);
+  write(ws, 'plays/first-play.yaml', PLAY().replace(/kill:.*/, 'kill: { if: "meetings == 0" }'));
+  const result = gluely(['plays', 'validate', '--json'], ws);
+  assert.equal(result.code, 1);
+  assert.match(result.out, /after_touches or after_days/);
+});
+
+test('Exa, Firecrawl and Treg are in the library, and nothing holds a price', () => {
+  const text = fs.readFileSync(path.join(ROOT, 'library/tools.yaml'), 'utf8');
+  assert.doesNotMatch(text, /[$€£]\d|price:/);
+  const web = gluely(['tools', 'web-research', '--json'], ROOT).json.jobs[0].tools.map((t) => t.name);
+  assert.deepEqual(web, ['Exa', 'Firecrawl', 'Treg']);
 });
 
 test('a blank or unclear price is refused, because an estimate must never look cheaper than it is', async () => {

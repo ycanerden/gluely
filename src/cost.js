@@ -10,7 +10,9 @@ import { fail } from './output.js';
 import { readPlay, savePlay } from './playbooks.js';
 
 const pricesFile = (ws) => path.join(ws, 'prices.yaml');
-export const DEFAULT_ASSUMPTIONS = { fit: 0.3, touches: 2, checks_per_month: 1 };
+export const DEFAULT_ASSUMPTIONS = { fit: 0.3, touches: 2, checks_per_month: 1, hit_rate: 0.5 };
+const SAMPLE = 50;
+const SLOW_KILL_MONTHS = 6;
 
 export function loadPrices(ws) {
   const file = pricesFile(ws);
@@ -62,7 +64,7 @@ const lineCost = (units, tool, job) => {
   return { priced: !unpriced, cost: unpriced ? null : credits.map((c) => c * tool.credit_price), credits };
 };
 
-const ASSUMPTION_FLAGS = [['fit', 'fit'], ['touches', 'touches'], ['checks', 'checks_per_month'], ['meeting-rate', 'meeting_rate']];
+const ASSUMPTION_FLAGS = [['fit', 'fit'], ['touches', 'touches'], ['checks', 'checks_per_month'], ['meeting-rate', 'meeting_rate'], ['hit-rate', 'hit_rate']];
 
 export function setAssumptions(ws, id, flags) {
   if (!ASSUMPTION_FLAGS.some(([flag]) => flags[flag] !== undefined)) return;
@@ -73,7 +75,7 @@ export function setAssumptions(ws, id, flags) {
     if (flags[flag] === undefined) continue;
     const value = Number(String(flags[flag]).replace('%', '')) / (String(flags[flag]).includes('%') ? 100 : 1);
     if (!Number.isFinite(value) || value <= 0) fail('bad_assumption', `--${flag} must be a number above zero.`);
-    if (['fit', 'meeting_rate'].includes(key) && value > 1) fail('bad_assumption', `--${flag} is a share, so use 0.3 or 30%.`);
+    if (['fit', 'meeting_rate', 'hit_rate'].includes(key) && value > 1) fail('bad_assumption', `--${flag} is a share, so use 0.3 or 30%.`);
     next[key] = value;
   }
   savePlay(ws, { ...spec, assumptions: next });
@@ -99,12 +101,17 @@ export function estimateCost(ws, id) {
   };
 
   const prices = loadPrices(ws);
-  const lines = book.cost.lines.map((line) => {
+  // In a waterfall each provider only sees what the one before it missed, and every try is billed.
+  const lines = book.cost.lines.flatMap((line) => {
     const step = book.steps.find((s) => s.id === line.step);
-    const name = spec.setup[line.step];
-    const units = counts[line.count];
-    return { step: line.step, label: line.label, tool: name, job: step.job, unit: line.unit, units, ...lineCost(units, prices.tools[name], step.job) };
+    const names = [spec.setup[line.step]].flat();
+    return names.map((name, i) => {
+      const units = counts[line.count].map((u) => u * (1 - a.hit_rate) ** i);
+      const label = names.length > 1 ? `${line.label}, try ${i + 1}` : line.label;
+      return { step: line.step, label, tool: name, job: step.job, unit: line.unit, count: line.count, units, ...lineCost(units, prices.tools[name], step.job) };
+    });
   });
+  const waterfall = lines.some((l) => l.label.includes(', try '));
 
   const used = [...new Set(lines.map((l) => l.tool))];
   const fees = used.reduce((sum, name) => sum + (prices.tools[name]?.monthly || 0), 0);
@@ -119,6 +126,21 @@ export function estimateCost(ws, id) {
     const left = prices.tools[name]?.credits_left;
     return { tool: name, monthly: need, left: left ?? null, months_left_at_most_use: left !== undefined && need[1] > 0 ? left / need[1] : null };
   }).filter(Boolean);
+
+  const warnings = [];
+  const unfiltered = priced.filter((l) => l.count === 'checked');
+  const beforeFilter = unfiltered.reduce((sum, l) => sum + l.cost[1], 0);
+  if (usage[1] > 0 && beforeFilter / usage[1] >= 0.5) {
+    const share = beforeFilter / usage[1];
+    const sample = unfiltered.reduce((sum, l) => sum + (l.cost[1] / l.units[1]) * SAMPLE, 0);
+    const trial = volume > SAMPLE ? ` A sample of ${SAMPLE} would cost ${prices.currency}${sample.toFixed(2)}.` : '';
+    warnings.push({ code: 'spend_before_filter', share, sample_cost: volume > SAMPLE ? sample : null, message: `${Math.round(share * 100)}% of usage is spent before your ICP filter. Remove excluded companies first, which is free.${trial}` });
+  }
+  const touchLimit = spec.kill?.after_touches;
+  if (touchLimit && counts.touches[1] > 0) {
+    const months = Math.ceil(touchLimit / counts.touches[1]);
+    if (months > SLOW_KILL_MONTHS) warnings.push({ code: 'kill_too_slow', months, message: `At this volume, ${touchLimit} touches takes about ${months} months, so this kill rule won't stop a weak play in time. Use a time-based rule.` });
+  }
 
   const limit = spec.budget?.monthly_limit ?? null;
   const fingerprint = crypto.createHash('sha256').update(JSON.stringify({ lines, a, fees, limit, currency: prices.currency })).digest('hex').slice(0, 12);
@@ -136,7 +158,9 @@ export function estimateCost(ws, id) {
     currency: prices.currency,
     period: 'month',
     assumptions: a,
-    guessed: Object.keys(DEFAULT_ASSUMPTIONS).filter((key) => spec.assumptions?.[key] === undefined),
+    guessed: Object.keys(DEFAULT_ASSUMPTIONS).filter((key) => spec.assumptions?.[key] === undefined && (key !== 'hit_rate' || waterfall)),
+    waterfall,
+    warnings,
     lines,
     fees,
     usage,

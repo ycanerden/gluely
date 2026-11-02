@@ -10,8 +10,10 @@ const steps: Record<string, string> = {
   Exclude: "an exclusion rule hits",
   Suppress: "a suppression hash hits",
   Clear: "exclusion and suppression pass",
+  LateExclude: "an exclusion rule hits after the check",
+  LateSuppress: "they opt out after the check",
   Approve: "a person approves the draft",
-  Send: "the touch goes out with play, variant, and context",
+  Send: "the gate is checked again, and the touch goes out with play, variant, and context",
   Done: "nothing further is sent",
 };
 
@@ -24,8 +26,7 @@ export const state = (v: Gates) => {
   if (v.gate === "checking") return "At the gates";
   if (v.touch === "none") return "Exclusion and suppression passed";
   if (v.touch === "approved") return "Draft approved by a person";
-  if (v.attr === "play, variant, context") return "Sent with play, variant, and context";
-  return "Sent without attribution";
+  return "Sent with play, variant, and context";
 };
 
 export const step = (action: string) => {

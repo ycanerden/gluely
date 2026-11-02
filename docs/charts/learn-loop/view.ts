@@ -1,49 +1,54 @@
 type Learn = {
-  label: string;
-  card: string;
+  source: string;
+  draft: string;
+  entry: string;
   proposal: string;
   suppressed: boolean;
 };
 
 const steps: Record<string, string> = {
-  LabelPositive: "the reply is labeled positive",
-  LabelNotNow: "the reply is labeled not now",
-  LabelUnsubscribe: "the reply is labeled unsubscribe",
-  DraftCard: "an anonymised card is drafted",
-  ProposeUpdate: "the card proposes a play update",
-  Approve: "a person approves the play update",
+  Write: "the agent writes the lesson",
+  Refuse: "Gluely refuses it, so the agent writes it again",
+  Keep: "the lesson goes in the log",
+  Propose: "the agent proposes a rule on a branch",
+  Approve: "a person approves, and the lesson is promoted",
+  Drop: "a person says no, and it is dropped with a reason",
   Done: "the lesson is settled",
 };
 
-export const title = "A reply can teach the play, without the prospect's words";
+export const title = "Every reply can teach, and a person approves the rule";
 
 export const state = (v: Learn) => {
-  if (v.card === "raw") return "Card holds the prospect's words";
-  if (v.proposal === "approved") return "A person approved the play update";
-  if (v.proposal === "proposed") return "A play update is proposed";
-  if (v.card === "counts") return "Card holds counts and shared words only";
-  if (v.label === "positive") return "Reply labeled positive";
-  if (v.label === "not_now") return "Reply labeled not now, no card";
-  if (v.label === "unsubscribe") return "Unsubscribe suppressed, no card";
-  return "A reply is waiting";
+  if (v.entry === "promoted") return "Promoted into a rule or test";
+  if (v.entry === "dropped") return "Dropped, with a reason";
+  if (v.proposal === "proposed") return "A rule is proposed";
+  if (v.entry === "open") return "Open lesson, read by gluely recall";
+  if (v.draft === "personal") return "Lesson holds personal data";
+  if (v.draft === "clean") return "Lesson drafted";
+  if (v.source === "unsubscribe") return "Unsubscribed and suppressed";
+  return v.source === "none" ? "Waiting for a reply or an edit" : "Something to learn from";
 };
 
-export const step = (action: string) => {
+export const step = (action: string, _from?: Learn, to?: Learn) => {
+  if (action.startsWith("Arrive")) {
+    if (to?.source === "unsubscribe") return "they unsubscribe";
+    return to?.source === "human_edit" ? "a person edits a draft" : "a reply is labeled positive, not now or negative";
+  }
   const label = steps[action];
   if (!label) throw new Error(`no reader label for ${action}`);
   return label;
 };
 
 export const group = (v: Learn) => {
-  if (v.proposal === "approved") return "Approved";
-  if (v.card === "counts" || v.card === "raw" || v.proposal === "proposed") return "Lesson";
-  if (v.label === "unsubscribe" || v.label === "not_now") return "No card";
-  return "Reply";
+  if (v.entry === "promoted" || v.entry === "dropped") return "Settled";
+  if (v.draft === "personal") return "Refused";
+  if (v.entry === "open") return "In the log";
+  return "Incoming";
 };
 
 export const colors = {
-  Reply: "yellow",
-  "No card": "orange",
-  Lesson: "teal",
-  Approved: "blue",
+  Incoming: "yellow",
+  Refused: "orange",
+  "In the log": "teal",
+  Settled: "blue",
 };

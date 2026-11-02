@@ -5,6 +5,7 @@
 jobs:
   person-data: Check people and job moves
   signal-data: Collect posts, engagers and followers
+  web-research: Search and read the public web
   hiring-data: Find companies that are hiring
   contact-data: Find emails and phone numbers
   email-verify: Verify emails
@@ -21,6 +22,8 @@ access:
   own-data: Your own data
   database: A vendor's dataset
   aggregator: Many data providers in one tool
+  gateway: One account for many paid APIs
+  web-search: Searches the public web, so check your legal basis for personal data
   scraper: Scrapes public pages, so check the terms and your legal basis
   your-account: Works through your logged-in account, so keep volumes low
   software: Software you run or use
@@ -39,8 +42,10 @@ tools:
   - { name: Coresignal, jobs: [person-data, hiring-data], access: database }
   - { name: CRM export, jobs: [person-data], access: own-data }
   - { name: Cursor, jobs: [agent], access: software }
+  - { name: Exa, jobs: [web-research, signal-data, hiring-data], access: web-search }
   - { name: Fathom, jobs: [transcripts], access: software }
   - { name: Findymail, jobs: [contact-data], access: database }
+  - { name: Firecrawl, jobs: [web-research, signal-data, hiring-data], access: scraper }
   - { name: Fireflies, jobs: [transcripts], access: software }
   - { name: Gmail drafts, jobs: [outreach], access: software }
   - { name: Gong, jobs: [transcripts], access: software }
@@ -70,6 +75,7 @@ tools:
   - { name: Supabase, jobs: [store], access: software }
   - { name: Tally, jobs: [forms], access: software }
   - { name: TheirStack, jobs: [hiring-data], access: database }
+  - { name: Treg, jobs: [person-data, signal-data, contact-data, web-research], access: gateway }
   - { name: Typeform, jobs: [forms], access: software }
   - { name: Unipile, jobs: [person-data, signal-data], access: your-account }
   - { name: ZeroBounce, jobs: [email-verify], access: software }

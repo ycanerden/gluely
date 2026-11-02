@@ -39,6 +39,7 @@ steps:
     why: Their old work email is now dead.
     type: tool
     job: contact-data
+    waterfall: true
     writes: enrich.tool
   - id: excuse
     ask: What is your honest reason to reach out?

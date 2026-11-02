@@ -239,7 +239,7 @@ You said mid-market. Your deals say otherwise:
       <div class="layer-inner">
         <div>
           <h2>Know the cost before you spend a credit</h2>
-          <p>Before a scrape or an enrichment run, Gluely works out the bill from your own prices. A missing price stays missing and is never counted as free. Your agent can read the estimate, but only a person can approve it. If a price or the volume changes, it needs approving again.</p>
+          <p>Before a scrape or an enrichment run, Gluely works out the bill from your own prices. A missing price stays missing and is never counted as free, and it warns you when most of the money goes before your ICP filter. Your agent can read the estimate, but only a person can approve it. If a price or the volume changes, it needs approving again.</p>
         </div>
         <pre class="term" aria-label="Output from gluely cost, with made-up prices"><span class="cmd">$ gluely cost job-switch</span>
 <span class="dim"># example, with made-up prices</span>
@@ -678,7 +678,7 @@ Brain tests   <span class="dim">context 319e1d3</span>
     if (text !== undefined) node.textContent = text;
     return node;
   };
-  const KILLS = ['After 100 touches, with under 0.5% meetings', 'After 50 touches, with no positive replies', 'After 300 touches, with under 0.5% meetings'];
+  const KILLS = ['After 90 days, with no meetings', 'After 100 touches, with under 0.5% meetings', 'After 50 touches, with no positive replies', 'After 300 touches, with under 0.5% meetings'];
   const SAMPLE = {
     persona: ['Head of sales', 'RevOps lead', 'Founder'],
     excuse: ['You used us at your last company', 'A note about the new team', 'Write my own in the CLI'],
@@ -691,7 +691,7 @@ Brain tests   <span class="dim">context 319e1d3</span>
   let answers = [];
 
   const optionsFor = (step) => {
-    if (step.type === 'tool') return tools.filter((t) => t.jobs.includes(step.job)).map((t) => ({ label: t.name, hint: access[t.access] })).concat({ label: 'Something else', hint: 'Type in any tool' });
+    if (step.type === 'tool') return tools.filter((t) => t.jobs.includes(step.job)).map((t) => ({ label: t.name, hint: access[t.access] })).concat({ label: step.waterfall ? 'Something else, or a waterfall' : 'Something else', hint: step.waterfall ? 'Type in any tool, or several to try in order' : 'Type in any tool' });
     if (step.type === 'choice') return step.options.map((label) => ({ label }));
     if (step.type === 'kill') return KILLS.map((label) => ({ label }));
     if (step.type === 'number') return (SAMPLE.number[step.id] || SAMPLE.number.volume).map((label) => ({ label }));

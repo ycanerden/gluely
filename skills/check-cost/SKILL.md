@@ -17,7 +17,7 @@ Run this before any paid job: a scrape, an enrichment run, a credit-based table,
    - `gluely cost price "<tool>" --job <job> --credits <n> --credit-price <amount> --credits-left <n> --json`
 3. Replace guesses with evidence. `guessed` lists the assumptions still on their defaults. If the company has real numbers, set them: `gluely cost <play> --fit 20% --touches 3 --meeting-rate 4% --json`.
 4. Show the estimate: each line, the total range, people reached, cost per person, and any credits. Say which numbers are guesses.
-5. Challenge it. Ask whether a cheaper order exists, such as checking exclusions and ICP before paying for contact data, or sampling 50 people before the full list. If most of the spend happens before the filter, say so.
+5. Challenge it. Read out every entry in `warnings`. `spend_before_filter` means most of the money goes before the ICP filter, so propose removing excluded companies first and running a sample. `kill_too_slow` means the play can't die in time, so propose a time-based kill rule. If `waterfall` is true, check `hit_rate`: it's a guess until you have a real number, and it decides what the later providers cost.
 6. Read `status`:
 
 | Status | Do this |

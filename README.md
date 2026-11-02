@@ -6,7 +6,7 @@ Gluely isn't an outbound tool, and it doesn't pick your vendors. Bring any scrap
 
 ![The Gluely loop](docs/flow.svg)
 
-Green works today, yellow has started, blue is next, grey is a later phase, and white is your own tool or team.
+Green works today, yellow has started, blue is next, grey is a later phase, and white is your own tool or team. [The statecharts](docs/charts/README.md) show how the send gates, Person 360, play arbitration and learning are meant to behave.
 
 ## Try it
 
@@ -40,7 +40,9 @@ gluely test          # compares this context version with the last, and fails on
 
 **Set up a play one question at a time.** `gluely plays start` walks you through a playbook: job switch, post engagers, hiring signal, inbound demo request or own network. At each step it shows your options, saves your answer and tells you the honest arithmetic. If you stop, it picks up where you left off. Agents use the same steps with `gluely plays next` and `gluely plays answer --json`.
 
-**Know the cost before you spend a credit.** `gluely cost <play>` works out the monthly bill from your own prices, which stay in your workspace. A missing price stays missing and is never counted as free. Spending needs a budget and a person's approval in a terminal, and that approval lapses when a price or the volume changes. `/check-cost` is the skill your agent runs first. Gluely can't stop a tool from spending, so this is a check your agent follows, not a lock on your accounts.
+**Waterfalls are recipes, not calls.** At the contact step, name several tools in order, such as `Findymail, Hunter, Treg`. The play stores the order and the stop rule, `gluely cost` prices each try, and your agent runs it through your own connections after approval. Gluely still makes no calls.
+
+**Know the cost before you spend a credit.** `gluely cost <play>` works out the monthly bill from your own prices, which stay in your workspace. A missing price stays missing and is never counted as free. It warns you when most of the money goes before your ICP filter, and when a kill rule would take too long to trigger. Spending needs a budget and a person's approval in a terminal, and that approval lapses when a price or the volume changes. `/check-cost` is the skill your agent runs first. Gluely can't stop a tool from spending, so this is a check your agent follows, not a lock on your accounts.
 
 **It learns how you write.** Each play answer and test correction lands in `learning/log.jsonl` on its own, and your agent logs each edit and preference with `gluely log add`. `gluely recall --area voice` gives your agent those lessons before it writes, and `--scope` keeps each person's voice separate. `gluely learn` shows what keeps coming up, so you can promote it into a rule that `gluely check draft` enforces. You approve every promotion.
 

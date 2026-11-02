@@ -29,9 +29,11 @@ async function answerFor(step) {
   if (step.never?.length) say(`${color.dim('Never:')} ${step.never.join(', ')}`);
   say();
   if (!step.options?.length) return ask(step.type === 'number' ? 'Number: ' : 'Your answer: ');
-  const other = step.type === 'tool' ? 'Something else' : step.type === 'kill' ? null : 'Write my own';
+  const toolOther = step.waterfall ? 'Something else, or a waterfall' : 'Something else';
+  const other = step.type === 'tool' ? toolOther : step.type === 'kill' ? null : 'Write my own';
   const row = await select({ options: step.options, other });
-  return row.other ? ask('Your answer: ') : row.value;
+  if (!row.other) return row.value;
+  return ask(step.waterfall ? `Tools to try, in order, with commas: ${color.dim('(or just one)')} ` : 'Your answer: ');
 }
 
 function showResult(result) {
@@ -85,7 +87,9 @@ export function renderCost(estimate) {
   }
   const a = estimate.assumptions;
   const guessed = estimate.guessed.length ? ' These are starting guesses until you have real numbers.' : '';
-  say(color.dim(`Assumes ${percent(a.fit)} fit your ICP, ${a.touches} touches each, ${a.checks_per_month} check a month.${guessed}`));
+  const tries = estimate.waterfall ? ` Each waterfall provider finds ${percent(a.hit_rate)}, and every try is billed.` : '';
+  say(color.dim(`Assumes ${percent(a.fit)} fit your ICP, ${a.touches} touches each, ${a.checks_per_month} check a month.${tries}${guessed}`));
+  for (const warning of estimate.warnings) say(`${mark.warn()} ${warning.message}`);
   say();
   const verdict = {
     play_stopped: () => `${mark.bad()} This play is stopped, so nothing can be spent on it.`,

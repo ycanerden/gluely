@@ -9,10 +9,12 @@ import { fail } from './output.js';
 import { addEntry, refuseNames } from './log.js';
 import { LAYERS, layerForJob, loadStack, setStack } from './stack.js';
 
+// Time comes first because a small list can take years to reach a touch count.
 const KILL_OPTIONS = [
-  { label: 'After 100 touches, with under 0.5% meetings', after: 100, if: 'meeting_rate < 0.5%' },
-  { label: 'After 50 touches, with no positive replies', after: 50, if: 'positive_rate == 0' },
-  { label: 'After 300 touches, with under 0.5% meetings', after: 300, if: 'meeting_rate < 0.5%' },
+  { label: 'After 90 days, with no meetings', rule: { after_days: 90, if: 'meetings == 0' } },
+  { label: 'After 100 touches, with under 0.5% meetings', rule: { after_touches: 100, if: 'meeting_rate < 0.5%' } },
+  { label: 'After 50 touches, with no positive replies', rule: { after_touches: 50, if: 'positive_rate == 0' } },
+  { label: 'After 300 touches, with under 0.5% meetings', rule: { after_touches: 300, if: 'meeting_rate < 0.5%' } },
 ];
 
 const playFile = (ws, id) => path.join(ws, 'plays', `${id}.yaml`);
@@ -68,6 +70,7 @@ function resolveStep(ws, step, spec) {
     const yours = loadStack(ws).layers.map((l) => l.tool).filter(Boolean);
     out.job = step.job;
     out.any_tool_allowed = true;
+    out.waterfall = Boolean(step.waterfall);
     out.options = toolsForJob(ws, step.job, yours).map((t) => ({ label: t.name, value: t.name, hint: t.hint, yours: t.yours }));
   }
   if (step.type === 'persona') out.options = personaIds(ws).map((p) => ({ label: p, value: p }));
@@ -121,7 +124,7 @@ export function answerStep(ws, id, stepId, raw, by = 'agent') {
   if (step.type === 'kill') {
     const chosen = KILL_OPTIONS[Number(value)];
     if (!chosen) fail('bad_answer', `Answer with one of 0 to ${KILL_OPTIONS.length - 1}.`);
-    spec.kill = { after_touches: chosen.after, if: chosen.if };
+    spec.kill = chosen.rule;
     saved = chosen.label;
   }
   if (step.type === 'persona') {
@@ -132,7 +135,17 @@ export function answerStep(ws, id, stepId, raw, by = 'agent') {
     if (!known.length) extra = { warning: 'No personas are written yet, so write this one in context/personas/ before the play goes active.' };
     saved = wanted;
   }
-  if (step.writes) setPath(spec, step.writes, saved);
+  // A waterfall is a recipe in the play. Gluely prices it, and the agent runs it after approval.
+  let written = saved;
+  if (step.type === 'tool' && step.waterfall) {
+    const chain = value.split(',').map((tool) => tool.trim()).filter(Boolean);
+    if (new Set(chain).size !== chain.length) fail('bad_answer', 'Each tool can appear once in a waterfall.');
+    const { waterfall, ...rest } = spec.enrich || {};
+    spec.enrich = chain.length > 1 ? { ...rest, waterfall: { providers: chain, stop_on: 'verified' } } : rest;
+    saved = chain.length > 1 ? chain : chain[0];
+    written = chain[0];
+  }
+  if (step.writes) setPath(spec, step.writes, written);
   spec.setup = { ...spec.setup, [step.id]: Array.isArray(saved) ? [...saved] : saved };
   savePlay(ws, spec);
   // The excuse is the one answer an agent should remember when it writes, so it counts as a lesson.
@@ -147,8 +160,8 @@ export function answerStep(ws, id, stepId, raw, by = 'agent') {
   if (step.type === 'tool') {
     const layer = layerForJob(step.job);
     if (layer && !loadStack(ws).layers.find((l) => l.id === layer).tool) {
-      setStack(ws, layer, saved);
-      extra = { ...extra, added_to_stack: { layer, label: LAYERS[layer].label, tool: saved } };
+      setStack(ws, layer, written);
+      extra = { ...extra, added_to_stack: { layer, label: LAYERS[layer].label, tool: written } };
     }
   }
   return { saved: { step: step.id, value: saved }, ...extra, next: nextStep(ws, id) };
