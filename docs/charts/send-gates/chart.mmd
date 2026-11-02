@@ -1,0 +1,38 @@
+---
+title: "Gates before a send"
+---
+stateDiagram-v2
+  state "Legend" as legend {
+    lg0: Before a send
+    lg1: Stopped
+    lg2: Cleared
+    lg3: Sent
+  }
+  class lg0 yellow
+  class lg1 orange
+  class lg2 teal
+  class lg3 blue
+  s0: At the gates
+  s1: Exclusion and suppression passed
+  s2: Engaged, still not consent
+  s3: Excluded, no send
+  s4: Suppressed, no send
+  s5: Draft approved by a person
+  s6: Sent with play, variant, and context
+  [*] --> s0
+  s0 --> s1: exclusion and suppression pass
+  s0 --> s2: a like or a visit arrives
+  s0 --> s3: an exclusion rule hits
+  s0 --> s4: a suppression hash hits
+  s1 --> s5: a person approves the draft
+  s2 --> s1: exclusion and suppression pass
+  s2 --> s3: an exclusion rule hits
+  s2 --> s4: a suppression hash hits
+  s5 --> s6: the touch goes out with play, variant, and context
+  class s0 yellow
+  class s1 teal
+  class s2 yellow
+  class s3 orange
+  class s4 orange
+  class s5 teal
+  class s6 blue

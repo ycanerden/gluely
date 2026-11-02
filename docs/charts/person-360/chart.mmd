@@ -1,0 +1,50 @@
+---
+title: "Person 360 is a view over an append-only ledger"
+---
+stateDiagram-v2
+  direction LR
+  state "Legend" as legend {
+    lg0: Identity
+    lg1: CRM boundary
+  }
+  class lg0 blue
+  class lg1 orange
+  state "At the same time" as all {
+    state "Identity" as r0 {
+      s0: No one on file
+      s1: Internal id minted
+      s2: LinkedIn URL on the spine
+      [*] --> s0
+      s0 --> s1: a LinkedIn URL arrives and an internal id is minted
+      s1 --> s2: that URL is linked onto the id
+    }
+    --
+    state "Ledger" as r1 {
+      s3: Nothing logged yet
+      s4: A signal is kept
+      s5: Sales-ready mark appended
+      [*] --> s3
+      s3 --> s4: a signal is appended [when Identity is not No one on file]
+      s4 --> s5: a sales-ready mark is appended
+    }
+    --
+    state "View" as r2 {
+      s6: No view yet
+      s7: Person 360 shows this person
+      [*] --> s6
+      s6 --> s7: Person 360 is filled in from the ledger [when Identity is not No one on file and Ledger is not Nothing logged yet]
+    }
+    --
+    state "CRM" as r3 {
+      s8: Not in the CRM
+      s9: Sales-ready fields only
+      s10: Stage mirrored from the CRM
+      [*] --> s8
+      s8 --> s9: sales-ready fields go to the CRM [when Identity is not No one on file and Ledger is Sales-ready mark appended and View is Person 360 shows this person]
+      s9 --> s10: a stage change comes back as an event
+    }
+  }
+  class s0 blue
+  class s3 blue
+  class s9 orange
+  class s10 orange

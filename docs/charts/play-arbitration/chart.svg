@@ -1,0 +1,82 @@
+<svg xmlns="http://www.w3.org/2000/svg" class="pele pele-state" viewBox="0 0 1230 754" width="1230" height="754" style="max-width:100%;height:auto;--_bg:var(--pele-bg,#fff);--_fg:var(--pele-fg,#1f1f1f);--_m:var(--pele-muted,#6e6e6e);--_l:var(--pele-line,#1f1f1f);--_s:var(--pele-surface,#f3f3f3);--_a:var(--pele-surface-alt,#e6e6e6);--_b:var(--pele-border,#8a8a8a);--_c:var(--pele-accent,#5b7bd5);color:var(--_fg);--_tw:var(--pele-title-weight,bold);--_fm:var(--pele-font-mono,monospace);font:16px sans-serif;letter-spacing:normal;word-spacing:normal;text-transform:none;direction:ltr;font-family:var(--pele-font,sans-serif)" fill="var(--_fg)" role="graphics-document document" aria-roledescription="state">
+<style>
+.pele {
+  --pele-bg: #ffffff;
+  --pele-fg: #1c1c1c;
+  --pele-muted: #656565;
+  --pele-line: #808080;
+  --pele-surface: #fcfcfc;
+  --pele-surface-alt: #f1f1f1;
+  --pele-border: #c9c9c9;
+}
+.pele .blue rect { fill: #c3e0ff; }
+.pele .orange rect { fill: #f0d3bf; }
+.pele .purple rect { fill: #e3d5ff; }
+.pele .yellow rect { fill: #f0dcbf; }
+.pele .teal rect { fill: #bfe3df; }
+.pele .tan rect { fill: #e5d9ce; }
+.pele .pink rect { fill: #ffcbe6; }
+.pele .breaks rect {
+  fill: #ffecee !important;
+  stroke: #e72e3b !important;
+  stroke-width: 2.5px !important;
+}
+.pele .breaks text {
+  fill: #cd2834 !important;
+}
+.pele .mayBreak rect {
+  fill: #fff3e6 !important;
+  stroke: #e8730c !important;
+  stroke-width: 2.5px !important;
+}
+.pele .mayBreak text {
+  fill: #b85a06 !important;
+}
+.pele .bugPath rect {
+  stroke: #1680f3 !important;
+  stroke-width: 2.5px !important;
+}
+.pele .repeats rect {
+  stroke: #9b35d6 !important;
+  stroke-width: 2.5px !important;
+  stroke-dasharray: 6 3;
+}
+@media (prefers-color-scheme: dark) {
+  .pele {
+    --pele-bg: #1f1f1f;
+    --pele-fg: #f5f5f5;
+    --pele-muted: #acacac;
+    --pele-line: #939393;
+    --pele-surface: #121212;
+    --pele-surface-alt: #2c2c2c;
+    --pele-border: #4e4e4e;
+  }
+  .pele .blue rect { fill: #1b3857; }
+  .pele .orange rect { fill: #573117; }
+  .pele .purple rect { fill: #3c2e57; }
+  .pele .yellow rect { fill: #573d17; }
+  .pele .teal rect { fill: #174641; }
+  .pele .tan rect { fill: #3d3127; }
+  .pele .pink rect { fill: #57233e; }
+  .pele .breaks rect {
+    fill: #2e2021 !important;
+    stroke: #cf2b35 !important;
+  }
+  .pele .breaks text {
+    fill: #ff6463 !important;
+  }
+  .pele .mayBreak rect {
+    fill: #2e2619 !important;
+    stroke: #d0700f !important;
+  }
+  .pele .mayBreak text {
+    fill: #ffa257 !important;
+  }
+  .pele .bugPath rect {
+    stroke: #116dd2 !important;
+  }
+  .pele .repeats rect {
+    stroke: #9a3fcf !important;
+  }
+}
+</style><text class="pele-title" font-weight="var(--_tw)" text-anchor="middle" xml:space="preserve"><tspan x="615" y="25.6">One person, one active play</tspan></text><g transform="translate(0,36)"><g class="pele-clusters"><g class="pele-cluster pele-state-composite" data-id="legend"><rect x="467.41" y="8" width="295.17" height="112" rx="10" fill="var(--_a)" fill-opacity="0.5" stroke="var(--_b)"/><path d="M467.41,44H762.58" fill="none" stroke="var(--_b)"/><text class="pele-cluster-label" x="614.99" y="31.6" text-anchor="middle">Legend</text></g><g class="pele-cluster pele-state-composite" data-id="all"><rect x="8" y="160" width="1213.99" height="550" rx="10" fill="var(--_a)" fill-opacity="0.5" stroke="var(--_b)"/><path d="M8,196H1221.99" fill="none" stroke="var(--_b)"/><text class="pele-cluster-label" x="614.99" y="183.6" text-anchor="middle">At the same time</text></g><g class="pele-cluster pele-state-composite" data-id="r0"><rect x="34" y="222" width="524.24" height="462" rx="10" fill="var(--_a)" fill-opacity="0.5" stroke="var(--_b)"/><path d="M34,258H558.24" fill="none" stroke="var(--_b)"/><text class="pele-cluster-label" x="296.12" y="245.6" text-anchor="middle">Job-switch</text></g><g class="pele-cluster pele-state-composite" data-id="r1"><rect x="618.24" y="231" width="577.75" height="444" rx="10" fill="var(--_a)" fill-opacity="0.5" stroke="var(--_b)"/><path d="M618.24,267H1195.99" fill="none" stroke="var(--_b)"/><text class="pele-cluster-label" x="907.11" y="254.6" text-anchor="middle">Hiring</text></g></g><g class="pele-dividers" stroke-dasharray="4 4" fill="none" stroke="var(--_b)"><path class="pele-divider" d="M588.24,196V710"/></g><g class="pele-edges" fill="none" stroke="var(--_l)" stroke-linecap="round"><g class="pele-edge pele-transition" data-id="edge0"><path d="M342.31,288L342.31,325"/><path class="pele-marker" d="M342.31,332L338.95,324L345.67,324Z" fill="var(--_l)" stroke="none"/></g><g class="pele-edge pele-transition" data-id="edge1"><path d="M334.31,376C334.31,385.25 239.42,385.25 239.42,394.5L239.42,471"/><path class="pele-marker" d="M239.42,478L236.06,470L242.78,470Z" fill="var(--_l)" stroke="none"/></g><g class="pele-edge pele-transition" data-id="edge2"><path d="M211.39,522C211.39,531.25 136.14,531.25 136.14,540.5L136.14,598.5C136.14,605.44 206.05,605.44 206.05,612.38L206.05,617"/><path class="pele-marker" d="M206.05,624L202.69,616L209.41,616Z" fill="var(--_l)" stroke="none"/></g><g class="pele-edge pele-transition" data-id="edge3"><path d="M350.31,376C350.31,385.25 445.21,385.25 445.21,394.5L445.21,471"/><path class="pele-marker" d="M445.21,478L441.85,470L448.57,470Z" fill="var(--_l)" stroke="none"/></g><g class="pele-edge pele-transition" data-id="edge4"><path d="M267.44,522C267.44,531.25 342.7,531.25 342.7,540.5L342.7,598.5C342.7,605.44 272.79,605.44 272.79,612.38L272.79,617"/><path class="pele-marker" d="M272.79,624L269.43,616L276.15,616Z" fill="var(--_l)" stroke="none"/></g><g class="pele-edge pele-transition" data-id="edge5"><path d="M957.71,297L957.71,334"/><path class="pele-marker" d="M957.71,341L954.35,333L961.07,333Z" fill="var(--_l)" stroke="none"/></g><g class="pele-edge pele-transition" data-id="edge6"><path d="M949.71,385C949.71,394.25 852.85,394.25 852.85,403.5L852.85,462"/><path class="pele-marker" d="M852.85,469L849.49,461L856.21,461Z" fill="var(--_l)" stroke="none"/></g><g class="pele-edge pele-transition" data-id="edge7"><path d="M824.82,513C824.82,522.25 739.83,522.25 739.83,531.5L739.83,608"/><path class="pele-marker" d="M739.83,615L736.47,607L743.19,607Z" fill="var(--_l)" stroke="none"/></g><g class="pele-edge pele-transition" data-id="edge8"><path d="M965.71,385C965.71,427 1078.28,427 1078.28,469L1078.28,608"/><path class="pele-marker" d="M1078.28,615L1074.92,607L1081.64,607Z" fill="var(--_l)" stroke="none"/></g><g class="pele-edge pele-transition" data-id="edge9"><path d="M880.87,513C880.87,522.25 965.86,522.25 965.86,531.5L965.86,589.5C965.86,596.44 1051.58,596.44 1051.58,603.38L1051.58,608"/><path class="pele-marker" d="M1051.58,615L1048.22,607L1054.94,607Z" fill="var(--_l)" stroke="none"/></g></g><g class="pele-edge-labels" font-size="14"><g class="pele-edge-label" data-id="edge1"><rect x="148.65" y="405.5" width="181.53" height="36" rx="3" fill="var(--_bg)"/><text text-anchor="middle" xml:space="preserve"><tspan x="239.42" y="419.4">a job-switch signal arrives</tspan><tspan x="239.42" y="437.4">[unless The one active play]</tspan></text></g><g class="pele-edge-label" data-id="edge2"><rect x="52" y="551.5" width="168.27" height="36" rx="3" fill="var(--_bg)"/><text text-anchor="middle" xml:space="preserve"><tspan x="136.14" y="565.4">job-switch runs on its own</tspan><tspan x="136.14" y="583.4">[when Not asking]</tspan></text></g><g class="pele-edge-label" data-id="edge3"><rect x="350.18" y="396.5" width="190.06" height="54" rx="3" fill="var(--_bg)"/><text text-anchor="middle" xml:space="preserve"><tspan x="445.21" y="410.4">a later job-switch signal is set</tspan><tspan x="445.21" y="428.4">aside [when The one active</tspan><tspan x="445.21" y="446.4">play]</tspan></text></g><g class="pele-edge-label" data-id="edge4"><rect x="240.27" y="542.5" width="204.85" height="54" rx="3" fill="var(--_bg)"/><text text-anchor="middle" xml:space="preserve"><tspan x="342.7" y="556.4">arbitration keeps job-switch and</tspan><tspan x="342.7" y="574.4">sets hiring aside [when Wants</tspan><tspan x="342.7" y="592.4">this person]</tspan></text></g><g class="pele-edge-label" data-id="edge6"><rect x="758.6" y="405.5" width="188.5" height="36" rx="3" fill="var(--_bg)"/><text text-anchor="middle" xml:space="preserve"><tspan x="852.85" y="419.4">a hiring signal arrives [unless</tspan><tspan x="852.85" y="437.4">The one active play]</tspan></text></g><g class="pele-edge-label" data-id="edge7"><rect x="636.24" y="542.5" width="207.19" height="36" rx="3" fill="var(--_bg)"/><text text-anchor="middle" xml:space="preserve"><tspan x="739.83" y="556.4">hiring runs on its own [when Not</tspan><tspan x="739.83" y="574.4">asking]</tspan></text></g><g class="pele-edge-label" data-id="edge8"><rect x="978.58" y="473" width="199.41" height="36" rx="3" fill="var(--_bg)"/><text text-anchor="middle" xml:space="preserve"><tspan x="1078.28" y="486.9">a later hiring signal is set aside</tspan><tspan x="1078.28" y="504.9">[when The one active play]</tspan></text></g><g class="pele-edge-label" data-id="edge9"><rect x="863.43" y="533.5" width="204.85" height="54" rx="3" fill="var(--_bg)"/><text text-anchor="middle" xml:space="preserve"><tspan x="965.86" y="547.4">arbitration keeps job-switch and</tspan><tspan x="965.86" y="565.4">sets hiring aside [when Wants</tspan><tspan x="965.86" y="583.4">this person]</tspan></text></g></g><g class="pele-nodes"><g class="pele-node pele-state yellow" data-id="lg0" transform="translate(538.09,82)"><rect x="-54.68" y="-22" width="109.36" height="44" rx="10" fill="var(--_s)" stroke="var(--_b)"/><text class="pele-label" x="0" y="5.6" text-anchor="middle">Competing</text></g><g class="pele-node pele-state teal" data-id="lg1" transform="translate(689.67,82)"><rect x="-56.9" y="-22" width="113.81" height="44" rx="10" fill="var(--_s)" stroke="var(--_b)"/><text class="pele-label" x="0" y="5.6" text-anchor="middle">One winner</text></g><g class="pele-node pele-state" data-id="s0" transform="translate(342.31,354)"><rect x="-53.79" y="-22" width="107.58" height="44" rx="10" fill="var(--_s)" stroke="var(--_b)"/><text class="pele-label" x="0" y="5.6" text-anchor="middle">Not asking</text></g><g class="pele-node pele-state yellow" data-id="s1" transform="translate(239.42,500)"><rect x="-80.02" y="-22" width="160.05" height="44" rx="10" fill="var(--_s)" stroke="var(--_b)"/><text class="pele-label" x="0" y="5.6" text-anchor="middle">Wants this person</text></g><g class="pele-node pele-state teal" data-id="s2" transform="translate(239.42,646)"><rect x="-85.37" y="-22" width="170.74" height="44" rx="10" fill="var(--_s)" stroke="var(--_b)"/><text class="pele-label" x="0" y="5.6" text-anchor="middle">The one active play</text></g><g class="pele-node pele-state teal" data-id="s3" transform="translate(445.21,500)"><rect x="-67.14" y="-22" width="134.29" height="44" rx="10" fill="var(--_s)" stroke="var(--_b)"/><text class="pele-label" x="0" y="5.6" text-anchor="middle">Stepped aside</text></g><g class="pele-node pele-state-start" data-id="r0_start" transform="translate(342.31,281)"><circle r="7" fill="var(--_l)"/></g><g class="pele-node pele-state" data-id="s4" transform="translate(957.71,363)"><rect x="-53.79" y="-22" width="107.58" height="44" rx="10" fill="var(--_s)" stroke="var(--_b)"/><text class="pele-label" x="0" y="5.6" text-anchor="middle">Not asking</text></g><g class="pele-node pele-state yellow" data-id="s5" transform="translate(852.85,491)"><rect x="-80.02" y="-22" width="160.05" height="44" rx="10" fill="var(--_s)" stroke="var(--_b)"/><text class="pele-label" x="0" y="5.6" text-anchor="middle">Wants this person</text></g><g class="pele-node pele-state teal" data-id="s6" transform="translate(739.83,637)"><rect x="-85.37" y="-22" width="170.74" height="44" rx="10" fill="var(--_s)" stroke="var(--_b)"/><text class="pele-label" x="0" y="5.6" text-anchor="middle">The one active play</text></g><g class="pele-node pele-state teal" data-id="s7" transform="translate(1066.72,637)"><rect x="-67.14" y="-22" width="134.29" height="44" rx="10" fill="var(--_s)" stroke="var(--_b)"/><text class="pele-label" x="0" y="5.6" text-anchor="middle">Stepped aside</text></g><g class="pele-node pele-state-start" data-id="r1_start" transform="translate(957.71,290)"><circle r="7" fill="var(--_l)"/></g></g></g></svg>
