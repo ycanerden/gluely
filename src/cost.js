@@ -4,7 +4,7 @@ import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import YAML from 'yaml';
-import { getPlaybook } from './library.js';
+import { getPlaybook, loadLibrary } from './library.js';
 import { addEntry } from './log.js';
 import { fail } from './output.js';
 import { readPlay, savePlay } from './playbooks.js';
@@ -22,11 +22,13 @@ export function setPrice(ws, { tool, job, each, credits, creditPrice, monthly, c
   if (!tool) fail('usage', 'Usage: gluely cost price <tool> [--job <job>] (--each <amount> | --credits <n>) [--credit-price <amount>] [--monthly <amount>] [--credits-left <n>]');
   const prices = loadPrices(ws);
   const entry = prices.tools[tool] ||= {};
+  // A blank answer is not a price of zero. Free has to be said out loud.
   const number = (value, name) => {
     const parsed = Number(value);
-    if (!Number.isFinite(parsed) || parsed < 0) fail('bad_price', `${name} must be a number, zero or above.`);
+    if (String(value).trim() === '' || !Number.isFinite(parsed) || parsed < 0) fail('bad_price', `${name} must be a number, zero or above.`);
     return parsed;
   };
+  if (job && !loadLibrary(ws).jobs[job]) fail('bad_job', `Unknown job "${job}". Use ${Object.keys(loadLibrary(ws).jobs).join(', ')}.`);
   if (each !== undefined || credits !== undefined) {
     if (!job) fail('usage', 'Say which job this price is for with --job, because one tool can do several.');
     entry[job] = each !== undefined ? { each: number(each, '--each') } : { credits: number(credits, '--credits') };
@@ -40,13 +42,15 @@ export function setPrice(ws, { tool, job, each, credits, creditPrice, monthly, c
   return { tool, ...entry };
 }
 
+// Strict on purpose: a misread price ends up in an estimate someone approves, so anything
+// unclear is asked again. "1,000" could mean a thousand or one, so it counts as unclear.
 export function parsePrice(text) {
   const value = String(text).trim().toLowerCase();
-  if (['free', '0'].includes(value)) return { each: 0 };
-  const credits = value.match(/^([\d.]+)\s*(credits?|cr)$/);
-  if (credits) return { credits: Number(credits[1]) };
-  const amount = Number(value.replace(/[^\d.]/g, ''));
-  return value && Number.isFinite(amount) && /\d/.test(value) ? { each: amount } : null;
+  if (value === 'free') return { each: 0 };
+  const match = value.match(/^[$€£]?\s*(\d+(?:[.,]\d+)?)\s*(credits?|cr)?$/);
+  if (!match || /,\d{3}$/.test(match[1])) return null;
+  const amount = Number(match[1].replace(',', '.'));
+  return match[2] ? { credits: amount } : { each: amount };
 }
 
 const lineCost = (units, tool, job) => {
@@ -58,10 +62,14 @@ const lineCost = (units, tool, job) => {
   return { priced: !unpriced, cost: unpriced ? null : credits.map((c) => c * tool.credit_price), credits };
 };
 
+const ASSUMPTION_FLAGS = [['fit', 'fit'], ['touches', 'touches'], ['checks', 'checks_per_month'], ['meeting-rate', 'meeting_rate']];
+
 export function setAssumptions(ws, id, flags) {
+  if (!ASSUMPTION_FLAGS.some(([flag]) => flags[flag] !== undefined)) return;
   const spec = readPlay(ws, id);
+  if (!spec.playbook) fail('no_playbook', `${id} wasn't built from a playbook, so Gluely can't estimate it yet.`);
   const next = { ...spec.assumptions };
-  for (const [flag, key] of [['fit', 'fit'], ['touches', 'touches'], ['checks', 'checks_per_month'], ['meeting-rate', 'meeting_rate']]) {
+  for (const [flag, key] of ASSUMPTION_FLAGS) {
     if (flags[flag] === undefined) continue;
     const value = Number(String(flags[flag]).replace('%', '')) / (String(flags[flag]).includes('%') ? 100 : 1);
     if (!Number.isFinite(value) || value <= 0) fail('bad_assumption', `--${flag} must be a number above zero.`);
@@ -116,7 +124,8 @@ export function estimateCost(ws, id) {
   const fingerprint = crypto.createHash('sha256').update(JSON.stringify({ lines, a, fees, limit, currency: prices.currency })).digest('hex').slice(0, 12);
   const approved = spec.budget?.approved;
   let status = 'needs_approval';
-  if (missingPrices.length) status = 'needs_prices';
+  if (['killed', 'paused'].includes(spec.status)) status = 'play_stopped';
+  else if (missingPrices.length) status = 'needs_prices';
   else if (limit === null) status = 'needs_budget';
   else if (monthly[1] > limit) status = 'over_budget';
   else if (approved?.fingerprint === fingerprint) status = 'approved';
@@ -149,6 +158,7 @@ export function estimateCost(ws, id) {
 // Only a person may approve, so the CLI refuses this outside a real terminal.
 export function approveCost(ws, id, by) {
   const estimate = estimateCost(ws, id);
+  if (estimate.status === 'play_stopped') fail('play_stopped', `${id} is stopped, so it can't be approved.`);
   if (estimate.status === 'needs_prices') fail('needs_prices', `Add a price for ${estimate.missing_prices[0].tool} first.`);
   if (estimate.status === 'needs_budget') fail('needs_budget', 'Set a monthly budget first.', `Run gluely plays answer ${id} budget <amount>.`);
   if (estimate.status === 'over_budget') fail('over_budget', 'This estimate is over budget, so it can\'t be approved.', 'Lower the volume, pick a cheaper tool, or raise the budget.');

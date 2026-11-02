@@ -22,6 +22,7 @@ Run this before any paid job: a scrape, an enrichment run, a credit-based table,
 
 | Status | Do this |
 |---|---|
+| `play_stopped` | Stop. The play is paused or killed, so nothing may be spent on it |
 | `needs_prices` | Go back to step 2 |
 | `needs_budget` | Ask for a monthly limit, then `gluely plays answer <play> budget <amount> --by <you> --json` |
 | `over_budget` | Stop. Offer lower volume, a cheaper tool or a higher limit. The founder decides |

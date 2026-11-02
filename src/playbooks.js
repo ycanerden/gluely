@@ -6,7 +6,7 @@ import YAML from 'yaml';
 import { loadExcuses, personaIds } from './context.js';
 import { getPlaybook, toolsForJob } from './library.js';
 import { fail } from './output.js';
-import { addEntry } from './log.js';
+import { addEntry, refuseNames } from './log.js';
 import { LAYERS, layerForJob, loadStack, setStack } from './stack.js';
 
 const KILL_OPTIONS = [
@@ -20,7 +20,11 @@ const playFile = (ws, id) => path.join(ws, 'plays', `${id}.yaml`);
 export function readPlay(ws, id) {
   const file = playFile(ws, id);
   if (!fs.existsSync(file)) fail('unknown_play', `No play "${id}" yet.`, `Start one with gluely plays start ${id}.`);
-  return YAML.parse(fs.readFileSync(file, 'utf8'));
+  try {
+    return YAML.parse(fs.readFileSync(file, 'utf8'));
+  } catch (error) {
+    return fail('bad_play', `plays/${id}.yaml is not valid YAML: ${error.message.split('\n')[0]}`);
+  }
 }
 
 export const savePlay = (ws, spec) => fs.writeFileSync(playFile(ws, spec.id), YAML.stringify(spec));
@@ -105,6 +109,7 @@ export function answerStep(ws, id, stepId, raw, by = 'agent') {
   if (!step) fail('unknown_step', `"${stepId}" isn't a step in ${book.id}. Steps: ${book.steps.map((s) => s.id).join(', ')}.`);
   const value = String(raw ?? '').trim();
   if (!value) fail('empty_answer', 'This step needs an answer.');
+  refuseNames([value]);
 
   let saved = value;
   let extra = {};

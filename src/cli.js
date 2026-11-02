@@ -83,6 +83,7 @@ export function parseArgs(argv) {
   return parsed;
 }
 
+const activeWorkspace = () => process.env.GLUELY_WORKSPACE || findWorkspace();
 const line = (ok, text) => console.log(`${ok ? mark.ok() : mark.bad()} ${text}`);
 
 // Each command returns { data, render, exit }. `render` is skipped under --json.
@@ -113,7 +114,8 @@ const commands = {
       render() {
         console.log(color.bold(`Gluely doctor: ${data.company.name || 'workspace'}`));
         for (const check of data.checks) line(check.ok, `${check.name.padEnd(11)} ${color.dim(check.detail)}`);
-        console.log(`\n${mark.next()} ${color.bold(data.next.step)}: ${data.next.how}`);
+        console.log();
+        printNext(data.next, '');
       },
     };
   },
@@ -269,12 +271,11 @@ const commands = {
   },
 
   tools(args) {
-    const ws = findWorkspace();
     if (args._[0] === 'add') {
-      if (!ws) requireWorkspace();
-      const data = addTool(ws, { name: args._.slice(1).join(' '), job: args.flags.job, access: args.flags.access });
+      const data = addTool(requireWorkspace(), { name: args._.slice(1).join(' '), job: args.flags.job, access: args.flags.access });
       return { data, render: () => line(true, `${data.name} is in your library for ${data.jobs[0]}`) };
     }
+    const ws = activeWorkspace();
     const library = loadLibrary(ws);
     const yours = ws ? loadStack(ws).layers.map((l) => l.tool).filter(Boolean) : [];
     const jobs = args._[0] ? [args._[0]] : Object.keys(library.jobs);
@@ -435,6 +436,12 @@ function renderStep(state) {
   console.log(`${mark.next()} gluely plays answer ${state.play} ${step.id} <value>`);
 }
 
+// Commands sit on their own line, so the words around them can't be mistaken for one.
+function printNext(next, indent) {
+  console.log(`${indent}${mark.next()} ${color.bold(next.step)}`);
+  console.log(`${indent}  ${next.command ? color.cyan(`$ ${next.command}`) : next.how}`);
+}
+
 function renderHome(state) {
   const ready = state.stack ? Object.values(state.stack).filter(Boolean) : [];
   const count = (status) => state.plays.filter((p) => p.status === status).length;
@@ -453,8 +460,10 @@ function renderHome(state) {
   console.log();
   console.log(beside(mascot(), info));
   console.log();
-  say(`${mark.next()} ${color.bold(state.next.step)}: ${state.next.how}`);
-  say(color.dim('plays start, tools, cost, learn, flow. gluely --help shows everything.'));
+  printNext(state.next, '  ');
+  console.log();
+  if (!state.context.template) say(`${color.bold('With your agent')}  open claude or cursor in this folder, then type ${color.cyan('/gtm-mode')}`);
+  say(color.dim('More: gluely tools, gluely flow, gluely learn, gluely --help'));
   console.log();
 }
 
@@ -472,7 +481,7 @@ function renderWelcome() {
 }
 
 function home() {
-  const ws = findWorkspace();
+  const ws = activeWorkspace();
   if (!ws) return { data: { workspace: null, next: 'gluely init <dir> --company <name>' }, render: renderWelcome };
   const data = diagnose(ws);
   return { data, render: () => renderHome(data) };
