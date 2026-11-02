@@ -1,35 +1,45 @@
 ---
-title: "A reply can teach the play, without the prospect's words"
+title: "Every reply can teach, and a person approves the rule"
 ---
 stateDiagram-v2
   state "Legend" as legend {
-    lg0: Reply
-    lg1: No card
-    lg2: Lesson
-    lg3: Approved
+    lg0: Incoming
+    lg1: Refused
+    lg2: In the log
+    lg3: Settled
   }
   class lg0 yellow
   class lg1 orange
   class lg2 teal
   class lg3 blue
-  s0: A reply is waiting
-  s1: Reply labeled not now, no card
-  s2: Reply labeled positive
-  s3: Unsubscribe suppressed, no card
-  s4: Card holds counts and shared words only
-  s5: A play update is proposed
-  s6: A person approved the play update
+  s0: Waiting for a reply or an edit
+  s1: Something to learn from
+  s2: Unsubscribed and suppressed
+  s3: Lesson drafted
+  s4: Lesson holds personal data
+  s5: Open lesson, read by gluely recall
+  s6: A rule is proposed
+  s7: Promoted into a rule or test
+  s8: Dropped, with a reason
   [*] --> s0
-  s0 --> s1: the reply is labeled not now
-  s0 --> s2: the reply is labeled positive
-  s0 --> s3: the reply is labeled unsubscribe
-  s2 --> s4: an anonymised card is drafted
-  s4 --> s5: the card proposes a play update
-  s5 --> s6: a person approves the play update
+  s0 --> s1: a person edits a draft or a reply is labeled positive, not now or negative
+  s0 --> s2: they unsubscribe
+  s1 --> s3: the agent writes the lesson
+  s1 --> s4: the agent writes the lesson
+  s2 --> s3: the agent writes the lesson
+  s2 --> s4: the agent writes the lesson
+  s3 --> s5: the lesson goes in the log
+  s4 --> s1: Gluely refuses it, so the agent writes it again
+  s4 --> s2: Gluely refuses it, so the agent writes it again
+  s5 --> s6: the agent proposes a rule on a branch
+  s6 --> s7: a person approves, and the lesson is promoted
+  s6 --> s8: a person says no, and it is dropped with a reason
   class s0 yellow
-  class s1 orange
+  class s1 yellow
   class s2 yellow
-  class s3 orange
-  class s4 teal
+  class s3 yellow
+  class s4 orange
   class s5 teal
-  class s6 blue
+  class s6 teal
+  class s7 blue
+  class s8 blue

@@ -15,7 +15,8 @@ const ledgerLabel = (log: Record<string, string>) => {
   const n = Object.keys(log).length;
   if (n === 0) return "Nothing logged yet";
   if (n === 1) return "A signal is kept";
-  return "Sales-ready mark appended";
+  if (n === 2) return "Sales-ready mark appended";
+  return "Stage change appended";
 };
 
 const viewLabel: Record<string, string> = {
@@ -27,7 +28,6 @@ const crmLabel: Record<string, string> = {
   out: "Not in the CRM",
   whitelist: "Sales-ready fields only",
   stage: "Stage mirrored from the CRM",
-  raw: "Raw pooled list",
 };
 
 const steps: Record<string, string> = {
@@ -37,7 +37,7 @@ const steps: Record<string, string> = {
   AppendReady: "a sales-ready mark is appended",
   Refresh: "Person 360 is filled in from the ledger",
   Push: "sales-ready fields go to the CRM",
-  Mirror: "a stage change comes back as an event",
+  Mirror: "a stage change comes back and goes on the ledger",
   Done: "the picture is complete",
 };
 
@@ -57,7 +57,7 @@ export const step = (action: string) => {
 };
 
 export const group = (v: Person) => {
-  if (v.crm === "whitelist" || v.crm === "stage" || v.crm === "raw") return "CRM boundary";
+  if (v.crm === "whitelist" || v.crm === "stage") return "CRM boundary";
   if (v.picture === "shown") return "Person 360";
   if (Object.keys(v.log).length > 0) return "Ledger";
   return "Identity";

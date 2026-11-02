@@ -1,78 +1,95 @@
 ---- MODULE LearnLoop ----
-\* Explanation model of the learn loop.
-\* A reply gets one label. A learning card carries counts and shared words,
-\* never the prospect's own text. A person approves a play update.
-\* Unsubscribe suppresses and does not become a card.
-\* Transcripts, the commons pull request, and the minimum sample are left out.
+\* Explanation model of how Gluely learns. This matches the decision log:
+\* learning/log.jsonl, gluely recall, gluely learn and gluely log promote.
+\* Every reply label can teach, and so can a person changing a draft.
+\* Unsubscribe also suppresses the person.
+\* Gluely refuses a lesson that holds an email or a LinkedIn address.
+\* A lesson changes the brain only after a person approves it.
+\* Reply labels beyond these, transcripts and sample sizes are left out.
 
-VARIABLES label, card, proposal, suppressed
-vars == <<label, card, proposal, suppressed>>
+VARIABLES source, draft, entry, proposal, suppressed
+vars == <<source, draft, entry, proposal, suppressed>>
+
+Sources == {"positive", "not_now", "negative", "unsubscribe", "human_edit"}
 
 TypeOK ==
-  /\ label \in {"none", "positive", "not_now", "unsubscribe"}
-  /\ card \in {"none", "counts", "raw"}
+  /\ source \in Sources \cup {"none"}
+  /\ draft \in {"none", "clean", "personal"}
+  /\ entry \in {"none", "open", "promoted", "dropped"}
   /\ proposal \in {"none", "proposed", "approved"}
   /\ suppressed \in BOOLEAN
 
 Init ==
-  /\ label = "none"
-  /\ card = "none"
+  /\ source = "none"
+  /\ draft = "none"
+  /\ entry = "none"
   /\ proposal = "none"
   /\ suppressed = FALSE
 
-LabelPositive ==
-  /\ label = "none"
-  /\ label' = "positive"
-  /\ UNCHANGED <<card, proposal, suppressed>>
+Arrive(s) ==
+  /\ source = "none"
+  /\ source' = s
+  /\ suppressed' = (s = "unsubscribe")
+  /\ UNCHANGED <<draft, entry, proposal>>
 
-LabelNotNow ==
-  /\ label = "none"
-  /\ label' = "not_now"
-  /\ UNCHANGED <<card, proposal, suppressed>>
+\* The agent writes the lesson. It might include personal data by mistake.
+Write ==
+  /\ source # "none"
+  /\ draft = "none"
+  /\ entry = "none"
+  /\ draft' \in {"clean", "personal"}
+  /\ UNCHANGED <<source, entry, proposal, suppressed>>
 
-LabelUnsubscribe ==
-  /\ label = "none"
-  /\ label' = "unsubscribe"
-  /\ suppressed' = TRUE
-  /\ UNCHANGED <<card, proposal>>
+\* Gluely refuses it, so the agent writes it again.
+Refuse ==
+  /\ draft = "personal"
+  /\ draft' = "none"
+  /\ UNCHANGED <<source, entry, proposal, suppressed>>
 
-DraftCard ==
-  /\ label = "positive"
-  /\ card = "none"
-  /\ card' = "counts"
-  /\ UNCHANGED <<label, proposal, suppressed>>
+Keep ==
+  /\ draft = "clean"
+  /\ entry = "none"
+  /\ entry' = "open"
+  /\ UNCHANGED <<source, draft, proposal, suppressed>>
 
-ProposeUpdate ==
-  /\ card = "counts"
+Propose ==
+  /\ entry = "open"
   /\ proposal = "none"
   /\ proposal' = "proposed"
-  /\ UNCHANGED <<label, card, suppressed>>
+  /\ UNCHANGED <<source, draft, entry, suppressed>>
 
 Approve ==
+  /\ entry = "open"
   /\ proposal = "proposed"
   /\ proposal' = "approved"
-  /\ UNCHANGED <<label, card, suppressed>>
+  /\ entry' = "promoted"
+  /\ UNCHANGED <<source, draft, suppressed>>
+
+Drop ==
+  /\ entry = "open"
+  /\ proposal = "proposed"
+  /\ entry' = "dropped"
+  /\ UNCHANGED <<source, draft, proposal, suppressed>>
 
 Done ==
-  /\ \/ label \in {"not_now", "unsubscribe"}
-     \/ proposal = "approved"
+  /\ entry \in {"promoted", "dropped"}
   /\ UNCHANGED vars
 
 Next ==
-  \/ LabelPositive \/ LabelNotNow \/ LabelUnsubscribe
-  \/ DraftCard \/ ProposeUpdate \/ Approve
+  \/ \E s \in Sources : Arrive(s)
+  \/ Write \/ Refuse \/ Keep \/ Propose \/ Approve \/ Drop
   \/ Done
 
 Spec == Init /\ [][Next]_vars
 
-CardHasNoProspectText == card # "raw"
+LogHoldsNoPersonalData == entry # "none" => draft = "clean"
 
-OnlyPositiveFeedsACard == card = "counts" => label = "positive"
+LessonHasASource == entry # "none" => source # "none"
 
-HumanApprovesPlayUpdate ==
-  proposal = "approved" => card = "counts" /\ label = "positive"
+OnlyAPersonPromotes == entry = "promoted" => proposal = "approved"
 
-UnsubscribeSuppresses ==
-  label = "unsubscribe" => suppressed /\ card = "none" /\ proposal = "none"
+UnsubscribeSuppresses == source = "unsubscribe" => suppressed
+
+OnlyUnsubscribeSuppresses == suppressed => source = "unsubscribe"
 
 ====

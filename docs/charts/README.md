@@ -11,6 +11,17 @@ Each chart is produced from a TLA+ model:
 
 No chart is drawn by hand, and no image model is used. The models use no company data and no real person.
 
+**What "the rules hold" means.** TLC checks the model, not the code. A rule holding here shows the design is consistent. It doesn't show the product behaves this way.
+
+| Chart | Status in the product |
+|---|---|
+| What a reply can teach | Partly built: `learning/log.jsonl`, `gluely recall`, `gluely learn`. Reply labels arrive in phase 3 |
+| Gates before a send | Partly built: exclusions and draft checks. Suppression and the check at send time are planned |
+| Person 360 | Planned for phase 1 |
+| One active play | Planned for phase 2 |
+
+**Every rule can fail.** `node docs/charts/check.mjs` runs in CI. It checks each model, then removes each guard in turn and requires TLC to catch the broken rule. A rule that still holds with its guard gone proves nothing, so the check fails.
+
 A step that stays in the same chart state is not drawn. That is the resting step at the end of each model (`Done` in the spec).
 
 Brackets on an arrow in a side-by-side chart name the other region's state. On the job-switch region, `[when Not asking]` means the hiring region is "Not asking".
@@ -19,14 +30,15 @@ Brackets on an arrow in a side-by-side chart name the other region's state. On t
 
 ![Person 360 is a view over an append-only ledger](person-360/chart.svg)
 
-A LinkedIn URL arrives and an internal id is minted. The URL is linked onto that id. Signals are appended. Person 360 is filled in from the ledger. Sales-ready fields go to the CRM, and a stage change comes back as an event.
+A LinkedIn URL arrives and an internal id is minted. The URL is linked onto that id. Signals are appended. Person 360 is filled in from the ledger. Sales-ready fields go to the CRM, and a stage change comes back and goes on the ledger.
 
-TLC reached 15 states. The chart draws 7 arrows. These rules hold:
+TLC reached 15 states. These rules hold:
 
-- The ledger is empty, one signal, or that signal plus a sales-ready mark, and it never shrinks or rewrites.
+- The ledger only grows, one event at a time: a signal, a sales-ready mark, then a stage change.
 - A signal belongs to an internal id, and a LinkedIn URL sits on that id.
 - Person 360 shows a person only after an id exists and an event is logged.
-- The CRM never holds a raw pooled list. It is written only after the view shows the person and a sales-ready mark is on the ledger.
+- The CRM is written only after the view shows the person and a sales-ready mark is on the ledger, so a raw pooled list can't reach it.
+- A stage change from the CRM always lands on the ledger.
 
 Left out: merges, enrichment, and field ownership beyond this boundary. The sales-ready mark stands for a positive reply, a meeting, or a handoff.
 
@@ -34,12 +46,12 @@ Left out: merges, enrichment, and field ownership beyond this boundary. The sale
 
 ![Gates before a send](send-gates/chart.svg)
 
-A like or a visit is not consent. An exclusion rule or a suppression hash stops the send. After both pass, a person approves the draft, and the touch goes out with play, variant, and context.
+A like or a visit is not consent. An exclusion rule or a suppression hash stops the send. After both pass, a person approves the draft. Someone can still opt out or become excluded after that, so the gate is checked again at the moment of the send, and the touch goes out with play, variant, and context.
 
-TLC reached 7 states. The chart draws 9 arrows. These rules hold:
+TLC reached 9 states. These rules hold:
 
-- There is no send while the person is excluded or suppressed.
-- A send exists only from a clear gate, only after a person approves, and only with play, variant, and context. A bare attribution never appears.
+- There is no send while the person is excluded or suppressed, even if a person already approved the draft.
+- A send exists only from a clear gate, only after a person approves, and only with play, variant, and context.
 - Engagement itself does not approve or send anything.
 
 Left out: volume caps, freshness, and cross-play arbitration.
@@ -50,7 +62,7 @@ Left out: volume caps, freshness, and cross-play arbitration.
 
 Job-switch and hiring can both want the same person. If only one is asking, it runs. If both are asking, arbitration keeps job-switch and records that hiring stepped aside. A later signal for the other play is set aside too.
 
-TLC reached 8 states. The chart draws 8 arrows. These rules hold:
+TLC reached 8 states. These rules hold:
 
 - The two plays are never both the active play.
 - Stepping aside happens only while the other play is the active one, so the loss is recorded.
@@ -59,22 +71,25 @@ Left out: cooldown days, the account cap, and ties broken by signal strength. In
 
 ## What a reply can teach
 
-![A reply can teach the play, without the prospect's words](learn-loop/chart.svg)
+![Every reply can teach, and a person approves the rule](learn-loop/chart.svg)
 
-A reply is labeled positive, not now, or unsubscribe. Not-now and unsubscribe do not become a card. Unsubscribe is suppressed. A positive reply can become a card of counts and shared words, then a proposed play update, which a person approves.
+Every reply label can teach, and so can a person changing a draft. An unsubscribe also suppresses the person. The agent writes the lesson, and Gluely refuses it if it holds an email or a LinkedIn address. Open lessons are read by `gluely recall`. A rule proposed from a lesson is either approved by a person and promoted, or dropped with a reason.
 
-TLC reached 7 states. The chart draws 6 arrows. These rules hold:
+TLC reached 36 states. These rules hold:
 
-- A card never holds the prospect's own text.
-- Only a positive reply feeds a card.
-- An approved play update is that card, from a positive reply.
-- Unsubscribe suppresses, and it writes no card and no play update.
+- The log never keeps a lesson that holds personal data.
+- Each lesson comes from a real reply or edit.
+- Only a person promotes a lesson.
+- An unsubscribe always suppresses, and nothing else does.
+- Positive, not now, negative, unsubscribe and human edits can each become a promoted lesson.
 
-Left out: the other reply labels, transcripts, the commons pull request, and the minimum sample of sends.
+Gluely's check catches emails and LinkedIn addresses. Keeping out a prospect's other words is a rule the agent follows, not something Gluely can enforce.
+
+Left out: the other reply labels, transcripts, and the minimum sample of sends.
 
 ## Regenerate
 
-Needs Java 11 or later, Node 22.18 or later, and the pstack `statechart` script (`skills/statechart/scripts/statechart`).
+Needs Java 11 or later, Node 22.18 or later, and the pstack `statechart` script (`skills/statechart/scripts/statechart`). Run `check.mjs` after changing a model, and add a break for any new rule.
 
 From the repo root:
 

@@ -49,7 +49,7 @@ export function validatePlay(play, { signals, personas, excuses }) {
 
   const variants = spec.excuse?.variants || [];
   if (variants.length > 2) add('warn', `${variants.length} variants: two is the most you can compare at startup volume`);
-  if (spec.kill && !spec.kill.after && !spec.kill.after_touches) add('error', 'kill needs after_touches: a play that can never die eats budget forever');
+  if (spec.kill && !spec.kill.after && !spec.kill.after_touches && !spec.kill.after_days) add('error', 'kill needs after_touches or after_days: a play that can never die eats budget forever');
   if (spec.kill && !spec.kill.if) add('error', 'kill needs an if condition');
   return issues;
 }

@@ -2,7 +2,7 @@
 // each answer is saved before the next question appears.
 import { approveCost, estimateCost, loadPrices, parsePrice, setPrice } from './cost.js';
 import { loadPlaybooks } from './library.js';
-import { color, mark } from './output.js';
+import { color, fail, mark } from './output.js';
 import { answerStep, startPlay } from './playbooks.js';
 import { ask, progress, retrying, say, select } from './ui.js';
 
@@ -29,9 +29,11 @@ async function answerFor(step) {
   if (step.never?.length) say(`${color.dim('Never:')} ${step.never.join(', ')}`);
   say();
   if (!step.options?.length) return ask(step.type === 'number' ? 'Number: ' : 'Your answer: ');
-  const other = step.type === 'tool' ? 'Something else' : step.type === 'kill' ? null : 'Write my own';
+  const toolOther = step.waterfall ? 'Something else, or a waterfall' : 'Something else';
+  const other = step.type === 'tool' ? toolOther : step.type === 'kill' ? null : 'Write my own';
   const row = await select({ options: step.options, other });
-  return row.other ? ask('Your answer: ') : row.value;
+  if (!row.other) return row.value;
+  return ask(step.waterfall ? `Tools to try, in order, with commas: ${color.dim('(or just one)')} ` : 'Your answer: ');
 }
 
 function showResult(result) {
@@ -85,23 +87,26 @@ export function renderCost(estimate) {
   }
   const a = estimate.assumptions;
   const guessed = estimate.guessed.length ? ' These are starting guesses until you have real numbers.' : '';
-  say(color.dim(`Assumes ${percent(a.fit)} fit your ICP, ${a.touches} touches each, ${a.checks_per_month} check a month.${guessed}`));
+  const tries = estimate.waterfall ? ` Each waterfall provider finds ${percent(a.hit_rate)}, and every try is billed.` : '';
+  say(color.dim(`Assumes ${percent(a.fit)} fit your ICP, ${a.touches} touches each, ${a.checks_per_month} check a month.${tries}${guessed}`));
+  for (const warning of estimate.warnings) say(`${mark.warn()} ${warning.message}`);
   say();
   const verdict = {
-    needs_prices: `${mark.warn()} Not ready: ${estimate.missing_prices.map((m) => m.tool).join(', ')} still ${estimate.missing_prices.length > 1 ? 'need prices' : 'needs a price'}.`,
-    needs_budget: `${mark.warn()} Not ready: this play has no monthly budget.`,
-    over_budget: `${mark.bad()} Over budget: the high end is ${money(c, estimate.monthly[1])} and your limit is ${money(c, estimate.budget)}.`,
-    needs_approval: `${mark.next()} Within your ${money(c, estimate.budget)} limit. A person needs to approve it before anything spends credits.`,
-    approved: `${mark.ok()} Approved by ${estimate.approved_by}. Credits can be spent up to this estimate.`,
+    play_stopped: () => `${mark.bad()} This play is stopped, so nothing can be spent on it.`,
+    needs_prices: () => `${mark.warn()} Not ready: ${estimate.missing_prices.map((m) => m.tool).join(', ')} still ${estimate.missing_prices.length > 1 ? 'need prices' : 'needs a price'}.`,
+    needs_budget: () => `${mark.warn()} Not ready: this play has no monthly budget.`,
+    over_budget: () => `${mark.bad()} Over budget: the high end is ${money(c, estimate.monthly[1])} and your limit is ${money(c, estimate.budget)}.`,
+    needs_approval: () => `${mark.next()} Within your ${money(c, estimate.budget)} limit. A person needs to approve it before anything spends credits.`,
+    approved: () => `${mark.ok()} Approved by ${estimate.approved_by}. Credits can be spent up to this estimate.`,
   };
-  say(verdict[estimate.status]);
+  say(verdict[estimate.status]());
 }
 
 async function askPrice(ws, { tool, job, unit }) {
   await retrying(async () => {
     const answer = await ask(`What does one ${unit} cost in ${tool}? ${color.dim('(0.02, 3 credits, free)')} `);
     const price = parsePrice(answer);
-    if (!price) return setPrice(ws, { tool, job, each: 'not a number' });
+    if (!price) fail('bad_price', 'Answer with an amount, like 0.02, 3 credits or free.');
     return setPrice(ws, { tool, job, ...price });
   });
   const entry = loadPrices(ws).tools[tool];

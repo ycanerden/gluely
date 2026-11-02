@@ -2,7 +2,8 @@
 \* Explanation model of the Person 360 loop. Not the product implementation.
 \* A LinkedIn URL is not the key. An internal id is. Events are appended.
 \* Person 360 is filled in from that ledger. The CRM receives sales-ready
-\* fields only, never a raw pooled list of people.
+\* fields only, so a person with no sales-ready mark never reaches it.
+\* A stage change that comes back from the CRM goes on the ledger like any event.
 \* Enrichment, merges, and field ownership beyond this boundary are left out.
 
 VARIABLES who, log, picture, crm, idMinted
@@ -12,12 +13,13 @@ LedgerAppendOnly ==
   \/ log = <<>>
   \/ log = <<"signal">>
   \/ log = <<"signal", "ready">>
+  \/ log = <<"signal", "ready", "stage">>
 
 TypeOK ==
   /\ who \in {"none", "id", "url"}
   /\ LedgerAppendOnly
   /\ picture \in {"blank", "shown"}
-  /\ crm \in {"out", "whitelist", "stage", "raw"}
+  /\ crm \in {"out", "whitelist", "stage"}
   /\ idMinted \in BOOLEAN
 
 Init ==
@@ -56,7 +58,6 @@ Refresh ==
   /\ picture' = "shown"
   /\ UNCHANGED <<who, log, crm, idMinted>>
 
-\* The push writes whitelist fields. It never writes "raw".
 Push ==
   /\ picture = "shown"
   /\ log = <<"signal", "ready">>
@@ -67,11 +68,12 @@ Push ==
 Mirror ==
   /\ crm = "whitelist"
   /\ crm' = "stage"
-  /\ UNCHANGED <<who, log, picture, idMinted>>
+  /\ log' = <<"signal", "ready", "stage">>
+  /\ UNCHANGED <<who, picture, idMinted>>
 
 Done ==
   /\ who = "url"
-  /\ log = <<"signal", "ready">>
+  /\ log = <<"signal", "ready", "stage">>
   /\ picture = "shown"
   /\ crm = "stage"
   /\ UNCHANGED vars
@@ -87,6 +89,7 @@ LogNeverShrinks ==
     \/ log' = log
     \/ log = <<>> /\ log' = <<"signal">>
     \/ log = <<"signal">> /\ log' = <<"signal", "ready">>
+    \/ log = <<"signal", "ready">> /\ log' = <<"signal", "ready", "stage">>
   ]_vars
 
 ViewFollowsLedger == picture = "shown" => log # <<>> /\ idMinted
@@ -95,9 +98,10 @@ SignalNeedsAPerson == log # <<>> => idMinted
 
 UrlOnInternalId == who = "url" => idMinted
 
-CrmNeverGetsRawPooledPii == crm # "raw"
-
 CrmOnlyAfterSalesReady ==
-  crm \in {"whitelist", "stage"} => picture = "shown" /\ log = <<"signal", "ready">>
+  crm \in {"whitelist", "stage"} =>
+    picture = "shown" /\ log \in {<<"signal", "ready">>, <<"signal", "ready", "stage">>}
+
+StageIsLogged == crm = "stage" => log = <<"signal", "ready", "stage">>
 
 ====

@@ -12,7 +12,7 @@ export const LAYERS = {
   store: { label: 'Data store', question: 'Where should the ledger live?', jobs: ['store'] },
   crm: { label: 'CRM', question: 'Where do deals live?', jobs: ['crm'] },
   outreach: { label: 'Outreach', question: 'What sends your messages?', jobs: ['outreach'] },
-  scraping: { label: 'Signals', question: 'What collects signals?', jobs: ['signal-data', 'person-data', 'hiring-data'] },
+  scraping: { label: 'Signals', question: 'What collects signals?', jobs: ['signal-data', 'person-data', 'hiring-data', 'web-research'] },
   enrichment: { label: 'Enrichment', question: 'What finds contact and company data?', jobs: ['contact-data'] },
   transcripts: { label: 'Transcripts', question: 'What records calls, with consent?', jobs: ['transcripts'] },
   analytics: { label: 'Product data', question: 'Where do product signals live?', jobs: ['product-data'] },

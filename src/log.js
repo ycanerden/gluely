@@ -19,8 +19,8 @@ const HOMES = {
   exclusion: 'context/exclusions/',
 };
 const PERSONAL = [
-  [/[\w.+-]+@[\w-]+\.[a-z]{2,}/i, 'an email address'],
-  [/linkedin\.com\/in\//i, 'a LinkedIn profile'],
+  [/[\w.+-]+@[\w-]+(?:\.[\w-]+)+/i, 'an email address'],
+  [/(?:https?:\/\/)?(?:[\w-]+\.)?linkedin\.com\/in\/[^\s"')]*/i, 'a LinkedIn profile'],
 ];
 const FILLER = new Set(['about', 'after', 'again', 'also', 'been', 'from', 'have', 'here', 'just', 'like', 'more', 'that', 'them', 'then', 'they', 'this', 'very', 'want', 'were', 'what', 'when', 'will', 'with', 'would', 'your']);
 
@@ -39,7 +39,7 @@ function readEvents(ws) {
   });
 }
 
-function refuseNames(fields) {
+export function refuseNames(fields) {
   for (const value of fields) {
     for (const [pattern, label] of PERSONAL) {
       if (value && pattern.test(value)) fail('personal_data', `This contains ${label}, and the log keeps lessons, not people.`, 'Replace it with a placeholder like {first_name}, then log it again.');
@@ -91,18 +91,20 @@ export function promoteEntry(ws, id, to) {
 
 export function dropEntry(ws, id, why) {
   if (!why) fail('usage', 'Usage: gluely log drop <id> --why <reason>. A dropped lesson stays dropped, so say why.');
+  refuseNames([why]);
   return closeEntry(ws, id, 'dropped', { why });
 }
 
 export function logCorrection(ws, item, by) {
   const AREAS = { voice: 'voice', exclusion: 'exclusion', icp: 'icp', reply: 'reply' };
-  const entry = addEntry(ws, { kind: 'correction', area: AREAS[item.kind], text: `${item.expect} is the right answer for test ${item.id}`, why: redact(item.why), by });
+  // With no reason attached this only records that a test exists, so writers shouldn't see it.
+  const entry = addEntry(ws, { kind: 'correction', area: AREAS[item.kind], text: `${item.expect} is the right answer for test ${item.id}`, why: redact(item.why), by, source: item.why ? 'human' : 'gluely' });
   return promoteEntry(ws, entry.id, `tests/${item.kind}.yaml`);
 }
 
 export function listEntries(ws, { kind, area, play, scope, limit = 20 } = {}) {
   const chosen = loadEntries(ws).filter((e) => (!kind || e.kind === kind) && (!area || e.area === area) && (!play || e.play === play) && (!scope || e.scope === scope));
-  return { total: chosen.length, entries: chosen.slice(-limit).reverse() };
+  return { total: chosen.length, entries: chosen.slice(Math.max(0, chosen.length - limit)).reverse() };
 }
 
 // What an agent reads before it writes. Dropped lessons stay out, and promoted ones stay
@@ -110,7 +112,7 @@ export function listEntries(ws, { kind, area, play, scope, limit = 20 } = {}) {
 export function recall(ws, { area, scope, play, limit = 20 } = {}) {
   const lessons = loadEntries(ws).filter((e) => e.kind !== 'result' && e.state !== 'dropped' && e.source !== 'gluely')
     .filter((e) => (!area || e.area === area) && (!play || !e.play || e.play === play) && (!scope || !e.scope || e.scope === scope))
-    .slice(-limit).reverse();
+    .slice(0).reverse().slice(0, limit);
   return {
     area: area || 'all',
     scope: scope || null,
@@ -125,7 +127,7 @@ const words = (text) => new Set(String(text).toLowerCase().match(/[a-z][a-z'-]{3
 export function learn(ws) {
   const entries = loadEntries(ws);
   const open = entries.filter((e) => e.state === 'open' && e.kind !== 'result' && e.source !== 'gluely');
-  const edits = entries.filter((e) => e.before && e.after);
+  const edits = entries.filter((e) => e.before && e.after && e.state !== 'dropped');
   const removed = new Map();
   const added = new Map();
   const tally = (map, word, id) => map.set(word, [...(map.get(word) || []), id]);

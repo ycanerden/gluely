@@ -19,7 +19,8 @@ export function diagnose(ws) {
   const isRepo = git(ws, ['rev-parse', '--is-inside-work-tree']) === 'true';
 
   const { summary } = context;
-  const errors = [...context.issues, ...plays.issues].filter((i) => i.level === 'error');
+  const isError = (i) => i.level === 'error';
+  const errors = [...context.issues, ...plays.issues].filter(isError);
   const checks = [
     { name: 'git', ok: isRepo, detail: isRepo ? `context version ${version.version}` : 'not a git repo, so context changes have no versions' },
     { name: 'skills', ok: Object.values(skills).some((n) => n > 0), detail: Object.entries(skills).map(([h, n]) => `${h} ${n}`).join(', ') },
@@ -31,14 +32,15 @@ export function diagnose(ws) {
     { name: 'tests', ok: tests.passed, detail: `${tests.deterministic.passed}/${tests.deterministic.total} rule tests, ${tests.reasoned.correct}/${tests.reasoned.total} agent tests` },
   ];
 
+  const inAgent = (text) => `Open your agent in this folder and type ${text}`;
   let next;
-  if (summary.template > 0) next = { step: 'Fill your context', how: 'In your agent, run /setup-gluely' };
-  else if (errors.length) next = { step: 'Fix the errors', how: 'Run gluely context check, then gluely plays validate' };
+  if (summary.template > 0) next = { step: 'Fill your context', how: inAgent('/setup-gluely') };
+  else if (errors.length) next = { step: 'Fix the errors', how: 'See what these report, then fix each one', command: context.issues.some(isError) ? 'gluely context check' : 'gluely plays validate' };
   else if (!summary.excluded_companies) next = { step: 'Add your exclusions', how: 'List clients, investors and partners in context/exclusions/companies.csv' };
-  else if (tests.reasoned.pending.length) next = { step: 'Test the brain', how: 'In your agent, run /gtm-mode and ask it to run the brain tests' };
-  else if (learned.open >= 3) next = { step: `Review ${learned.open} open lessons`, how: 'Run gluely learn, or ask your agent to run the learn playbook' };
-  else if (!plays.plays.some((p) => p.status === 'active')) next = { step: 'Choose a first play', how: 'Run gluely plays start' };
-  else next = { step: 'Run the play and log what you learn', how: 'In your agent, run /gtm-mode' };
+  else if (tests.reasoned.pending.length) next = { step: 'Test the brain', how: inAgent('/gtm-mode, then ask it to run the brain tests') };
+  else if (learned.open >= 3) next = { step: `Review ${learned.open} open lessons`, how: 'See what keeps coming up', command: 'gluely learn' };
+  else if (!plays.plays.some((p) => p.status === 'active')) next = { step: 'Choose a first play', how: 'Answer a few questions to set one up', command: 'gluely plays start' };
+  else next = { step: 'Run the play and log what you learn', how: inAgent('/gtm-mode') };
 
   return {
     workspace: ws,

@@ -18,6 +18,7 @@ action:
   tool: any tool you like
 success:
   primary: meeting_booked
+# Use after_days instead when volume is low: 100 touches can take years on a small list.
 kill:
   after_touches: 100
   if: "meeting_rate < 0.5% and positive_rate < 1%"

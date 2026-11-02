@@ -24,11 +24,15 @@ stateDiagram-v2
   s0 --> s2: a like or a visit arrives
   s0 --> s3: an exclusion rule hits
   s0 --> s4: a suppression hash hits
+  s1 --> s3: an exclusion rule hits after the check
+  s1 --> s4: they opt out after the check
   s1 --> s5: a person approves the draft
   s2 --> s1: exclusion and suppression pass
   s2 --> s3: an exclusion rule hits
   s2 --> s4: a suppression hash hits
-  s5 --> s6: the touch goes out with play, variant, and context
+  s5 --> s3: an exclusion rule hits after the check
+  s5 --> s4: they opt out after the check
+  s5 --> s6: the gate is checked again, and the touch goes out with play, variant, and context
   class s0 yellow
   class s1 teal
   class s2 yellow

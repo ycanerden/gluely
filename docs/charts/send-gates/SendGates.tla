@@ -2,6 +2,8 @@
 \* Explanation model of the gates in front of a send.
 \* A like or a visit is not consent. Excluded and suppressed people are not sent.
 \* A send carries play, variant, and context, and only after a person approves.
+\* An exclusion or opt-out can arrive after the check, even after approval, so
+\* the gate is checked again at the moment of the send.
 \* Volume caps, freshness, and cross-play arbitration are left out.
 
 VARIABLES gate, touch, attr, approved
@@ -10,7 +12,7 @@ vars == <<gate, touch, attr, approved>>
 TypeOK ==
   /\ gate \in {"checking", "engaged", "excluded", "suppressed", "clear"}
   /\ touch \in {"none", "approved", "sent"}
-  /\ attr \in {"missing", "play, variant, context", "bare"}
+  /\ attr \in {"missing", "play, variant, context"}
   /\ approved \in BOOLEAN
 
 Init ==
@@ -39,6 +41,19 @@ Clear ==
   /\ gate' = "clear"
   /\ UNCHANGED <<touch, attr, approved>>
 
+\* The stops that arrive after the check. Approval doesn't protect a draft from them.
+LateExclude ==
+  /\ gate = "clear"
+  /\ touch # "sent"
+  /\ gate' = "excluded"
+  /\ UNCHANGED <<touch, attr, approved>>
+
+LateSuppress ==
+  /\ gate = "clear"
+  /\ touch # "sent"
+  /\ gate' = "suppressed"
+  /\ UNCHANGED <<touch, attr, approved>>
+
 Approve ==
   /\ gate = "clear"
   /\ touch = "none"
@@ -47,8 +62,8 @@ Approve ==
   /\ approved' = TRUE
   /\ UNCHANGED <<gate, attr>>
 
-\* The only send writes the attribution. It is enabled from a clear gate,
-\* never from excluded or suppressed.
+\* The only send writes the attribution. It checks the gate again, so an
+\* approved draft is held if a stop arrived after the first check.
 Send ==
   /\ gate = "clear"
   /\ touch = "approved"
@@ -62,7 +77,10 @@ Done ==
      \/ touch = "sent"
   /\ UNCHANGED vars
 
-Next == Engage \/ Exclude \/ Suppress \/ Clear \/ Approve \/ Send \/ Done
+Next ==
+  \/ Engage \/ Exclude \/ Suppress \/ Clear
+  \/ LateExclude \/ LateSuppress
+  \/ Approve \/ Send \/ Done
 
 Spec == Init /\ [][Next]_vars
 
@@ -71,8 +89,6 @@ NoSendWhenSuppressed == touch = "sent" => gate # "suppressed"
 NoSendWhenExcluded == touch = "sent" => gate # "excluded"
 
 EverySendHasAttribution == touch = "sent" => attr = "play, variant, context"
-
-NoBareAttribution == attr # "bare"
 
 HumanApprovesBeforeSend == touch \in {"approved", "sent"} => approved
 

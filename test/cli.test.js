@@ -232,10 +232,10 @@ const answers = {
   send: 'Unlisted Mailer', budget: '150', kill: '0',
 };
 
-function walk(ws) {
+function walk(ws, overrides = {}) {
   let state = gluely(['plays', 'start', 'job-switch', '--json'], ws).json;
   while (!state.done) {
-    const result = gluely(['plays', 'answer', 'job-switch', state.step.id, answers[state.step.id], '--by', 'test/model', '--json'], ws);
+    const result = gluely(['plays', 'answer', 'job-switch', state.step.id, { ...answers, ...overrides }[state.step.id], '--by', 'test/model', '--json'], ws);
     assert.equal(result.code, 0, result.out);
     state = result.json.next;
   }
@@ -408,8 +408,193 @@ test('gluely with no arguments is a home screen, and welcomes you outside a work
   const inside = gluely([], ws);
   assert.match(inside.out, /Gluely {2}Acme/);
   assert.match(inside.out, /Fill your context/);
+  assert.match(inside.out, /\/setup-gluely/);
+  assert.doesNotMatch(inside.out, /\/gtm-mode/);
   assert.match(gluely([], tempDir()).out, /gluely init/);
   assert.match(gluely(['--help'], ws).out, /gluely plays start/);
+});
+
+test('the next step puts a command on its own line, so nobody types the word run', () => {
+  const ws = makeWorkspace();
+  fillContext(ws);
+  write(ws, 'tests/reply.yaml', '');
+  const state = gluely(['--json'], ws).json;
+  assert.equal(state.next.command, 'gluely plays start');
+  const { out } = gluely([], ws);
+  assert.match(out, /^ +\$ gluely plays start$/m);
+  assert.doesNotMatch(out, /Run gluely/);
+  assert.match(out, /With your agent/);
+});
+
+test('a waterfall is saved as a recipe, and each try is priced on what the last one missed', () => {
+  const ws = makeWorkspace();
+  fillContext(ws);
+  walk(ws, { contact: 'Clay, Treg, Hunter' });
+  const play = YAML.parse(fs.readFileSync(path.join(ws, 'plays/job-switch.yaml'), 'utf8'));
+  assert.deepEqual(play.enrich.waterfall, { providers: ['Clay', 'Treg', 'Hunter'], stop_on: 'verified' });
+  assert.equal(play.enrich.tool, 'Clay');
+  assert.equal(gluely(['stack', '--json'], ws).json.layers.find((l) => l.id === 'enrichment').tool, 'Clay');
+  assert.equal(gluely(['plays', 'validate', '--json'], ws).code, 0);
+
+  const estimate = gluely(['cost', 'job-switch', '--json'], ws).json;
+  const tries = estimate.lines.filter((l) => l.step === 'contact');
+  assert.deepEqual(tries.map((t) => t.tool), ['Clay', 'Treg', 'Hunter']);
+  assert.ok(Math.abs(tries[1].units[1] - tries[0].units[1] / 2) < 1e-9);
+  assert.ok(Math.abs(tries[2].units[1] - tries[0].units[1] / 4) < 1e-9);
+  assert.equal(estimate.waterfall, true);
+  assert.ok(estimate.guessed.includes('hit_rate'));
+  assert.equal(estimate.missing_prices.length, 5);
+
+  gluely(['cost', 'job-switch', '--hit-rate', '80%', '--json'], ws);
+  const sharper = gluely(['cost', 'job-switch', '--json'], ws).json.lines.find((l) => l.tool === 'Treg');
+  assert.ok(Math.abs(sharper.units[1] - tries[0].units[1] * 0.2) < 1e-9);
+  assert.equal(gluely(['plays', 'answer', 'job-switch', 'contact', 'Clay, Clay', '--json'], ws).code, 1);
+});
+
+test('one tool at a waterfall step stays a normal tool', () => {
+  const ws = makeWorkspace();
+  fillContext(ws);
+  walk(ws);
+  const play = YAML.parse(fs.readFileSync(path.join(ws, 'plays/job-switch.yaml'), 'utf8'));
+  assert.equal(play.enrich.waterfall, undefined);
+  assert.equal(gluely(['cost', 'job-switch', '--json'], ws).json.waterfall, false);
+});
+
+test('the cost check warns when money goes before the filter, or a kill rule is too slow', () => {
+  const ws = makeWorkspace();
+  fillContext(ws);
+  walk(ws, { kill: '1' });
+  priced(ws);
+  const { warnings } = gluely(['cost', 'job-switch', '--json'], ws).json;
+  const early = warnings.find((w) => w.code === 'spend_before_filter');
+  assert.ok(early.share > 0.9);
+  assert.ok(Math.abs(early.sample_cost - 0.5) < 1e-9);
+  assert.ok(warnings.find((w) => w.code === 'kill_too_slow').months > 6);
+  assert.match(gluely(['cost', 'job-switch'], ws).out, /before your ICP filter/);
+
+  gluely(['plays', 'answer', 'job-switch', 'kill', '0', '--json'], ws);
+  const play = YAML.parse(fs.readFileSync(path.join(ws, 'plays/job-switch.yaml'), 'utf8'));
+  assert.deepEqual(play.kill, { after_days: 90, if: 'meetings == 0' });
+  assert.equal(gluely(['plays', 'validate', '--json'], ws).code, 0);
+  assert.equal(gluely(['cost', 'job-switch', '--json'], ws).json.warnings.some((w) => w.code === 'kill_too_slow'), false);
+});
+
+test('a kill rule still has to exist, whichever kind it is', () => {
+  const ws = makeWorkspace();
+  fillContext(ws);
+  write(ws, 'plays/first-play.yaml', PLAY().replace(/kill:.*/, 'kill: { if: "meetings == 0" }'));
+  const result = gluely(['plays', 'validate', '--json'], ws);
+  assert.equal(result.code, 1);
+  assert.match(result.out, /after_touches or after_days/);
+});
+
+test('Exa, Firecrawl and Treg are in the library, and nothing holds a price', () => {
+  const text = fs.readFileSync(path.join(ROOT, 'library/tools.yaml'), 'utf8');
+  assert.doesNotMatch(text, /[$€£]\d|price:/);
+  const web = gluely(['tools', 'web-research', '--json'], ROOT).json.jobs[0].tools.map((t) => t.name);
+  assert.deepEqual(web, ['Exa', 'Firecrawl', 'Treg']);
+});
+
+test('a blank or unclear price is refused, because an estimate must never look cheaper than it is', async () => {
+  const ws = makeWorkspace();
+  const { parsePrice } = await import('../src/cost.js');
+  assert.equal(gluely(['cost', 'price', 'Clay', '--credit-price=', '--json'], ws).json.error.code, 'bad_price');
+  assert.equal(gluely(['cost', 'price', 'Clay', '--job', 'contact-data', '--each=', '--json'], ws).json.error.code, 'bad_price');
+  assert.equal(gluely(['cost', 'price', 'Clay', '--job', 'monthly', '--each', '1', '--json'], ws).json.error.code, 'bad_job');
+  assert.deepEqual(parsePrice('0,02'), { each: 0.02 });
+  assert.deepEqual(parsePrice('$0.02'), { each: 0.02 });
+  assert.deepEqual(parsePrice('3 credits'), { credits: 3 });
+  assert.deepEqual(parsePrice('free'), { each: 0 });
+  for (const unclear of ['', '2 per 100', '10 credits per lookup', '-1', '1,000', 'soon']) assert.equal(parsePrice(unclear), null, unclear);
+});
+
+test('a stopped play can never spend, even with a matching approval', async () => {
+  const ws = makeWorkspace();
+  fillContext(ws);
+  walk(ws);
+  priced(ws);
+  const { approveCost } = await import('../src/cost.js');
+  approveCost(ws, 'job-switch', 'human');
+  const file = path.join(ws, 'plays/job-switch.yaml');
+  fs.writeFileSync(file, fs.readFileSync(file, 'utf8').replace('status: draft', 'status: killed'));
+  const estimate = gluely(['cost', 'job-switch', '--json'], ws).json;
+  assert.equal(estimate.status, 'play_stopped');
+  assert.equal(estimate.can_spend, false);
+  assert.throws(() => approveCost(ws, 'job-switch', 'human'), /stopped/);
+});
+
+test('a play with no budget shows the estimate instead of crashing', () => {
+  const ws = makeWorkspace();
+  fillContext(ws);
+  walk(ws);
+  const file = path.join(ws, 'plays/job-switch.yaml');
+  fs.writeFileSync(file, fs.readFileSync(file, 'utf8').replace(/ {2}monthly_limit: 150\n/, ''));
+  priced(ws);
+  const result = gluely(['cost', 'job-switch'], ws);
+  assert.equal(result.err, '');
+  assert.match(result.out, /no monthly budget/);
+});
+
+test('reading a cost leaves the play file exactly as it was', () => {
+  const ws = makeWorkspace();
+  fillContext(ws);
+  walk(ws);
+  const file = path.join(ws, 'plays/job-switch.yaml');
+  const text = `# my note\n${fs.readFileSync(file, 'utf8')}`;
+  fs.writeFileSync(file, text);
+  gluely(['cost', 'job-switch', '--json'], ws);
+  assert.equal(fs.readFileSync(file, 'utf8'), text);
+});
+
+test('personal data in an answer is refused before anything is saved, and redaction takes all of it', async () => {
+  const ws = makeWorkspace();
+  fillContext(ws);
+  gluely(['plays', 'start', 'own-network', '--json'], ws);
+  const refused = gluely(['plays', 'answer', 'own-network', 'excuse', 'Ask jane@acme.example for the intro', '--json'], ws);
+  assert.equal(refused.json.error.code, 'personal_data');
+  assert.doesNotMatch(fs.readFileSync(path.join(ws, 'plays/own-network.yaml'), 'utf8'), /jane/);
+  const { redact } = await import('../src/log.js');
+  assert.doesNotMatch(redact('see https://www.linkedin.com/in/jane-doe-1234 please'), /jane|linkedin/);
+  assert.doesNotMatch(redact('ask jane@acme.co.uk today'), /jane|acme|uk/);
+  const id = gluely(['log', 'add', '--kind', 'input', '--area', 'voice', '--text', 'A lesson', '--json'], ws).json.id;
+  assert.equal(gluely(['log', 'drop', id, '--why', 'jane@acme.example said so', '--json'], ws).json.error.code, 'personal_data');
+});
+
+test('an edit promoted to a test stays in recall, and a dropped edit stops counting', () => {
+  const ws = makeWorkspace();
+  const edit = (before, after) => gluely(['log', 'add', '--kind', 'correction', '--area', 'voice', '--before', before, '--after', after, '--json'], ws).json.id;
+  const first = edit('Quick note here', 'A note here');
+  const second = edit('Quick idea here', 'An idea here');
+  gluely(['log', 'promote', first, '--to', 'tests/voice.yaml', '--json'], ws);
+  assert.equal(gluely(['recall', '--area', 'voice', '--json'], ws).json.lessons.length, 2);
+  assert.equal(gluely(['learn', '--json'], ws).json.edits.keeps_removing[0].times, 2);
+  gluely(['log', 'drop', second, '--why', 'One-off', '--json'], ws);
+  assert.equal(gluely(['learn', '--json'], ws).json.edits.keeps_removing.length, 0);
+  assert.equal(gluely(['log', '--limit', '0', '--json'], ws).json.entries.length, 0);
+});
+
+test('doctor points at the command that shows the real error', () => {
+  const ws = makeWorkspace();
+  fillContext(ws);
+  write(ws, 'plays/broken.yaml', 'id: broken\nstatus: draft\n');
+  const state = gluely(['doctor', '--json'], ws).json;
+  assert.equal(state.next.command, 'gluely plays validate');
+});
+
+test('GLUELY_WORKSPACE works for the tools command and the home screen', () => {
+  const ws = makeWorkspace();
+  const env = { GLUELY_WORKSPACE: ws };
+  const outside = tempDir();
+  assert.equal(gluely(['tools', 'add', 'Foo', '--job', 'crm', '--json'], outside, env).code, 0);
+  assert.equal(gluely(['--json'], outside, env).json.workspace, ws);
+});
+
+test('a corrupt play gives a clear error, not a stack trace', () => {
+  const ws = makeWorkspace();
+  fillContext(ws);
+  gluely(['plays', 'start', 'job-switch', '--json'], ws);
+  fs.writeFileSync(path.join(ws, 'plays/job-switch.yaml'), 'id: [unclosed\n');
+  assert.equal(gluely(['plays', 'next', 'job-switch', '--json'], ws).json.error.code, 'bad_play');
 });
 
 test('human screens refuse to run without a terminal instead of hanging', () => {

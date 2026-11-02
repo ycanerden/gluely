@@ -13,8 +13,8 @@ const ENV = {
   NO_COLOR: '1',
 };
 
-export function gluely(args, cwd) {
-  const result = spawnSync('node', [BIN, ...args], { cwd, env: ENV, encoding: 'utf8' });
+export function gluely(args, cwd, env = {}) {
+  const result = spawnSync('node', [BIN, ...args], { cwd, env: { ...ENV, ...env }, encoding: 'utf8' });
   let json;
   try { json = JSON.parse(result.stdout); } catch { json = null; }
   return { code: result.status, out: result.stdout, err: result.stderr, json };

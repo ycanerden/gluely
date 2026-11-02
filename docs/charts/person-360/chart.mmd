@@ -23,28 +23,31 @@ stateDiagram-v2
       s3: Nothing logged yet
       s4: A signal is kept
       s5: Sales-ready mark appended
+      s6: Stage change appended
       [*] --> s3
       s3 --> s4: a signal is appended [when Identity is not No one on file]
       s4 --> s5: a sales-ready mark is appended
+      s5 --> s6: a stage change comes back and goes on the ledger [when View is Person 360 shows this person and CRM is Sales-ready fields only]
     }
     --
     state "View" as r2 {
-      s6: No view yet
-      s7: Person 360 shows this person
-      [*] --> s6
-      s6 --> s7: Person 360 is filled in from the ledger [when Identity is not No one on file and Ledger is not Nothing logged yet]
+      s7: No view yet
+      s8: Person 360 shows this person
+      [*] --> s7
+      s7 --> s8: Person 360 is filled in from the ledger [when Identity is not No one on file and Ledger is not Nothing logged yet]
     }
     --
     state "CRM" as r3 {
-      s8: Not in the CRM
-      s9: Sales-ready fields only
-      s10: Stage mirrored from the CRM
-      [*] --> s8
-      s8 --> s9: sales-ready fields go to the CRM [when Identity is not No one on file and Ledger is Sales-ready mark appended and View is Person 360 shows this person]
-      s9 --> s10: a stage change comes back as an event
+      s9: Not in the CRM
+      s10: Sales-ready fields only
+      s11: Stage mirrored from the CRM
+      [*] --> s9
+      s9 --> s10: sales-ready fields go to the CRM [when Identity is not No one on file and Ledger is Sales-ready mark appended and View is Person 360 shows this person]
+      s10 --> s11: a stage change comes back and goes on the ledger
     }
   }
   class s0 blue
   class s3 blue
-  class s9 orange
+  class s6 orange
   class s10 orange
+  class s11 orange

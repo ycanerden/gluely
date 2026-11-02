@@ -38,6 +38,7 @@ steps:
     why: Only enrich people who pass your gate.
     type: tool
     job: contact-data
+    waterfall: true
     writes: enrich.tool
   - id: excuse
     ask: What is your honest reason to reach out?
