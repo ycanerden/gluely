@@ -1,0 +1,35 @@
+---
+title: "A reply can teach the play, without the prospect's words"
+---
+stateDiagram-v2
+  state "Legend" as legend {
+    lg0: Reply
+    lg1: No card
+    lg2: Lesson
+    lg3: Approved
+  }
+  class lg0 yellow
+  class lg1 orange
+  class lg2 teal
+  class lg3 blue
+  s0: A reply is waiting
+  s1: Reply labeled not now, no card
+  s2: Reply labeled positive
+  s3: Unsubscribe suppressed, no card
+  s4: Card holds counts and shared words only
+  s5: A play update is proposed
+  s6: A person approved the play update
+  [*] --> s0
+  s0 --> s1: the reply is labeled not now
+  s0 --> s2: the reply is labeled positive
+  s0 --> s3: the reply is labeled unsubscribe
+  s2 --> s4: an anonymised card is drafted
+  s4 --> s5: the card proposes a play update
+  s5 --> s6: a person approves the play update
+  class s0 yellow
+  class s1 orange
+  class s2 yellow
+  class s3 orange
+  class s4 teal
+  class s5 teal
+  class s6 blue

@@ -1,0 +1,42 @@
+---
+title: "One person, one active play"
+---
+stateDiagram-v2
+  direction LR
+  state "Legend" as legend {
+    lg0: Competing
+    lg1: One winner
+  }
+  class lg0 yellow
+  class lg1 teal
+  state "At the same time" as all {
+    state "Job-switch" as r0 {
+      s0: Not asking
+      s1: Wants this person
+      s2: The one active play
+      s3: Stepped aside
+      [*] --> s0
+      s0 --> s1: a job-switch signal arrives [unless The one active play]
+      s1 --> s2: job-switch runs on its own [when Not asking]
+      s0 --> s3: a later job-switch signal is set aside [when The one active play]
+      s1 --> s2: arbitration keeps job-switch and sets hiring aside [when Wants this person]
+    }
+    --
+    state "Hiring" as r1 {
+      s4: Not asking
+      s5: Wants this person
+      s6: The one active play
+      s7: Stepped aside
+      [*] --> s4
+      s4 --> s5: a hiring signal arrives [unless The one active play]
+      s5 --> s6: hiring runs on its own [when Not asking]
+      s4 --> s7: a later hiring signal is set aside [when The one active play]
+      s5 --> s7: arbitration keeps job-switch and sets hiring aside [when Wants this person]
+    }
+  }
+  class s1 yellow
+  class s2 teal
+  class s3 teal
+  class s5 yellow
+  class s6 teal
+  class s7 teal
