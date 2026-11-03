@@ -2,15 +2,19 @@
 company:
   name: "{{company}}"
   domain: "{{domain}}"
+  # Who you sell to (b2b, b2c or both), and how (sales_led, product_led, founder_led, community_led, mixed).
+  market: {{market}}
   motion: {{motion}}
 
 # The tools you already use. Any tool works: run `gluely stack` to see the layers.
 stack: {}
 
-# Refresh a person's data when it's older than this, and only when a play needs them.
+# How many days data may age. A person is refreshed only when a play needs them.
+# A context file past its age gets a warning in gluely context check.
 refresh_days:
   default: 90
   employment: 30
+  context: 180
 
 # The base is meant to be built on. Add your own signal types here.
 extensions:

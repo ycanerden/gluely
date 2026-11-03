@@ -2,6 +2,12 @@
 // Companies extend signals through `extensions.signals` in workspace.yaml.
 
 export const CONTEXT_STATUSES = ['template', 'draft', 'confirmed'];
+// How sure the brain is of a claim. A hunch is readable but carries no weight: an
+// active play can only lean on proof that is repeated (two independent sources)
+// or measured (a number anyone can recompute).
+export const EVIDENCE = ['hunch', 'repeated', 'measured'];
+export const LEANABLE = ['repeated', 'measured'];
+
 export const PLAY_STATUSES = ['draft', 'active', 'paused', 'killed'];
 
 export const SIGNALS = [
@@ -18,6 +24,7 @@ export const SIGNALS = [
   'signal.website_visit',
   'signal.product_activated',
   'signal.product_usage_spike',
+  'signal.lifecycle_event',
 ];
 
 export const REPLY_LABELS = ['positive', 'question', 'not_now', 'negative', 'ooo', 'referral', 'unsubscribe'];

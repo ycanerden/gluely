@@ -1,9 +1,9 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import YAML from 'yaml';
-import { loadExcuses, personaIds } from './context.js';
+import { loadExcuses, personaIds, proofEvidence } from './context.js';
 import { loadConfig } from './workspace.js';
-import { PLAY_STATUSES, SIGNALS } from './vocab.js';
+import { LEANABLE, PLAY_STATUSES, SIGNALS } from './vocab.js';
 
 export function loadPlays(ws) {
   const dir = path.join(ws, 'plays');
@@ -20,7 +20,7 @@ export function loadPlays(ws) {
     });
 }
 
-export function validatePlay(play, { signals, personas, excuses }) {
+export function validatePlay(play, { signals, personas, excuses, proof = {} }) {
   const { file, spec, parseError } = play;
   const issues = [];
   const add = (level, message) => issues.push({ level, file: `plays/${file}`, message });
@@ -47,6 +47,17 @@ export function validatePlay(play, { signals, personas, excuses }) {
     add(active ? 'error' : 'warn', `no excuse for ${spec.signal.type} in context/messaging/excuses.md`);
   }
 
+  const cited = spec.excuse?.proof ?? [];
+  if (!Array.isArray(cited)) add('error', 'excuse.proof must be a list of proof ids');
+  else {
+    for (const id of cited) {
+      if (!Object.hasOwn(proof, String(id))) add(active ? 'error' : 'warn', `proof "${id}" has no file in context/proof/`);
+      else if (!LEANABLE.includes(proof[id])) {
+        add(active ? 'error' : 'warn', `proof "${id}" is still a ${proof[id]}: an active play can only lean on ${LEANABLE.join(' or ')} proof. Find a second source, or take it out`);
+      }
+    }
+  }
+
   const variants = spec.excuse?.variants || [];
   if (variants.length > 2) add('warn', `${variants.length} variants: two is the most you can compare at startup volume`);
   if (spec.kill && !spec.kill.after && !spec.kill.after_touches && !spec.kill.after_days) add('error', 'kill needs after_touches or after_days: a play that can never die eats budget forever');
@@ -60,6 +71,7 @@ export function validatePlays(ws) {
     signals: [...SIGNALS, ...cfg.extensions.signals],
     personas: personaIds(ws),
     excuses: loadExcuses(ws),
+    proof: proofEvidence(ws),
   };
   const plays = loadPlays(ws).map((play) => ({
     file: `plays/${play.file}`,

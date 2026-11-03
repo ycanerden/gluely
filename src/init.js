@@ -1,11 +1,12 @@
 import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
+import { MARKETS } from './guard.js';
 import { fail } from './output.js';
 import { installSkills } from './skills.js';
 import { GLUELY_ROOT, git } from './workspace.js';
 
-const MOTIONS = ['sales_led', 'product_led', 'founder_led', 'mixed'];
+const MOTIONS = ['sales_led', 'product_led', 'founder_led', 'community_led', 'mixed'];
 
 const isInside = (child, parent) => {
   const rel = path.relative(parent, child);
@@ -23,10 +24,11 @@ function copyTemplate(source, target, vars) {
   }
 }
 
-export function initWorkspace({ dir, company, domain, motion = 'mixed', noGit = false, noSkills = false }) {
-  if (!dir) fail('usage', 'Usage: gluely init <dir> --company <name> [--domain example.com] [--motion sales_led]');
+export function initWorkspace({ dir, company, domain, motion = 'mixed', market = 'b2b', noGit = false, noSkills = false }) {
+  if (!dir) fail('usage', 'Usage: gluely init <dir> --company <name> [--domain example.com] [--market b2b|b2c|both] [--motion sales_led]');
   if (!company) fail('usage', '--company is required.');
   if (!MOTIONS.includes(motion)) fail('bad_motion', `--motion must be one of ${MOTIONS.join(', ')}.`);
+  if (!MARKETS.includes(market)) fail('bad_market', `--market must be one of ${MARKETS.join(', ')}: who you sell to.`);
 
   const target = path.resolve(dir);
   // The public repo must never hold company data, so a workspace can't live inside it.
@@ -39,6 +41,7 @@ export function initWorkspace({ dir, company, domain, motion = 'mixed', noGit = 
     company,
     domain: domain || '',
     motion,
+    market,
     date: new Date().toISOString().slice(0, 10),
   });
   if (!noSkills) installSkills(target);

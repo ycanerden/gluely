@@ -9,8 +9,12 @@ import { initWorkspace } from './init.js';
 import { addTool, loadLibrary, loadPlaybooks, toolsForJob } from './library.js';
 import { addEntry, dropEntry, learn, listEntries, logCorrection, promoteEntry, recall } from './log.js';
 import { color, fail, GluelyError, mark, printIssues } from './output.js';
+import { guardFile } from './guard.js';
 import { validatePlays } from './plays.js';
 import { answerStep, nextStep, startPlay } from './playbooks.js';
+import { addResult, judgePlay, renderJudgement } from './results.js';
+import { planWaterfall, recordTest, renderWaterfall } from './waterfall.js';
+import { loadPrices } from './cost.js';
 import { HOSTS, installSkills, listSkills } from './skills.js';
 import { loadStack, setStack } from './stack.js';
 import { CHANNELS } from './vocab.js';
@@ -24,7 +28,7 @@ const BOOLEAN_FLAGS = new Set(['json', 'help', 'version', 'no-git', 'no-skills',
 const HELP = `gluely ${VERSION}: an open-source GTM brain. Your agent thinks. Gluely remembers and checks.
 
 Start
-  gluely init <dir> --company <name> [--domain d] [--motion m]   create your private workspace
+  gluely init <dir> --company <name> [--market b2b|b2c|both] [--motion m]   create your private workspace
   gluely                                                         your home screen
   gluely doctor                                                  where you stand and what to do next
   gluely flow                                                    the loop, drawn from real state
@@ -37,6 +41,7 @@ Brain
   gluely playbooks                                               example plays to start from
   gluely check draft --channel <c> (--text <t> | --file <f>)     test a draft against your voice
   gluely check company <domain>                                  is this company excluded?
+  gluely guard <list.csv> [--to <tool>] [--customers <csv>]      sort a list before it leaves: clear, to owners, held
 
 Tests
   gluely test                                                    run tests and compare context versions
@@ -52,6 +57,10 @@ Learning
   gluely learn                                                   what keeps coming up
   gluely log promote <id> --to <file> | drop <id> --why <why>    close a lesson
 
+Results
+  gluely results <play>                                          what a play produced, and keep or kill
+  gluely results add <play> --touches <n> --positive <n> [--replies n] [--meetings n] [--spent n] [--placement inbox|spam]
+
 Cost
   gluely cost <play> [--fit 30%] [--touches 2] [--checks 1]      estimate before spending credits
   gluely cost price <tool> --job <j> --each <n> | --credits <n>  add your own price
@@ -62,6 +71,8 @@ Tools
   gluely stack set <layer> <any tool name>                       name a tool. Any tool works
   gluely tools [job]                                             the tool library, by job
   gluely tools add <name> --job <job> [--access <kind>]          add your own tool
+  gluely waterfall <job> [--tools "A, B"]                        order your tools by your own price and tests
+  gluely waterfall test <tool> --job <j> --tried 20 --right <n> [--wrong n] [--unprovable n]   a blind test
 
 Skills
   gluely skills list | install [--host claude,cursor]            the GTM skill pack
@@ -94,6 +105,7 @@ const commands = {
       company: args.flags.company,
       domain: args.flags.domain,
       motion: args.flags.motion,
+      market: args.flags.market,
       noGit: args.flags['no-git'],
       noSkills: args.flags['no-skills'],
     });
@@ -141,6 +153,7 @@ const commands = {
       render() {
         const s = data.summary;
         line(!failed, `${s.total} context files: ${s.confirmed} confirmed, ${s.draft} draft, ${s.template} templates`);
+        if (s.hunches) console.log(`  ${s.hunches} ${s.hunches === 1 ? 'claim is' : 'claims are'} still a hunch. Plays can't lean on ${s.hunches === 1 ? 'it' : 'them'} yet`);
         printIssues(data.issues);
       },
     };
@@ -176,6 +189,40 @@ const commands = {
         if (sub === 'validate') { line(!failed, failed ? 'Plays need fixing' : 'Plays are valid'); printIssues(data.issues); }
       },
     };
+  },
+
+  guard(args) {
+    const ws = requireWorkspace();
+    const data = guardFile(ws, args._[0], { to: args.flags.to, by: args.flags.by, customers: args.flags.customers });
+    return {
+      data,
+      render() {
+        line(true, `${data.total} rows${data.to ? ` before ${data.to}` : ''}: ${data.counts.clear} clear, ${data.counts.owner} to owners, ${data.counts.held} held`);
+        for (const warning of data.warnings) console.log(`  ${mark.warn()} ${warning}`);
+        for (const row of data.rows.slice(0, 20)) console.log(`  ${row.bucket === 'held' ? mark.bad() : mark.next()} line ${row.line}: ${row.reason}`);
+        if (data.rows.length > 20) console.log(color.dim(`  and ${data.rows.length - 20} more in the files below`));
+        for (const [bucket, file] of Object.entries(data.files)) console.log(`  ${bucket.padEnd(5)} ${color.dim(file)}`);
+        if (data.counts.clear) console.log(`${mark.next()} Only ${data.files.clear} may go to an outside tool.`);
+      },
+    };
+  },
+
+  waterfall(args) {
+    const ws = requireWorkspace();
+    const { job, tried, right, wrong, unprovable, by, tools } = args.flags;
+    const data = args._[0] === 'test'
+      ? recordTest(ws, args._.slice(1).join(' '), { job, tried, right, wrong, unprovable, by })
+      : args._[0] ? planWaterfall(ws, args._[0], { tools }) : fail('usage', 'Usage: gluely waterfall <job> [--tools "A, B"] | gluely waterfall test <tool> --job <job> --tried 20 --right <n>');
+    return { data, render: () => renderWaterfall(data, { color, line, mark }, loadPrices(ws).currency) };
+  },
+
+  results(args) {
+    const ws = requireWorkspace();
+    const sub = args._[0];
+    const id = sub === 'add' ? args._[1] : sub;
+    if (!id) fail('usage', 'Usage: gluely results <play> | gluely results add <play> --touches <n> --positive <n>');
+    const data = sub === 'add' ? addResult(ws, id, args.flags) : judgePlay(ws, id);
+    return { data, render: () => renderJudgement(data, { color, line }) };
   },
 
   check(args) {

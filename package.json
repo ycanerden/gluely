@@ -1,7 +1,7 @@
 {
   "name": "gluely",
   "version": "0.0.1",
-  "description": "An open-source GTM brain. Your agent does the thinking; Gluely keeps the memory, the rules and the learning loop.",
+  "description": "Open-source GTM architecture for any market and motion. Your agent does the thinking; Gluely keeps the memory, the rules and the learning loop.",
   "type": "module",
   "bin": { "gluely": "bin/gluely.js" },
   "files": ["bin", "src", "skills", "library", "templates", "docs", ".claude-plugin", ".cursor-plugin", "README.md", "AGENTS.md", "LICENSE"],

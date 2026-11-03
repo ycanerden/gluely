@@ -69,6 +69,13 @@ Write one claim per file, in the founder's words:
 - `context/messaging/voice.md`, `context/messaging/excuses.md`
 - `context/exclusions/rules.md`, `context/exclusions/companies.csv`
 
+Give every proof point and objection an `evidence` level, and list where each sighting came from under `sources`:
+- `hunch`: seen once, or only the founder believes it. Plays can't lean on it yet.
+- `repeated`: two independent sources, such as two deals or two calls.
+- `measured`: a number anyone can recompute, under `metric`.
+
+Most claims on day one are hunches. Say so, and don't round up. Write real dates, never "last quarter".
+
 Use `status: draft`. Change a file to `confirmed` only after the founder approves it. Never invent customers, numbers or quotes: leave a gap and name it. Never put a prospect's name or a long quote in `context/`.
 
 ## 7. Lock in the decisions

@@ -56,7 +56,7 @@ export function startPlay(ws, playbookId, id = playbookId) {
       excuse: { variants: ['a'] },
       action: {},
       success: { primary: 'meeting_booked' },
-      kill: { after_touches: 100, if: 'meeting_rate < 0.5%' },
+      kill: { after_days: 90, if: 'meetings == 0' },
       setup: {},
     });
   }

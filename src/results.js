@@ -1,0 +1,150 @@
+// What a play actually produced, and what that is honestly worth. Results are appended,
+// never edited, and judged by one rule: under 50 touches nothing is known, from 50 a play
+// with no positive reply can die, and at 100 (or when its own kill rule comes due) it is
+// decided. Zero replies on email is a deliverability question before it is a copy question.
+import fs from 'node:fs';
+import path from 'node:path';
+import { fail } from './output.js';
+import { readPlay } from './playbooks.js';
+import { contextVersion } from './workspace.js';
+
+export const KILL_FROM = 50;
+export const DECIDE_AT = 100;
+const PLACEMENTS = ['inbox', 'spam', 'unchecked'];
+const COUNTS = ['touches', 'replies', 'positive', 'meetings'];
+const MONEY = ['spent', 'pipeline'];
+
+const file = (ws) => path.join(ws, 'learning', 'plays.jsonl');
+
+function readAll(ws) {
+  if (!fs.existsSync(file(ws))) return [];
+  return fs.readFileSync(file(ws), 'utf8').split('\n').filter(Boolean).map((row, i) => {
+    try { return JSON.parse(row); } catch { return fail('bad_results', `learning/plays.jsonl line ${i + 1} is not valid JSON.`); }
+  });
+}
+
+const count = (flag, value) => {
+  if (value === undefined || value === true) return 0;
+  const n = Number(value);
+  if (!Number.isFinite(n) || n < 0) fail('bad_number', `--${flag} must be a number of zero or more.`);
+  return n;
+};
+
+export function addResult(ws, id, flags) {
+  readPlay(ws, id);
+  const entry = { at: new Date().toISOString(), play: id };
+  for (const key of [...COUNTS, ...MONEY]) entry[key] = count(key, flags[key]);
+  if (!entry.touches && !entry.replies && !entry.spent) fail('usage', 'Pass at least --touches, and what came back: --replies, --positive, --meetings, --spent.');
+  for (const [part, whole] of [['replies', 'touches'], ['positive', 'replies'], ['meetings', 'positive']]) {
+    if (entry[part] > entry[whole] && entry[whole]) fail('bad_number', `--${part} can't be more than --${whole}.`);
+  }
+  const placement = flags.placement ?? 'unchecked';
+  if (!PLACEMENTS.includes(placement)) fail('usage', `--placement must be one of ${PLACEMENTS.join(', ')}: where test emails landed.`);
+  Object.assign(entry, { placement, by: flags.by || 'human', context_version: contextVersion(ws).version });
+  fs.mkdirSync(path.dirname(file(ws)), { recursive: true });
+  fs.appendFileSync(file(ws), `${JSON.stringify(entry)}\n`);
+  return { added: entry, ...judgePlay(ws, id) };
+}
+
+// A 95% Wilson interval: what a rate could really be, given how few touches stand behind it.
+export function interval(hits, total) {
+  if (!total) return null;
+  const z = 1.96;
+  const p = hits / total;
+  const centre = (p + (z * z) / (2 * total)) / (1 + (z * z) / total);
+  const spread = (z * Math.sqrt((p * (1 - p)) / total + (z * z) / (4 * total * total))) / (1 + (z * z) / total);
+  return [Math.max(0, centre - spread), Math.min(1, centre + spread)];
+}
+
+// Kill rules are plain sentences like "meeting_rate < 0.5% and positive_rate < 1%".
+// Anything this can't read returns null, so an unreadable rule never kills a play.
+export function evaluateRule(rule, metrics) {
+  if (!rule) return null;
+  const any = String(rule).split(/\s+or\s+/i).map((group) => group.split(/\s+and\s+/i).map((cond) => {
+    const m = cond.trim().match(/^([a-z_]+)\s*(<=|>=|==|!=|<|>)\s*(-?[\d.]+)\s*(%?)$/i);
+    if (!m || !(m[1] in metrics)) return null;
+    const [, key, op, raw, pct] = m;
+    const value = Number(raw) / (pct ? 100 : 1);
+    const actual = metrics[key];
+    return { '<': actual < value, '<=': actual <= value, '>': actual > value, '>=': actual >= value, '==': actual === value, '!=': actual !== value }[op];
+  }));
+  if (any.flat().some((v) => v === null)) return null;
+  return any.some((group) => group.every(Boolean));
+}
+
+const share = (part, whole) => (whole ? part / whole : 0);
+const pct = (v) => `${(v * 100).toFixed(v < 0.1 ? 1 : 0)}%`;
+
+export function judgePlay(ws, id, now = Date.now()) {
+  const spec = readPlay(ws, id);
+  const entries = readAll(ws).filter((e) => e.play === id);
+  const totals = Object.fromEntries([...COUNTS, ...MONEY].map((k) => [k, entries.reduce((sum, e) => sum + (e[k] || 0), 0)]));
+  const first = entries[0]?.at;
+  const days = first ? Math.floor((now - Date.parse(first)) / 86400000) : 0;
+  const placement = [...entries].reverse().find((e) => e.placement !== 'unchecked')?.placement || 'unchecked';
+  const metrics = {
+    ...totals, days,
+    reply_rate: share(totals.replies, totals.touches),
+    positive_rate: share(totals.positive, totals.touches),
+    meeting_rate: share(totals.meetings, totals.touches),
+  };
+  const roi = {
+    per_positive: totals.positive ? totals.spent / totals.positive : null,
+    per_meeting: totals.meetings ? totals.spent / totals.meetings : null,
+    pipeline_per_spent: totals.spent && totals.pipeline ? totals.pipeline / totals.spent : null,
+  };
+
+  const email = (spec.action?.channels || []).includes('email');
+  const kill = spec.kill || {};
+  const due = Boolean((kill.after_touches && totals.touches >= kill.after_touches) || (kill.after_days && first && days >= kill.after_days));
+  const ruleSays = evaluateRule(kill.if, metrics);
+  const say = (verdict, why) => ({ verdict, why });
+
+  let judged;
+  if (!entries.length) judged = say('no_results', `No results yet. Add them with gluely results add ${id} --touches <n> --positive <n>.`);
+  else if (email && placement === 'spam') judged = say('fix_deliverability', 'Test emails land in spam, so the copy has not been tested yet. Fix the sending setup before judging the play.');
+  else if (email && totals.replies === 0 && placement === 'unchecked' && totals.touches >= KILL_FROM) {
+    judged = say('check_deliverability', `No reply at all in ${totals.touches} emails. Check where they land before blaming the copy, then add the result with --placement inbox or spam.`);
+  } else if (due && ruleSays === null) judged = say('decide', `The kill rule is due, but "${kill.if}" can't be read. A person decides.`);
+  else if (due) judged = ruleSays ? say('kill', `The kill rule is due and "${kill.if}" is true.`) : say('keep', `The kill rule is due and "${kill.if}" is false.`);
+  else if (totals.touches < KILL_FROM) judged = say('too_early', `${totals.touches} touches. Under ${KILL_FROM}, any rate is noise, so keep going.`);
+  else if (totals.positive === 0) judged = say('kill', `No positive reply in ${totals.touches} touches.`);
+  else if (totals.touches < DECIDE_AT) judged = say('keep_going', `${totals.positive} positive so far. Decide at ${DECIDE_AT} touches.`);
+  else if (ruleSays === null) judged = say('decide', `${totals.touches} touches is enough to decide, but "${kill.if}" can't be read. A person decides.`);
+  else judged = ruleSays ? say('kill', `${totals.touches} touches, and "${kill.if}" is true.`) : say('keep', `${totals.touches} touches, and "${kill.if}" is false.`);
+
+  return {
+    play: id,
+    status: spec.status,
+    batches: entries.length,
+    since: first || null,
+    days,
+    totals,
+    rates: {
+      reply: metrics.reply_rate,
+      positive: metrics.positive_rate,
+      meeting: metrics.meeting_rate,
+      positive_could_be: interval(totals.positive, totals.touches),
+    },
+    roi,
+    placement,
+    ...judged,
+    decided_by: 'a person',
+  };
+}
+
+export function renderJudgement(data, { color, line }) {
+  console.log(color.bold(`Results: ${data.play}`) + color.dim(`   ${data.status}, ${data.batches} batches${data.since ? `, since ${data.since.slice(0, 10)}` : ''}`));
+  if (data.batches) {
+    const t = data.totals;
+    console.log(`  ${t.touches} touches, ${t.replies} replies, ${t.positive} positive, ${t.meetings} meetings`);
+    const range = data.rates.positive_could_be;
+    if (range) console.log(`  positive rate ${pct(data.rates.positive)} ${color.dim(`(could really be ${pct(range[0])} to ${pct(range[1])})`)}`);
+    if (data.roi.per_meeting !== null) console.log(`  ${data.roi.per_meeting.toFixed(2)} spent per meeting`);
+    else if (data.roi.per_positive !== null) console.log(`  ${data.roi.per_positive.toFixed(2)} spent per positive reply`);
+    if (data.roi.pipeline_per_spent !== null) console.log(`  ${data.roi.pipeline_per_spent.toFixed(1)}x pipeline for what it cost`);
+  }
+  const good = ['keep', 'keep_going', 'too_early', 'no_results'].includes(data.verdict);
+  line(good, `${data.verdict.replace(/_/g, ' ')}: ${data.why}`);
+  if (data.verdict === 'kill') console.log(color.dim('  This is a suggestion. A person sets status: killed in the play file.'));
+}

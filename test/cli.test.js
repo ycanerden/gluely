@@ -5,7 +5,7 @@ import { test } from 'node:test';
 import YAML from 'yaml';
 import { parseArgs } from '../src/cli.js';
 import { SIGNALS } from '../src/vocab.js';
-import { normalizeDomain, parseCsv } from '../src/workspace.js';
+import { normalizeDomain, parseCsv, readFrontmatter } from '../src/workspace.js';
 import { commit, fillContext, gluely, makeWorkspace, ROOT, tempDir, write } from './helpers.js';
 
 const PLAY = (over = '') => `id: first-play
@@ -607,4 +607,221 @@ test('human screens refuse to run without a terminal instead of hanging', () => 
 test('the landing page shows exactly what is in the library', async () => {
   const { siteData } = await import('../scripts/site-data.mjs');
   assert.equal(fs.readFileSync(path.join(ROOT, 'site/data.js'), 'utf8'), siteData(), 'run node scripts/site-data.mjs');
+});
+
+const PROOF = (front) => `---\nid: faster-onboarding\nstatus: draft\nupdated: ${new Date().toISOString().slice(0, 10)}\n${front}\n---\n# Onboarding in a day\n\n**Claim:** Two customers went live in one day.\n`;
+
+test('a claim is a hunch until its sources say otherwise', () => {
+  const ws = makeWorkspace();
+  fillContext(ws);
+  write(ws, 'context/proof/faster-onboarding.md', PROOF(''));
+  let result = gluely(['context', 'check', '--json'], ws);
+  assert.equal(result.code, 0);
+  assert.equal(result.json.summary.hunches, 1);
+  assert.equal(result.json.files.find((f) => f.id === 'faster-onboarding').evidence, 'hunch');
+
+  write(ws, 'context/proof/faster-onboarding.md', PROOF('evidence: repeated\nsources: [deal-2026-03]'));
+  result = gluely(['context', 'check', '--json'], ws);
+  assert.equal(result.code, 1);
+  assert.match(JSON.stringify(result.json.issues), /two independent sources/);
+
+  write(ws, 'context/proof/faster-onboarding.md', PROOF('evidence: measured\nsources: [onboarding report]'));
+  assert.match(JSON.stringify(gluely(['context', 'check', '--json'], ws).json.issues), /metric/);
+
+  write(ws, 'context/proof/faster-onboarding.md', PROOF('evidence: certain'));
+  assert.match(JSON.stringify(gluely(['context', 'check', '--json'], ws).json.issues), /evidence must be one of/);
+
+  write(ws, 'context/proof/faster-onboarding.md', PROOF('evidence: repeated\nsources: [deal-2026-03, call-2026-04]'));
+  result = gluely(['context', 'check', '--json'], ws);
+  assert.equal(result.code, 0);
+  assert.equal(result.json.summary.hunches, 0);
+});
+
+test('an active play can only lean on proof that is repeated or measured', () => {
+  const ws = makeWorkspace();
+  fillContext(ws);
+  write(ws, 'context/proof/faster-onboarding.md', PROOF(''));
+  const play = (status) => PLAY().replace('excuse: { variants: [a] }', 'excuse: { variants: [a], proof: [faster-onboarding] }').replace('status: draft', `status: ${status}`);
+
+  write(ws, 'plays/first-play.yaml', play('draft'));
+  let result = gluely(['plays', 'validate', '--json'], ws);
+  assert.equal(result.code, 0);
+  assert.match(JSON.stringify(result.json.issues), /still a hunch/);
+
+  write(ws, 'plays/first-play.yaml', play('active'));
+  assert.equal(gluely(['plays', 'validate', '--json'], ws).code, 1);
+
+  write(ws, 'context/proof/faster-onboarding.md', PROOF('evidence: repeated\nsources: [deal-2026-03, call-2026-04]'));
+  assert.equal(gluely(['plays', 'validate', '--json'], ws).code, 0);
+
+  write(ws, 'plays/first-play.yaml', play('active').replace('[faster-onboarding]', '[made-up]'));
+  result = gluely(['plays', 'validate', '--json'], ws);
+  assert.equal(result.code, 1);
+  assert.match(JSON.stringify(result.json.issues), /made-up.*has no file/);
+});
+
+test('context warns about claims nobody has reviewed and dates that drift', () => {
+  const ws = makeWorkspace();
+  fillContext(ws);
+  write(ws, 'context/proof/old-win.md', '---\nid: old-win\nstatus: confirmed\nupdated: 2020-01-01\n---\n# Old win\n\nWe doubled pipeline last quarter.\n');
+  write(ws, 'context/messaging/note.md', '---\nid: note\nstatus: draft\n---\nSaw your post this week.\n');
+  const result = gluely(['context', 'check', '--json'], ws);
+  assert.equal(result.code, 0);
+  const text = JSON.stringify(result.json.issues);
+  assert.match(text, /old-win\.md.*not reviewed for \d+ days/);
+  assert.match(text, /write the date instead of .*last quarter/);
+  assert.doesNotMatch(text, /this week/);
+
+  const cfg = path.join(ws, 'workspace.yaml');
+  fs.writeFileSync(cfg, fs.readFileSync(cfg, 'utf8').replace('context: 180', 'context: 100000'));
+  assert.doesNotMatch(JSON.stringify(gluely(['context', 'check', '--json'], ws).json.issues), /not reviewed/);
+});
+
+test('no opener breaks its own never list, and a new play dies on time, not on a touch count', () => {
+  const ws = makeWorkspace();
+  const { data } = readFrontmatter(path.join(ws, 'context/messaging/excuses.md'));
+  for (const excuse of data.excuses) {
+    for (const phrase of excuse.never) assert.ok(!excuse.pattern.toLowerCase().includes(phrase.toLowerCase()), `${excuse.signal} opener says "${phrase}"`);
+  }
+  assert.ok(data.excuses.find((e) => e.signal === 'signal.post_engagement').never.includes('your comment'));
+
+  assert.deepEqual(YAML.parse(fs.readFileSync(path.join(ws, 'plays/_template.yaml'), 'utf8')).kill, { after_days: 90, if: 'meetings == 0' });
+  fillContext(ws);
+  gluely(['plays', 'start', 'post-engagers', '--json'], ws);
+  assert.deepEqual(YAML.parse(fs.readFileSync(path.join(ws, 'plays/post-engagers.yaml'), 'utf8')).kill, { after_days: 90, if: 'meetings == 0' });
+});
+
+test('the guard keeps customers home, sends known people to their owner and clears only prospects', () => {
+  const ws = makeWorkspace();
+  fillContext(ws);
+  write(ws, 'context/exclusions/companies.csv', 'domain,name,reason,owner\nacme-customer.example,"Northwind, Inc.",customer,\nformer.example,Former Co,churned,\nfund.example,Seed Fund,investor,dana\nrival.example,Rival,competitor,\n');
+  write(ws, 'context/exclusions/people.csv', 'email,linkedin,name,reason,owner\nfriend@prospect.example,,Pat,close friend,sam\n,https://www.linkedin.com/in/known-person/,Kim,advisor,\n');
+  write(ws, 'exports/list.csv', [
+    'name,email,company,linkedin',
+    'A,a@acme-customer.example,Northwind,',
+    'B,b@northwind.co.uk,Northwind GmbH,',
+    'C,c@former.example,Former Co,',
+    'D,d@fund.example,Seed Fund,',
+    'E,friend@prospect.example,Prospect,',
+    'F,f@gmail.com,,linkedin.com/in/known-person',
+    'G,g@rival.example,Rival,',
+    'H,h@gmail.com,,',
+    'I,i@prospect.example,Prospect,',
+    'J,j@gmail.com,Fresh Startup,',
+  ].join('\n') + '\n');
+
+  const result = gluely(['guard', 'exports/list.csv', '--to', 'Any Enricher', '--json'], ws);
+  assert.equal(result.code, 0, result.out);
+  assert.deepEqual(result.json.counts, { clear: 2, owner: 2, held: 6 });
+  assert.deepEqual(result.json.owners, ['dana', 'sam']);
+  const reason = (line) => result.json.rows.find((r) => r.line === line).reason;
+  assert.match(reason(2), /customer/);
+  assert.match(reason(3), /shares a name/);
+  assert.match(reason(4), /churned/);
+  assert.match(reason(7), /no owner/);
+  assert.match(reason(9), /cannot be checked/);
+  assert.doesNotMatch(JSON.stringify(result.json), /a@acme-customer|friend@prospect/);
+
+  const clear = fs.readFileSync(path.join(ws, result.json.files.clear), 'utf8');
+  assert.match(clear, /i@prospect\.example/);
+  assert.match(clear, /Fresh Startup/);
+  assert.doesNotMatch(clear, /acme-customer|northwind|former|fund|friend@|rival/i);
+  assert.match(fs.readFileSync(path.join(ws, result.json.files.owner), 'utf8'), /dana/);
+  assert.match(gluely(['log', '--json'], ws).out, /Guard before Any Enricher: 2 clear, 2 to owners, 6 held/);
+  assert.equal(gluely(['flow', '--json'], ws).json.stages.find((s) => s.id === 'gate').status, 'working');
+});
+
+test('the guard warns when it knows no customers, and refuses a list it cannot read', () => {
+  const ws = makeWorkspace();
+  write(ws, 'exports/list.csv', 'email\nsomeone@prospect.example\n');
+  const result = gluely(['guard', 'exports/list.csv', '--json'], ws);
+  assert.equal(result.json.counts.clear, 1);
+  assert.match(result.json.warnings[0], /No customers/);
+  write(ws, 'exports/odd.csv', 'favourite_colour\nblue\n');
+  assert.equal(gluely(['guard', 'exports/odd.csv', '--json'], ws).json.error.code, 'unknown_columns');
+});
+
+test('results judge a play by the 50 and 100 rule, and ask about the inbox before the copy', () => {
+  const ws = makeWorkspace();
+  fillContext(ws);
+  write(ws, 'plays/first-play.yaml', PLAY());
+  const add = (...flags) => gluely(['results', 'add', 'first-play', ...flags, '--json'], ws);
+
+  assert.equal(gluely(['results', 'first-play', '--json'], ws).json.verdict, 'no_results');
+  assert.equal(add('--touches', '30', '--replies', '1').json.verdict, 'too_early');
+  assert.equal(add('--positive', '3', '--replies', '1').json.error.code, 'bad_number');
+
+  assert.equal(add('--touches', '30').json.verdict, 'kill');
+  write(ws, 'learning/plays.jsonl', '');
+  let judged = add('--touches', '60', '--replies', '2', '--positive', '1', '--spent', '30');
+  assert.equal(judged.json.verdict, 'keep_going');
+  assert.equal(judged.json.roi.per_positive, 30);
+  const [low, high] = judged.json.rates.positive_could_be;
+  assert.ok(low < 0.01 && high > 0.08);
+
+  judged = add('--touches', '60', '--meetings', '0');
+  assert.equal(judged.json.totals.touches, 120);
+  assert.equal(judged.json.verdict, 'kill');
+  assert.match(judged.json.why, /meeting_rate < 0.5%/);
+
+  write(ws, 'learning/plays.jsonl', '');
+  assert.equal(add('--touches', '274').json.verdict, 'check_deliverability');
+  assert.equal(add('--touches', '0', '--spent', '1', '--placement', 'spam').json.verdict, 'fix_deliverability');
+  assert.equal(add('--touches', '0', '--spent', '1', '--placement', 'inbox').json.verdict, 'kill');
+  assert.equal(add('--touches', '1', '--placement', 'somewhere').json.error.code, 'usage');
+});
+
+test('a kill rule nobody can read never kills a play', async () => {
+  const { evaluateRule } = await import('../src/results.js');
+  assert.equal(evaluateRule('meeting_rate < 0.5% and positive_rate < 1%', { meeting_rate: 0.004, positive_rate: 0.005 }), true);
+  assert.equal(evaluateRule('meetings == 0 or positive > 3', { meetings: 1, positive: 2 }), false);
+  assert.equal(evaluateRule('vibes are off', { meetings: 0 }), null);
+  assert.equal(evaluateRule('happiness < 2', { meetings: 0 }), null);
+});
+
+test('in B2C the guard checks people, not companies, and a work email never marks a whole company', () => {
+  const dir = path.join(tempDir(), 'shop');
+  assert.equal(gluely(['init', dir, '--company', 'Shop', '--market', 'b2c', '--motion', 'product_led', '--json'], tempDir()).code, 0);
+  assert.equal(gluely(['init', path.join(tempDir(), 'x'), '--company', 'X', '--market', 'b2z', '--json'], tempDir()).json.error.code, 'bad_market');
+  write(dir, 'exports/list.csv', 'email\nfan@gmail.com\nbuyer@gmail.com\nnew@bigcorp.example\n');
+
+  let result = gluely(['guard', 'exports/list.csv', '--json'], dir);
+  assert.equal(result.json.market, 'b2c');
+  assert.equal(result.json.counts.held, 3);
+  assert.match(result.json.warnings.join(' '), /--customers/);
+
+  write(dir, 'exports/customers.csv', 'email\nbuyer@gmail.com\nsomeone@bigcorp.example\n');
+  result = gluely(['guard', 'exports/list.csv', '--customers', 'exports/customers.csv', '--json'], dir);
+  assert.deepEqual(result.json.counts, { clear: 2, owner: 0, held: 1 });
+  assert.match(result.json.rows[0].reason, /a customer/);
+  assert.deepEqual(result.json.warnings, []);
+  assert.equal(gluely(['plays', 'start', 'product-lifecycle', '--json'], dir).json.step.job, 'product-data');
+});
+
+test('a waterfall is ordered by your own price per real find, never by the library', () => {
+  const ws = makeWorkspace();
+  gluely(['stack', 'set', 'enrichment', 'Zeta Data, Alpha Data, Mid Data'], ws);
+  let plan = gluely(['waterfall', 'contact-data', '--json'], ws).json;
+  assert.deepEqual(plan.order, ['Zeta Data', 'Alpha Data', 'Mid Data']);
+  assert.equal(plan.per_person, null);
+  assert.ok(plan.next.some((n) => /Price Zeta Data/.test(n)) && plan.next.some((n) => /Test Zeta Data/.test(n)));
+
+  gluely(['cost', 'price', 'Zeta Data', '--job', 'contact-data', '--each', '0.05'], ws);
+  gluely(['cost', 'price', 'Alpha Data', '--job', 'contact-data', '--credits', '2', '--credit-price', '0.02'], ws);
+  gluely(['cost', 'price', 'Mid Data', '--job', 'contact-data', '--each', '0.04'], ws);
+  const test = (tool, right, extra = []) => gluely(['waterfall', 'test', tool, '--job', 'contact-data', '--tried', '20', '--right', String(right), ...extra, '--json'], ws);
+  test('Zeta Data', 18);
+  test('Alpha Data', 8, ['--wrong', '6', '--unprovable', '4']);
+  plan = test('Mid Data', 12).json;
+  assert.deepEqual(plan.order, ['Zeta Data', 'Mid Data', 'Alpha Data']);
+  assert.ok(Math.abs(plan.tools[0].cost_per_find - 0.05 / 0.9) < 1e-9);
+  assert.ok(Math.abs(plan.per_person - (0.05 + 0.1 * 0.04 + 0.1 * 0.4 * 0.04)) < 1e-9);
+  assert.deepEqual(plan.next, []);
+  assert.match(plan.save, /Zeta Data, Mid Data, Alpha Data/);
+  assert.ok(plan.rules.some((r) => /accept-all/.test(r)));
+
+  assert.equal(test('Zeta Data', 30).json.error.code, 'bad_number');
+  assert.equal(gluely(['waterfall', 'test', 'Zeta Data', '--job', 'vibes', '--tried', '20', '--right', '1', '--json'], ws).json.error.code, 'bad_job');
+  assert.deepEqual(gluely(['waterfall', 'contact-data', '--tools', 'Other, Zeta Data', '--json'], ws).json.order, ['Zeta Data', 'Other']);
+  assert.match(gluely(['log', '--json'], ws).out, /Zeta Data for contact-data: 18 right/);
 });

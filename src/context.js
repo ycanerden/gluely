@@ -1,12 +1,19 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { CONTEXT_STATUSES } from './vocab.js';
-import { loadExclusions, readFrontmatter } from './workspace.js';
+import { loadPeople } from './guard.js';
+import { CONTEXT_STATUSES, EVIDENCE } from './vocab.js';
+import { loadConfig, loadExclusions, readFrontmatter } from './workspace.js';
 
 const REQUIRED = ['company.md', 'icp.md', 'positioning.md', 'messaging/voice.md', 'messaging/excuses.md', 'exclusions/rules.md'];
 const CLAIM_DIRS = ['personas', 'objections', 'proof'];
 const ICP_HEADINGS = ['## Must have', '## Disqualifiers', '## Scoring'];
 const PLACEHOLDER = /<[a-z][a-z0-9 -]*>/g;
+// Claims that carry an evidence level. Everything else is the company's own choice.
+const EVIDENCE_DIRS = ['objections', 'proof'];
+// Messaging is left out: copy may say "this week" and mean it.
+const DATED_PROSE = (rel) => !rel.startsWith('messaging/');
+const RELATIVE_DATE = /\b(?:(?:next|last|this|coming|past) (?:week|month|quarter|year)|yesterday|tomorrow|recently)\b/gi;
+const DAY = 24 * 60 * 60 * 1000;
 
 function walk(dir) {
   if (!fs.existsSync(dir)) return [];
@@ -18,7 +25,32 @@ function walk(dir) {
 
 const isTemplateFile = (rel) => path.basename(rel).startsWith('_');
 
-function checkFile(root, rel) {
+const inEvidenceDir = (rel) => EVIDENCE_DIRS.some((dir) => rel.startsWith(`${dir}/`));
+
+function checkEvidence(data, add) {
+  const evidence = data.evidence ?? 'hunch';
+  if (!EVIDENCE.includes(evidence)) { add('error', `evidence must be one of ${EVIDENCE.join(', ')}`); return evidence; }
+  if (data.sources !== undefined && data.sources !== null && !Array.isArray(data.sources)) { add('error', 'sources must be a list'); return evidence; }
+  const sources = (data.sources || []).filter(Boolean);
+  if (evidence === 'repeated' && sources.length < 2) {
+    add('error', `repeated needs two independent sources under sources:, and this has ${sources.length}. Until then it is a hunch`);
+  }
+  if (evidence === 'measured') {
+    if (!data.metric) add('error', 'measured needs the number under metric:, with how it was counted');
+    if (!sources.length) add('error', 'measured needs a source under sources: so anyone can recompute it');
+  }
+  return evidence;
+}
+
+function checkAge(data, add, refreshDays, now) {
+  const stamp = data.last_seen || data.updated;
+  const time = stamp ? Date.parse(stamp) : NaN;
+  if (Number.isNaN(time)) return;
+  const days = Math.floor((now - time) / DAY);
+  if (days > refreshDays) add('warn', `not reviewed for ${days} days: check it still holds, then set updated to today`);
+}
+
+function checkFile(root, rel, { refreshDays, now }) {
   const issues = [];
   const add = (level, message) => issues.push({ level, file: `context/${rel}`, message });
   const { data, body, error } = readFrontmatter(path.join(root, rel));
@@ -36,18 +68,25 @@ function checkFile(root, rel) {
     }
     if (rel === 'messaging/voice.md' && !data.limits) add('error', 'voice needs limits in its frontmatter');
     if (rel === 'messaging/excuses.md' && !Array.isArray(data.excuses)) add('error', 'excuses needs a list in its frontmatter');
+    if (DATED_PROSE(rel)) {
+      const relative = [...new Set((body.match(RELATIVE_DATE) || []).map((m) => m.toLowerCase()))];
+      if (relative.length) add('warn', `write the date instead of ${relative.map((m) => `"${m}"`).join(', ')}: relative dates go stale without anyone noticing`);
+    }
+    checkAge(data, add, refreshDays, now);
   }
-  return { rel, id: data.id, status: data.status, issues };
+  const evidence = inEvidenceDir(rel) && data.status !== 'template' ? checkEvidence(data, add) : undefined;
+  return { rel, id: data.id, status: data.status, evidence, issues };
 }
 
-export function scanContext(ws) {
+export function scanContext(ws, { now = Date.now() } = {}) {
   const root = path.join(ws, 'context');
+  const refreshDays = Number(loadConfig(ws).refresh_days?.context) || 180;
   const files = walk(root)
     .filter((f) => f.endsWith('.md'))
     .map((f) => path.relative(root, f))
     .filter((rel) => !isTemplateFile(rel))
     .sort()
-    .map((rel) => checkFile(root, rel));
+    .map((rel) => checkFile(root, rel, { refreshDays, now }));
 
   const issues = files.flatMap((f) => f.issues);
   for (const rel of REQUIRED) {
@@ -67,7 +106,7 @@ export function scanContext(ws) {
 
   const count = (status) => files.filter((f) => f.status === status).length;
   return {
-    files: files.map(({ rel, id, status }) => ({ file: `context/${rel}`, id, status })),
+    files: files.map(({ rel, id, status, evidence }) => ({ file: `context/${rel}`, id, status, ...(evidence && { evidence }) })),
     summary: {
       total: files.length,
       confirmed: count('confirmed'),
@@ -76,7 +115,9 @@ export function scanContext(ws) {
       personas: personas.length,
       objections: files.filter((f) => f.rel.startsWith('objections/')).length,
       proof: files.filter((f) => f.rel.startsWith('proof/')).length,
+      hunches: files.filter((f) => f.evidence === 'hunch').length,
       excluded_companies: exclusions.rows.length,
+      known_people: loadPeople(ws).length,
     },
     issues,
     claim_dirs: CLAIM_DIRS,
@@ -85,6 +126,13 @@ export function scanContext(ws) {
 
 export function personaIds(ws) {
   return scanContext(ws).files.filter((f) => f.file.startsWith('context/personas/')).map((f) => f.id);
+}
+
+// Proof by id, with how sure the brain is of each one.
+export function proofEvidence(ws) {
+  return Object.fromEntries(scanContext(ws).files
+    .filter((f) => f.file.startsWith('context/proof/') && f.id)
+    .map((f) => [f.id, f.evidence]));
 }
 
 export function loadVoice(ws) {

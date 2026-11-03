@@ -11,3 +11,5 @@ Don't declare a winner from a handful of results.
 **Why:** at 100 sends, a 3% rate could really be anywhere from about 0.6% to 8.5%. Telling 2% from 4% takes over a thousand sends per variant, which most startups won't reach.
 
 Treat rates under about 100 touches as noise, and say so out loud. At low volume, learn from what doesn't need statistics: repeated objections, review rejections and corrections.
+
+The same goes for claims. One deal or one call is a `hunch`. It takes two independent sources to make a claim `repeated`, and a number anyone can recompute to make it `measured`. Never raise a claim's evidence just so a play can use it.
