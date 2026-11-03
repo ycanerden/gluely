@@ -20,7 +20,8 @@ action:
   tool: any tool you like
 success:
   primary: meeting_booked
-# Use after_days instead when volume is low: 100 touches can take years on a small list.
+# Time first: at startup volume a touch count is noise, and 100 touches can take years.
+# Switch to after_touches only when you send hundreds a month.
 kill:
-  after_touches: 100
-  if: "meeting_rate < 0.5% and positive_rate < 1%"
+  after_days: 90
+  if: "meetings == 0"

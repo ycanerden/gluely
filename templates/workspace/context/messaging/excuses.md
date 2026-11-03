@@ -10,8 +10,8 @@ excuses:
     pattern: "Saw {company} is hiring a {role}. Teams at that stage usually..."
     never: []
   - signal: signal.post_engagement
-    pattern: "Your comment on {author}'s post about {topic}..."
-    never: ["I noticed you liked"]
+    pattern: "{author}'s post on {topic} raised a question we hear a lot..."
+    never: ["I noticed you liked", "your comment", "you commented"]
   - signal: signal.page_follow
     pattern: "Lead with a useful resource, and never mention the follow."
     never: ["saw you followed"]

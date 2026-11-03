@@ -5,7 +5,7 @@ import { test } from 'node:test';
 import YAML from 'yaml';
 import { parseArgs } from '../src/cli.js';
 import { SIGNALS } from '../src/vocab.js';
-import { normalizeDomain, parseCsv } from '../src/workspace.js';
+import { normalizeDomain, parseCsv, readFrontmatter } from '../src/workspace.js';
 import { commit, fillContext, gluely, makeWorkspace, ROOT, tempDir, write } from './helpers.js';
 
 const PLAY = (over = '') => `id: first-play
@@ -675,4 +675,18 @@ test('context warns about claims nobody has reviewed and dates that drift', () =
   const cfg = path.join(ws, 'workspace.yaml');
   fs.writeFileSync(cfg, fs.readFileSync(cfg, 'utf8').replace('context: 180', 'context: 100000'));
   assert.doesNotMatch(JSON.stringify(gluely(['context', 'check', '--json'], ws).json.issues), /not reviewed/);
+});
+
+test('no opener breaks its own never list, and a new play dies on time, not on a touch count', () => {
+  const ws = makeWorkspace();
+  const { data } = readFrontmatter(path.join(ws, 'context/messaging/excuses.md'));
+  for (const excuse of data.excuses) {
+    for (const phrase of excuse.never) assert.ok(!excuse.pattern.toLowerCase().includes(phrase.toLowerCase()), `${excuse.signal} opener says "${phrase}"`);
+  }
+  assert.ok(data.excuses.find((e) => e.signal === 'signal.post_engagement').never.includes('your comment'));
+
+  assert.deepEqual(YAML.parse(fs.readFileSync(path.join(ws, 'plays/_template.yaml'), 'utf8')).kill, { after_days: 90, if: 'meetings == 0' });
+  fillContext(ws);
+  gluely(['plays', 'start', 'post-engagers', '--json'], ws);
+  assert.deepEqual(YAML.parse(fs.readFileSync(path.join(ws, 'plays/post-engagers.yaml'), 'utf8')).kill, { after_days: 90, if: 'meetings == 0' });
 });
