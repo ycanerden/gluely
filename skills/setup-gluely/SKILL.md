@@ -81,4 +81,4 @@ Write `reports/onboarding-<date>.md` with: what the evidence showed, what the fo
 
 Run `gluely learn --json` and show what the brain kept from this session. Show the report, then ask before committing. Run `gluely flow` and show it.
 
-Suggest one first play from `gluely playbooks --json`, and hand over to `/gtm-mode` to set it up step by step. Nothing spends credits until `/check-cost` has been approved.
+Suggest one first play. If they have none, start with `gluely cookbooks --json` and `find-accounts` before a colder play. Hand over to `/gtm-mode` to set it up step by step. Nothing spends credits until `/check-cost` has been approved. The list file stays empty until that approval.

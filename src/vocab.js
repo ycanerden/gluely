@@ -5,6 +5,7 @@ export const CONTEXT_STATUSES = ['template', 'draft', 'confirmed'];
 export const PLAY_STATUSES = ['draft', 'active', 'paused', 'killed'];
 
 export const SIGNALS = [
+  'signal.account_list',
   'signal.job_switch',
   'signal.role_change',
   'signal.hiring',

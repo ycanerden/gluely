@@ -39,7 +39,7 @@ export function diagnose(ws) {
   else if (!summary.excluded_companies) next = { step: 'Add your exclusions', how: 'List clients, investors and partners in context/exclusions/companies.csv' };
   else if (tests.reasoned.pending.length) next = { step: 'Test the brain', how: inAgent('/gtm-mode, then ask it to run the brain tests') };
   else if (learned.open >= 3) next = { step: `Review ${learned.open} open lessons`, how: 'See what keeps coming up', command: 'gluely learn' };
-  else if (!plays.plays.some((p) => p.status === 'active')) next = { step: 'Choose a first play', how: 'Answer a few questions to set one up', command: 'gluely plays start' };
+  else if (!plays.plays.some((p) => p.status === 'active')) next = { step: 'Choose a first play', how: 'The account-list cookbook is the short path. Other playbooks are there too', command: 'gluely cookbooks' };
   else next = { step: 'Run the play and log what you learn', how: inAgent('/gtm-mode') };
 
   return {

@@ -12,8 +12,12 @@ const money = (currency, n) => `${currency}${n >= 100 ? Math.round(n).toLocaleSt
 const moneyRange = (currency, [low, high]) => (Math.abs(low - high) < 0.005 ? money(currency, low) : `${money(currency, low)} to ${money(currency, high)}`);
 const percent = (n) => `${Math.round(n * 1000) / 10}%`;
 
-export async function pickPlaybook() {
-  const books = loadPlaybooks();
+export async function pickPlaybook(filter) {
+  const books = loadPlaybooks().filter((book) => (filter ? filter(book) : true));
+  if (!books.length) {
+    if (filter) fail('no_cookbook', 'No cookbooks yet.', 'Add one under library/playbooks with cookbook: true.');
+    fail('no_playbook', 'No playbooks yet.');
+  }
   say(color.bold('Which play do you want to set up?'));
   say(color.dim('Each one is a starting point. You choose the tools at every step.'));
   say();
@@ -60,6 +64,8 @@ export async function walkPlay(ws, playbookId, id) {
     state = result.next;
   }
   say(`${mark.ok()} ${color.bold(`plays/${id}.yaml`)} is ready as a draft.`);
+  if (state.list) say(`${mark.next()} Empty list at ${color.bold(state.list.file)}. Your agent fills rows after you approve the cost. Gluely does not look anyone up.`);
+  if (state.keep) say(`${mark.next()} ${state.keep}`);
   say();
   await costFlow(ws, id);
 }

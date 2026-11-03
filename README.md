@@ -10,16 +10,22 @@ Green works today, yellow has started, blue is next, grey is a later phase, and 
 
 ## Try it
 
-```bash
-git clone <this-repo> gluely && cd gluely && npm install && npm link
+Gluely is not on the npm registry yet. From a checkout:
 
-gluely init ../my-brain --company "Acme" --domain acme.example --motion sales_led
+```bash
+git clone <this-repo> gluely && cd gluely && npm install
+
+npx . cookbooks
+npx . init ../my-brain --company "Acme" --domain acme.example --motion sales_led
 cd ../my-brain
-gluely            # your home screen
-gluely flow       # the loop, drawn from your real state
+npx ../gluely cookbooks start find-accounts
 ```
 
-Then open your agent in that folder and run `/setup-gluely`. It maps your stack, asks for read-only connections, analyzes your real deals and challenges your ICP before it writes anything.
+`find-accounts` is the first cookbook. It asks who belongs on a target-account list, how many accounts, and which research tool to use. Any tool name works. The answers land in `plays/find-accounts.yaml`, and an empty `lists/find-accounts.csv` is the list your agent fills after you approve the cost. Commit both in that private repo when you want to keep them. Gluely does not call the research tool, host the list, or open a pull request.
+
+`npm link` inside the checkout puts `gluely` on your PATH, so the same commands work without `npx`.
+
+Then open your agent in that folder and run `/setup-gluely`. It maps your stack, asks for read-only connections, analyzes your real deals and challenges your ICP before it writes anything. `gluely flow` draws the loop from the workspace's real state.
 
 ## How it works
 
@@ -38,7 +44,7 @@ gluely test add --kind reply --input "Who else uses this?" --expect question
 gluely test          # compares this context version with the last, and fails on a regression
 ```
 
-**Set up a play one question at a time.** `gluely plays start` walks you through a playbook: job switch, post engagers, hiring signal, inbound demo request or own network. At each step it shows your options, saves your answer and tells you the honest arithmetic. If you stop, it picks up where you left off. Agents use the same steps with `gluely plays next` and `gluely plays answer --json`.
+**Set up a play one question at a time.** `gluely cookbooks` lists the short paths, and `gluely plays start` walks any playbook: a target-account list, job switch, post engagers, hiring signal, inbound demo request or own network. At each step it shows your options, saves your answer and tells you the honest arithmetic. If you stop, it picks up where you left off. Agents use the same steps with `gluely plays next` and `gluely plays answer --json`.
 
 **Waterfalls are recipes, not calls.** At the contact step, name several tools in order, such as `Findymail, Hunter, Treg`. The play stores the order and the stop rule, `gluely cost` prices each try, and your agent runs it through your own connections after approval. Gluely still makes no calls.
 
@@ -65,7 +71,7 @@ Open `site/index.html`. It uses no outside scripts. The bricks swap their own to
 
 ## Status
 
-Phase 0 of 5: the brain pack.
+Phase 0 of 5: the brain pack. [Cargo](docs/peers/cargo.md) is a peer product. This note is about that product, not Habitat workshops. The cookbook above is the part of their install-to-list demo Gluely does in the open.
 
 | Phase | Adds | Status |
 |---|---|---|

@@ -3,6 +3,9 @@ id: excuses
 status: template
 updated: {{date}}
 excuses:
+  - signal: signal.account_list
+    pattern: "{company} is on the list because {reason}."
+    never: ["I found you online"]
   - signal: signal.job_switch
     pattern: "Congrats on the move to {new_company}. At {old_company} you..."
     never: ["I saw you changed jobs"]

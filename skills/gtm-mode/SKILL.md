@@ -21,6 +21,7 @@ Read the file next to this one, in `playbooks/`.
 
 | The founder wants to | Playbook |
 |---|---|
+| Build a target-account list | `run-play.md` (`find-accounts`) |
 | Set up a known play step by step, such as a job switch | `run-play.md` |
 | Try a new idea, or design a play from scratch | `new-play.md` |
 | Find a reason to contact someone | `find-excuse.md` |

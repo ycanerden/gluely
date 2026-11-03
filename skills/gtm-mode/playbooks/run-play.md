@@ -2,8 +2,8 @@
 
 Walk the founder through a play one question at a time. They choose. You advise.
 
-1. Run `gluely playbooks --json` and suggest the one that fits their signal. If none fits, use `new-play.md`.
-2. Run `gluely plays start <playbook> --as <id> --json`.
+1. Run `gluely cookbooks --json` and `gluely playbooks --json`. For a target-account list, use the `find-accounts` cookbook. Otherwise suggest the playbook that fits their signal. If none fits, use `new-play.md`.
+2. Run `gluely cookbooks start <id> --json` for a cookbook, or `gluely plays start <playbook> --as <id> --json` for any other playbook. The questions after that are the same.
 3. For each `step` in the result, ask its `ask` in plain words and share its `why`.
    - For `tool` steps, show `options`. Their own tools come first. Any tool is a valid answer, so never steer them toward a vendor.
    - For `excuse` steps, run `gluely recall --area excuse --json` and `gluely recall --area voice --json` first, then suggest two honest angles.
@@ -11,8 +11,8 @@ Walk the founder through a play one question at a time. They choose. You advise.
    - Challenge a weak answer once, then accept their decision.
 4. Save the answer: `gluely plays answer <id> <step> "<answer>" --by <agent/model> --json`.
 5. If the result has `estimate.warning`, say it plainly before moving on.
-6. Follow `next` until `done` is true, then run `gluely plays validate --json`.
-7. Run `/check-cost` before anything spends credits.
+6. Follow `next` until `done` is true, then run `gluely plays validate --json`. If the result has `list`, that file is only a header. Leave the rows empty until a person approves the cost.
+7. Run `/check-cost` before anything spends credits. After `can_spend` is true, the agent may fill `list.file` with the columns in `list.columns`. Gluely still makes no calls. Commit `plays/<id>.yaml` and the list only when the founder asks.
 
 ## Running a waterfall
 

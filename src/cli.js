@@ -6,7 +6,7 @@ import { estimateCost, setAssumptions, setPrice } from './cost.js';
 import { diagnose } from './doctor.js';
 import { buildFlow, renderFlow } from './flow.js';
 import { initWorkspace } from './init.js';
-import { addTool, loadLibrary, loadPlaybooks, toolsForJob } from './library.js';
+import { addTool, getPlaybook, loadLibrary, loadPlaybooks, toolsForJob } from './library.js';
 import { addEntry, dropEntry, learn, listEntries, logCorrection, promoteEntry, recall } from './log.js';
 import { color, fail, GluelyError, mark, printIssues } from './output.js';
 import { validatePlays } from './plays.js';
@@ -28,6 +28,8 @@ Start
   gluely                                                         your home screen
   gluely doctor                                                  where you stand and what to do next
   gluely flow                                                    the loop, drawn from real state
+  gluely cookbooks                                               worked examples, including a target-account list
+  gluely cookbooks start [id] [--as id]                          set up that cookbook, one question at a time
 
 Brain
   gluely context check | version                                 is the context filled and valid?
@@ -66,7 +68,8 @@ Tools
 Skills
   gluely skills list | install [--host claude,cursor]            the GTM skill pack
 
-Add --json to any command for agents. Gluely never sends a message and never calls a model.`;
+Add --json to any command for agents. Gluely never sends a message and never calls a model.
+From a checkout: npm install, then npx . cookbooks. Gluely is not on the npm registry yet.`;
 
 export function parseArgs(argv) {
   const parsed = { _: [], flags: {} };
@@ -102,6 +105,7 @@ const commands = {
       render() {
         line(true, `Brain created at ${data.dir}`);
         console.log(`\n${mark.next()} cd ${path.relative(process.cwd(), data.dir) || '.'}`);
+        console.log(`${mark.next()} gluely cookbooks start find-accounts`);
         console.log(`${mark.next()} Open your agent there and run ${color.bold('/setup-gluely')}`);
       },
     };
@@ -298,12 +302,40 @@ const commands = {
   },
 
   playbooks() {
-    const data = { playbooks: loadPlaybooks().map(({ id, name, summary, steps }) => ({ id, name, summary, steps: steps.length })) };
+    const data = { playbooks: loadPlaybooks().map(describePlaybook) };
     return {
       data,
       render() {
         console.log(color.bold('Playbooks') + color.dim('   start one with gluely plays start <id>'));
-        for (const book of data.playbooks) console.log(`  ${book.id.padEnd(15)} ${book.name.padEnd(22)} ${color.dim(book.summary)}`);
+        for (const book of data.playbooks) {
+          const kind = book.cookbook ? 'cookbook' : 'playbook';
+          console.log(`  ${book.id.padEnd(16)} ${kind.padEnd(10)} ${book.name.padEnd(22)} ${color.dim(book.summary)}`);
+        }
+      },
+    };
+  },
+
+  cookbooks(args) {
+    const sub = args._[0];
+    if (sub === 'start') {
+      const id = args._[1];
+      if (id && !getPlaybook(id).cookbook) fail('not_a_cookbook', `"${id}" is a playbook, not a cookbook.`, `Start it with gluely plays start ${id}.`);
+      return startCommand(requireWorkspace(), { ...args, cookbooksOnly: true });
+    }
+    if (sub) fail('usage', 'Usage: gluely cookbooks | gluely cookbooks start [id] [--as id]');
+    const cookbooks = loadPlaybooks().filter((book) => book.cookbook).map(describePlaybook);
+    const data = {
+      note: 'A cookbook is a playbook you can finish in one sitting. Answers stay in your private workspace. Gluely does not call a research tool, host the list, or open a pull request.',
+      cookbooks,
+    };
+    const accountList = cookbooks.find((book) => book.id === 'find-accounts') || cookbooks[0];
+    return {
+      data,
+      render() {
+        console.log(color.bold('Cookbooks') + color.dim('   one sitting, then a file you can commit'));
+        if (!cookbooks.length) console.log(color.dim('None yet.'));
+        for (const book of cookbooks) console.log(`  ${book.id.padEnd(16)} ${book.name.padEnd(16)} ${color.dim(book.summary)}`);
+        if (accountList) console.log(`${mark.next()} ${accountList.start}`);
       },
     };
   },
@@ -415,10 +447,25 @@ const commands = {
   },
 };
 
+function describePlaybook({ id, name, summary, steps, cookbook }) {
+  return {
+    id,
+    name,
+    summary,
+    steps: steps.length,
+    cookbook: Boolean(cookbook),
+    start: cookbook ? `gluely cookbooks start ${id}` : `gluely plays start ${id}`,
+  };
+}
+
 async function startCommand(ws, args) {
   const humans = interactive() && !args.flags.json;
-  if (!args._[1] && !humans) fail('usage', 'Usage: gluely plays start <playbook> [--as id]', 'Run gluely playbooks --json to see them.');
-  const playbook = args._[1] || await pickPlaybook();
+  const usage = args.cookbooksOnly
+    ? 'Usage: gluely cookbooks start <id> [--as id]'
+    : 'Usage: gluely plays start <playbook> [--as id]';
+  const hint = args.cookbooksOnly ? 'Run gluely cookbooks --json to see them.' : 'Run gluely playbooks --json to see them.';
+  if (!args._[1] && !humans) fail('usage', usage, hint);
+  const playbook = args._[1] || await pickPlaybook(args.cookbooksOnly ? (book) => book.cookbook : null);
   const id = args.flags.as || playbook;
   if (humans) {
     await walkPlay(ws, playbook, id);
@@ -429,7 +476,12 @@ async function startCommand(ws, args) {
 }
 
 function renderStep(state) {
-  if (state.done) { line(true, `${state.play} has every answer. Next: gluely cost ${state.play}`); return; }
+  if (state.done) {
+    line(true, `${state.play} has every answer. Next: gluely cost ${state.play}`);
+    if (state.list) console.log(`${mark.next()} Empty list at ${state.list.file} (${state.list.rows} rows). Your agent fills it after you approve the cost.`);
+    if (state.keep) console.log(`${mark.next()} ${state.keep}`);
+    return;
+  }
   const { step } = state;
   console.log(`${state.number}/${state.total}  ${color.bold(step.ask)}\n${color.dim(step.why)}`);
   for (const option of step.options || []) console.log(`  ${option.value === option.label ? option.label : `${option.value}: ${option.label}`}`);
@@ -463,7 +515,7 @@ function renderHome(state) {
   printNext(state.next, '  ');
   console.log();
   if (!state.context.template) say(`${color.bold('With your agent')}  open claude or cursor in this folder, then type ${color.cyan('/gtm-mode')}`);
-  say(color.dim('More: gluely tools, gluely flow, gluely learn, gluely --help'));
+  say(color.dim('More: gluely cookbooks, gluely tools, gluely flow, gluely learn, gluely --help'));
   console.log();
 }
 
@@ -472,8 +524,10 @@ function renderWelcome() {
     color.bold('Gluely'),
     'Glue for your GTM stack.',
     '',
+    `${mark.next()} From a checkout: npx . cookbooks`,
     `${mark.next()} Create your brain: gluely init <dir> --company <name>`,
-    color.dim('gluely --help shows everything.'),
+    `${mark.next()} First play: gluely cookbooks start find-accounts`,
+    color.dim('gluely --help shows everything. Gluely is not on the npm registry yet.'),
   ];
   console.log();
   console.log(beside(mascot(), info));

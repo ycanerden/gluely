@@ -53,9 +53,10 @@ export function startPlay(ws, playbookId, id = playbookId) {
       hypothesis: book.hypothesis.trim(),
       signal: { ...book.signal },
       audience: { personas: [], icp_band: ['hot', 'warm'] },
+      ...(book.cookbook ? { cookbook: true } : {}),
       excuse: { variants: ['a'] },
       action: {},
-      success: { primary: 'meeting_booked' },
+      success: book.success ? { ...book.success } : { primary: 'meeting_booked' },
       kill: { after_touches: 100, if: 'meeting_rate < 0.5%' },
       setup: {},
     });
@@ -88,8 +89,36 @@ export function nextStep(ws, id) {
   const book = getPlaybook(spec.playbook);
   const index = book.steps.findIndex((s) => !(s.id in (spec.setup || {})));
   const base = { play: id, playbook: book.id, name: book.name, total: book.steps.length };
-  if (index < 0) return { ...base, done: true, answered: book.steps.length, steps: summary(book, spec) };
+  if (index < 0) return finishCookbook(ws, id, book, spec, base);
   return { ...base, done: false, number: index + 1, step: resolveStep(ws, book.steps[index], spec) };
+}
+
+// The list file is the cookbook's artifact. Rows stay empty until a person approves the cost
+// and the agent fills them. An existing file is left alone, so a second look never wipes it.
+function ensureList(ws, id, book) {
+  if (!book.list?.file || !Array.isArray(book.list.columns) || !book.list.columns.length) return null;
+  const rel = String(book.list.file).replaceAll('{id}', id);
+  if (rel.includes('..') || path.isAbsolute(rel)) fail('bad_cookbook', 'A cookbook list path has to stay inside the workspace.');
+  const full = path.join(ws, rel);
+  if (!fs.existsSync(full)) {
+    fs.mkdirSync(path.dirname(full), { recursive: true });
+    fs.writeFileSync(full, `${book.list.columns.join(',')}\n`);
+  }
+  const lines = fs.readFileSync(full, 'utf8').trim().split('\n').filter(Boolean);
+  return { file: rel, columns: book.list.columns, rows: Math.max(0, lines.length - 1) };
+}
+
+function finishCookbook(ws, id, book, spec, base) {
+  const done = { ...base, done: true, answered: book.steps.length, steps: summary(book, spec) };
+  if (!book.cookbook) return done;
+  const list = ensureList(ws, id, book);
+  const files = [`plays/${id}.yaml`, list?.file].filter(Boolean).join(' and ');
+  return {
+    ...done,
+    cookbook: true,
+    ...(list ? { list } : {}),
+    keep: `Commit ${files} in this private repo when you want to keep them. Gluely does not push or open a pull request.`,
+  };
 }
 
 function estimate(step, count) {

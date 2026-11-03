@@ -1,0 +1,57 @@
+id: find-accounts
+name: Find accounts
+cookbook: true
+summary: Build a target-account list from who you sell to, before anyone is contacted.
+hypothesis: >
+  A written list of accounts, each with a reason to be there, is the list later plays
+  can run. Lookup happens only after a person approves the cost.
+signal: { type: signal.account_list }
+success: { primary: accounts_accepted }
+list:
+  file: lists/{id}.csv
+  columns: [domain, name, reason, persona, source]
+steps:
+  - id: slice
+    ask: Which companies belong on this list?
+    why: Name the traits that make them a buyer. Everything else stays off the list.
+    type: text
+    writes: signal.source
+  - id: volume
+    ask: How many accounts should the first list hold?
+    why: This is how many you will look up. It is the list size, not a guess at the whole market.
+    type: number
+  - id: research
+    ask: Where will you look the accounts up?
+    why: Any research tool works. Gluely stores the choice and prices it. Your agent runs the lookup only after you approve, and exclusions stay free.
+    type: tool
+    job: web-research
+    writes: signal.tool
+  - id: persona
+    ask: Who at those companies is this list for?
+    why: The rows are companies. A later play still needs a person.
+    type: persona
+    writes: audience.personas
+  - id: excuse
+    ask: What honest reason puts an account on the list?
+    why: If you cannot say why they belong, they do not belong. This is not a message to send.
+    type: excuse
+    writes: excuse.angle
+  - id: store
+    ask: Where will the list live?
+    why: Gluely also writes an empty CSV in this repo. Name whatever store you will use later. A file is a valid answer.
+    type: tool
+    job: store
+    writes: action.tool
+  - id: budget
+    ask: What is the most this list may spend each month?
+    why: Gluely checks every estimate against this before anything spends credits.
+    type: number
+    writes: budget.monthly_limit
+  - id: kill
+    ask: When should you throw this list out?
+    why: A list that never expires keeps spending on accounts you will not work.
+    type: kill
+cost:
+  volume: volume
+  lines:
+    - { step: research, label: Look up accounts, unit: account, count: checked }

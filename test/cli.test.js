@@ -411,7 +411,11 @@ test('gluely with no arguments is a home screen, and welcomes you outside a work
   assert.match(inside.out, /\/setup-gluely/);
   assert.doesNotMatch(inside.out, /\/gtm-mode/);
   assert.match(gluely([], tempDir()).out, /gluely init/);
-  assert.match(gluely(['--help'], ws).out, /gluely plays start/);
+  assert.match(gluely([], tempDir()).out, /cookbooks start find-accounts/);
+  const help = gluely(['--help'], ws).out;
+  assert.match(help, /gluely plays start/);
+  assert.match(help, /gluely cookbooks start/);
+  assert.match(help, /not on the npm registry/);
 });
 
 test('the next step puts a command on its own line, so nobody types the word run', () => {
@@ -419,9 +423,9 @@ test('the next step puts a command on its own line, so nobody types the word run
   fillContext(ws);
   write(ws, 'tests/reply.yaml', '');
   const state = gluely(['--json'], ws).json;
-  assert.equal(state.next.command, 'gluely plays start');
+  assert.equal(state.next.command, 'gluely cookbooks');
   const { out } = gluely([], ws);
-  assert.match(out, /^ +\$ gluely plays start$/m);
+  assert.match(out, /^ +\$ gluely cookbooks$/m);
   assert.doesNotMatch(out, /Run gluely/);
   assert.match(out, /With your agent/);
 });
@@ -602,6 +606,67 @@ test('human screens refuse to run without a terminal instead of hanging', () => 
   const result = gluely(['plays', 'start'], ws);
   assert.equal(result.code, 1);
   assert.match(result.err, /Usage/);
+});
+
+test('find-accounts is a cookbook: any research tool, an empty list, and a commit the person makes', () => {
+  assert.equal(gluely(['cookbooks', '--json'], tempDir()).code, 0);
+  const listed = gluely(['cookbooks', '--json'], ROOT).json;
+  assert.deepEqual(listed.cookbooks.map((book) => book.id), ['find-accounts']);
+  assert.match(listed.note, /does not call a research tool/);
+
+  const ws = makeWorkspace();
+  fillContext(ws);
+  const first = gluely(['cookbooks', 'start', 'find-accounts', '--json'], ws).json;
+  assert.equal(first.step.id, 'slice');
+  const research = gluely(['plays', 'answer', 'find-accounts', 'slice', 'B2B companies that sell to sales teams', '--json'], ws).json.next;
+  assert.equal(research.step.id, 'volume');
+  const lookedUp = gluely(['plays', 'answer', 'find-accounts', 'volume', '40', '--json'], ws).json.next;
+  const names = lookedUp.step.options.map((option) => option.value);
+  assert.deepEqual(names, [...names].sort((a, b) => a.localeCompare(b, 'en', { sensitivity: 'base' })));
+  assert.ok(names.includes('Exa') && names.includes('Firecrawl'));
+
+  const answers = {
+    research: 'Unlisted Search',
+    persona: 'head-of-sales',
+    excuse: 'They sell to the same buyers we do',
+    store: 'a spreadsheet',
+    budget: '25',
+    kill: '0',
+  };
+  let state = lookedUp;
+  while (!state.done) {
+    const result = gluely(['plays', 'answer', 'find-accounts', state.step.id, answers[state.step.id], '--by', 'test/model', '--json'], ws);
+    assert.equal(result.code, 0, result.out);
+    state = result.json.next;
+  }
+  assert.equal(state.list.file, 'lists/find-accounts.csv');
+  assert.equal(state.list.rows, 0);
+  assert.match(state.keep, /does not push or open a pull request/);
+  assert.equal(fs.readFileSync(path.join(ws, 'lists/find-accounts.csv'), 'utf8'), 'domain,name,reason,persona,source\n');
+
+  const play = YAML.parse(fs.readFileSync(path.join(ws, 'plays/find-accounts.yaml'), 'utf8'));
+  assert.equal(play.cookbook, true);
+  assert.equal(play.signal.type, 'signal.account_list');
+  assert.equal(play.signal.tool, 'Unlisted Search');
+  assert.equal(play.action.tool, 'a spreadsheet');
+  assert.equal(play.success.primary, 'accounts_accepted');
+  assert.equal(gluely(['plays', 'validate', '--json'], ws).code, 0);
+  const stack = gluely(['stack', '--json'], ws).json;
+  assert.equal(stack.layers.find((layer) => layer.id === 'scraping').tool, 'Unlisted Search');
+  assert.equal(stack.layers.find((layer) => layer.id === 'store').tool, 'a spreadsheet');
+
+  gluely(['cost', 'price', 'Unlisted Search', '--job', 'web-research', '--each', '0.05', '--json'], ws);
+  const estimate = gluely(['cost', 'find-accounts', '--json'], ws).json;
+  assert.equal(estimate.status, 'needs_approval');
+  assert.equal(estimate.can_spend, false);
+  assert.ok(Math.abs(estimate.lines[0].cost[0] - 2) < 1e-9);
+  assert.ok(estimate.warnings.some((warning) => warning.code === 'spend_before_filter'));
+
+  fs.appendFileSync(path.join(ws, 'lists/find-accounts.csv'), 'acme.example,Acme,same buyers,head-of-sales,fixture\n');
+  const again = gluely(['plays', 'next', 'find-accounts', '--json'], ws).json;
+  assert.equal(again.list.rows, 1);
+  assert.match(fs.readFileSync(path.join(ws, 'lists/find-accounts.csv'), 'utf8'), /acme\.example/);
+  assert.equal(gluely(['cookbooks', 'start', 'job-switch', '--json'], ws).json.error.code, 'not_a_cookbook');
 });
 
 test('the landing page shows exactly what is in the library', async () => {
