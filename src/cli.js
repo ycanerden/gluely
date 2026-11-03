@@ -13,6 +13,8 @@ import { guardFile } from './guard.js';
 import { validatePlays } from './plays.js';
 import { answerStep, nextStep, startPlay } from './playbooks.js';
 import { addResult, judgePlay, renderJudgement } from './results.js';
+import { planWaterfall, recordTest, renderWaterfall } from './waterfall.js';
+import { loadPrices } from './cost.js';
 import { HOSTS, installSkills, listSkills } from './skills.js';
 import { loadStack, setStack } from './stack.js';
 import { CHANNELS } from './vocab.js';
@@ -69,6 +71,8 @@ Tools
   gluely stack set <layer> <any tool name>                       name a tool. Any tool works
   gluely tools [job]                                             the tool library, by job
   gluely tools add <name> --job <job> [--access <kind>]          add your own tool
+  gluely waterfall <job> [--tools "A, B"]                        order your tools by your own price and tests
+  gluely waterfall test <tool> --job <j> --tried 20 --right <n> [--wrong n] [--unprovable n]   a blind test
 
 Skills
   gluely skills list | install [--host claude,cursor]            the GTM skill pack
@@ -201,6 +205,15 @@ const commands = {
         if (data.counts.clear) console.log(`${mark.next()} Only ${data.files.clear} may go to an outside tool.`);
       },
     };
+  },
+
+  waterfall(args) {
+    const ws = requireWorkspace();
+    const { job, tried, right, wrong, unprovable, by, tools } = args.flags;
+    const data = args._[0] === 'test'
+      ? recordTest(ws, args._.slice(1).join(' '), { job, tried, right, wrong, unprovable, by })
+      : args._[0] ? planWaterfall(ws, args._[0], { tools }) : fail('usage', 'Usage: gluely waterfall <job> [--tools "A, B"] | gluely waterfall test <tool> --job <job> --tried 20 --right <n>');
+    return { data, render: () => renderWaterfall(data, { color, line, mark }, loadPrices(ws).currency) };
   },
 
   results(args) {

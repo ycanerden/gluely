@@ -7,7 +7,7 @@ Walk the founder through a play one question at a time. They choose. You advise.
 3. For each `step` in the result, ask its `ask` in plain words and share its `why`.
    - For `tool` steps, show `options`. Their own tools come first. Any tool is a valid answer, so never steer them toward a vendor.
    - For `excuse` steps, run `gluely recall --area excuse --json` and `gluely recall --area voice --json` first, then suggest two honest angles.
-   - For steps with `waterfall: true`, they can name several tools in order: `"First, Second, Third"`. Suggest this when one source won't find enough people.
+   - For steps with `waterfall: true`, they can name several tools in order: `"First, Second, Third"`. Suggest this when one source won't find enough people, and use `/waterfall` to order them by the company's own prices and tests.
    - Challenge a weak answer once, then accept their decision.
 4. Save the answer: `gluely plays answer <id> <step> "<answer>" --by <agent/model> --json`.
 5. If the result has `estimate.warning`, say it plainly before moving on.

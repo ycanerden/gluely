@@ -797,3 +797,31 @@ test('in B2C the guard checks people, not companies, and a work email never mark
   assert.deepEqual(result.json.warnings, []);
   assert.equal(gluely(['plays', 'start', 'product-lifecycle', '--json'], dir).json.step.job, 'product-data');
 });
+
+test('a waterfall is ordered by your own price per real find, never by the library', () => {
+  const ws = makeWorkspace();
+  gluely(['stack', 'set', 'enrichment', 'Zeta Data, Alpha Data, Mid Data'], ws);
+  let plan = gluely(['waterfall', 'contact-data', '--json'], ws).json;
+  assert.deepEqual(plan.order, ['Zeta Data', 'Alpha Data', 'Mid Data']);
+  assert.equal(plan.per_person, null);
+  assert.ok(plan.next.some((n) => /Price Zeta Data/.test(n)) && plan.next.some((n) => /Test Zeta Data/.test(n)));
+
+  gluely(['cost', 'price', 'Zeta Data', '--job', 'contact-data', '--each', '0.05'], ws);
+  gluely(['cost', 'price', 'Alpha Data', '--job', 'contact-data', '--credits', '2', '--credit-price', '0.02'], ws);
+  gluely(['cost', 'price', 'Mid Data', '--job', 'contact-data', '--each', '0.04'], ws);
+  const test = (tool, right, extra = []) => gluely(['waterfall', 'test', tool, '--job', 'contact-data', '--tried', '20', '--right', String(right), ...extra, '--json'], ws);
+  test('Zeta Data', 18);
+  test('Alpha Data', 8, ['--wrong', '6', '--unprovable', '4']);
+  plan = test('Mid Data', 12).json;
+  assert.deepEqual(plan.order, ['Zeta Data', 'Mid Data', 'Alpha Data']);
+  assert.ok(Math.abs(plan.tools[0].cost_per_find - 0.05 / 0.9) < 1e-9);
+  assert.ok(Math.abs(plan.per_person - (0.05 + 0.1 * 0.04 + 0.1 * 0.4 * 0.04)) < 1e-9);
+  assert.deepEqual(plan.next, []);
+  assert.match(plan.save, /Zeta Data, Mid Data, Alpha Data/);
+  assert.ok(plan.rules.some((r) => /accept-all/.test(r)));
+
+  assert.equal(test('Zeta Data', 30).json.error.code, 'bad_number');
+  assert.equal(gluely(['waterfall', 'test', 'Zeta Data', '--job', 'vibes', '--tried', '20', '--right', '1', '--json'], ws).json.error.code, 'bad_job');
+  assert.deepEqual(gluely(['waterfall', 'contact-data', '--tools', 'Other, Zeta Data', '--json'], ws).json.order, ['Zeta Data', 'Other']);
+  assert.match(gluely(['log', '--json'], ws).out, /Zeta Data for contact-data: 18 right/);
+});
