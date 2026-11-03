@@ -18,6 +18,9 @@ excuses:
   - signal: signal.connection
     pattern: "{teammate} suggested I reach out... (only when it's true)"
     never: []
+  - signal: signal.lifecycle_event
+    pattern: "Your trial ends on {date}. Before it does, the one thing most people find useful is..."
+    never: ["we noticed you", "we've been tracking", "we saw you stopped"]
   - signal: signal.inbound_form
     pattern: "You asked about {topic}. Here is the direct answer..."
     never: []

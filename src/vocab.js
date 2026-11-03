@@ -24,6 +24,7 @@ export const SIGNALS = [
   'signal.website_visit',
   'signal.product_activated',
   'signal.product_usage_spike',
+  'signal.lifecycle_event',
 ];
 
 export const REPLY_LABELS = ['positive', 'question', 'not_now', 'negative', 'ooo', 'referral', 'unsubscribe'];

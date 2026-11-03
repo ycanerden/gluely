@@ -26,7 +26,7 @@ const BOOLEAN_FLAGS = new Set(['json', 'help', 'version', 'no-git', 'no-skills',
 const HELP = `gluely ${VERSION}: an open-source GTM brain. Your agent thinks. Gluely remembers and checks.
 
 Start
-  gluely init <dir> --company <name> [--domain d] [--motion m]   create your private workspace
+  gluely init <dir> --company <name> [--market b2b|b2c|both] [--motion m]   create your private workspace
   gluely                                                         your home screen
   gluely doctor                                                  where you stand and what to do next
   gluely flow                                                    the loop, drawn from real state
@@ -39,7 +39,7 @@ Brain
   gluely playbooks                                               example plays to start from
   gluely check draft --channel <c> (--text <t> | --file <f>)     test a draft against your voice
   gluely check company <domain>                                  is this company excluded?
-  gluely guard <list.csv> [--to <tool>]                          sort a list before it leaves: clear, to owners, held
+  gluely guard <list.csv> [--to <tool>] [--customers <csv>]      sort a list before it leaves: clear, to owners, held
 
 Tests
   gluely test                                                    run tests and compare context versions
@@ -101,6 +101,7 @@ const commands = {
       company: args.flags.company,
       domain: args.flags.domain,
       motion: args.flags.motion,
+      market: args.flags.market,
       noGit: args.flags['no-git'],
       noSkills: args.flags['no-skills'],
     });
@@ -188,7 +189,7 @@ const commands = {
 
   guard(args) {
     const ws = requireWorkspace();
-    const data = guardFile(ws, args._[0], { to: args.flags.to, by: args.flags.by });
+    const data = guardFile(ws, args._[0], { to: args.flags.to, by: args.flags.by, customers: args.flags.customers });
     return {
       data,
       render() {

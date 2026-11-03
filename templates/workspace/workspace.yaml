@@ -2,6 +2,8 @@
 company:
   name: "{{company}}"
   domain: "{{domain}}"
+  # Who you sell to (b2b, b2c or both), and how (sales_led, product_led, founder_led, community_led, mixed).
+  market: {{market}}
   motion: {{motion}}
 
 # The tools you already use. Any tool works: run `gluely stack` to see the layers.

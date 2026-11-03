@@ -6,7 +6,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { addEntry } from './log.js';
 import { fail } from './output.js';
-import { loadExclusions, normalizeDomain, parseCsv } from './workspace.js';
+import { loadConfig, loadExclusions, normalizeDomain, parseCsv } from './workspace.js';
 
 // Anyone who has trialed, paid or churned is a customer, and their data stays home.
 export const CUSTOMER_REASONS = ['customer', 'client', 'trial', 'paid', 'churned', 'former customer'];
@@ -44,9 +44,11 @@ export const domainName = (domain) => {
 
 const normalizeProfile = (value) => String(value || '').trim().toLowerCase().replace(/^https?:\/\//, '').replace(/^www\./, '').replace(/\/+$/, '');
 
-function companyDomain(row) {
+// In B2C an email names a person, so only a domain column names a company.
+function companyDomain(row, market = 'b2b') {
   const direct = pick(row, 'domain');
   if (direct) return normalizeDomain(direct);
+  if (market === 'b2c') return '';
   const email = pick(row, 'email');
   const fromMail = email.includes('@') ? normalizeDomain(email.split('@').pop()) : '';
   return PERSONAL_MAIL.has(fromMail) ? '' : fromMail;
@@ -60,15 +62,44 @@ export function loadPeople(ws) {
 
 const isCustomer = (row) => CUSTOMER_REASONS.includes(String(row.reason || '').trim().toLowerCase());
 
-export function guardRules(ws) {
-  const companies = loadExclusions(ws).rows.filter((r) => r.domain || r.name);
-  const people = loadPeople(ws);
-  return { companies, people, customers: companies.filter(isCustomer).length };
+export const MARKETS = ['b2b', 'b2c', 'both'];
+
+// A customer export, such as your billing or product users, read for this run only.
+// In B2C a work email names a person, not a company, so it never marks a whole company.
+function readCustomers(file, market) {
+  if (!file) return { people: [], companies: [] };
+  const full = path.resolve(file);
+  if (!fs.existsSync(full)) fail('missing_file', `No customer list at ${file}.`);
+  const people = [];
+  const companies = [];
+  for (const row of parseCsv(fs.readFileSync(full, 'utf8')).rows) {
+    const email = pick(row, 'email').trim().toLowerCase();
+    const linkedin = pick(row, 'linkedin');
+    if (email || linkedin) people.push({ email, linkedin, reason: 'customer' });
+    const domain = companyDomain(row, market);
+    const name = market === 'b2c' ? '' : pick(row, 'company');
+    if (domain || name) companies.push({ domain, name, reason: 'customer' });
+  }
+  return { people, companies };
+}
+
+export function guardRules(ws, { customersFile } = {}) {
+  const market = MARKETS.includes(loadConfig(ws).company.market) ? loadConfig(ws).company.market : 'b2b';
+  const extra = readCustomers(customersFile, market);
+  const companies = [...loadExclusions(ws).rows.filter((r) => r.domain || r.name), ...extra.companies];
+  const people = [...loadPeople(ws), ...extra.people];
+  return {
+    market,
+    companies,
+    people,
+    customers: companies.filter(isCustomer).length,
+    customer_people: people.filter(isCustomer).length,
+  };
 }
 
 // One row in, one decision out. Held beats owner, and owner beats clear.
-export function sortRow(row, { companies, people }) {
-  const domain = companyDomain(row);
+export function sortRow(row, { companies, people, market = 'b2b', customer_people: customerPeople = 0 }) {
+  const domain = companyDomain(row, market);
   const company = pick(row, 'company');
   const email = pick(row, 'email').trim().toLowerCase();
   const profile = normalizeProfile(pick(row, 'linkedin'));
@@ -87,6 +118,7 @@ export function sortRow(row, { companies, people }) {
 
   const person = people.find((p) => (email && p.email && p.email.trim().toLowerCase() === email)
     || (profile && p.linkedin && normalizeProfile(p.linkedin) === profile));
+  if (person && isCustomer(person)) return { bucket: 'held', reason: 'a customer. Customer data never goes to an outside tool' };
   if (person) {
     return person.owner
       ? { bucket: 'owner', owner: person.owner, reason: `${person.reason || 'a known person'}. ${person.owner} decides first` }
@@ -99,7 +131,11 @@ export function sortRow(row, { companies, people }) {
       : { bucket: 'held', reason: `${match.name || match.domain} is excluded: ${match.reason || 'excluded'}` };
   }
 
-  if (!domain && !normalizeName(company)) return { bucket: 'held', reason: 'no company or work domain, so it cannot be checked against your customers' };
+  if (!domain && !normalizeName(company)) {
+    // In B2C a person is the customer, so a person can be checked without a company.
+    if (market === 'b2b' || !(email || profile)) return { bucket: 'held', reason: 'no company or work domain, so it cannot be checked against your customers' };
+    if (!customerPeople) return { bucket: 'held', reason: 'no customer list to check people against. Pass --customers <export.csv>' };
+  }
   return { bucket: 'clear', reason: 'not a customer or a known relationship' };
 }
 
@@ -110,7 +146,7 @@ function toCsv(header, rows) {
   return [header, ...rows.map((r) => header.map((h) => r[h]))].map((r) => r.map(cell).join(',')).join('\n') + '\n';
 }
 
-export function guardFile(ws, file, { to, by, write = true } = {}) {
+export function guardFile(ws, file, { to, by, customers, write = true } = {}) {
   if (!file) fail('usage', 'Usage: gluely guard <list.csv> [--to <tool>]');
   const full = path.resolve(file);
   if (!fs.existsSync(full)) fail('missing_file', `No file at ${file}.`);
@@ -121,11 +157,12 @@ export function guardFile(ws, file, { to, by, write = true } = {}) {
     fail('unknown_columns', `${file} has none of the columns the guard reads.`, `Add one of: ${[...COLUMNS.domain, ...COLUMNS.email, ...COLUMNS.company].join(', ')}.`);
   }
 
-  const rules = guardRules(ws);
+  const rules = guardRules(ws, { customersFile: customers });
   const sorted = rows.map((row, index) => ({ line: index + 2, ...sortRow(row, rules), row }));
   const counts = Object.fromEntries(BUCKETS.map((b) => [b, sorted.filter((s) => s.bucket === b).length]));
   const warnings = [];
-  if (!rules.customers) warnings.push('No customers in context/exclusions/companies.csv, so the guard cannot protect them. Add everyone who trialed, paid or churned, with reason customer, trial or churned.');
+  if (rules.market !== 'b2c' && !rules.customers) warnings.push('No customers in context/exclusions/companies.csv, so the guard cannot protect them. Add everyone who trialed, paid or churned, with reason customer, trial or churned.');
+  if (rules.market !== 'b2b' && !rules.customer_people) warnings.push('No customer people to check against. Pass your user or billing export with --customers <export.csv>, and keep it in exports/.');
 
   const files = {};
   if (write) {
@@ -147,6 +184,7 @@ export function guardFile(ws, file, { to, by, write = true } = {}) {
 
   return {
     file: path.relative(ws, full).startsWith('..') ? full : path.relative(ws, full),
+    market: rules.market,
     to: to || null,
     total: rows.length,
     counts,

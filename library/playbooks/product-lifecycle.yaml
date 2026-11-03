@@ -1,0 +1,60 @@
+id: product-lifecycle
+name: Product lifecycle
+summary: Reach users at the moment their product use changes, with a message that fits the stage.
+hypothesis: >
+  A short, stage-specific note sent within a day of a trial ending, a cancel or a downgrade
+  wins back more users than the same note sent a week later.
+signal: { type: signal.lifecycle_event, window_days: 2 }
+steps:
+  - id: source
+    ask: Where do your product events come from?
+    why: Any product analytics, billing or database export works. Gluely only needs the event.
+    type: tool
+    job: product-data
+    writes: signal.tool
+  - id: event
+    ask: Which moment will this play answer?
+    why: One stage per play. A cancel and a trial ending need different words.
+    type: choice
+    writes: signal.event
+    options: [Trial ending, Trial cancelled, Plan downgraded or auto-renew turned off, Signed up and went quiet]
+  - id: volume
+    ask: Roughly how many users hit that moment each month?
+    why: This sets how fast you'll learn, and what sending costs.
+    type: number
+  - id: persona
+    ask: Who should get this message?
+    why: A solo user and a team admin want different things, so filter first.
+    type: persona
+    writes: audience.personas
+  - id: sender
+    ask: Who should the message come from?
+    why: A work address usually answers a founder's plain note. A personal address usually expects the brand.
+    type: choice
+    writes: action.sender
+    options: [A founder for work addresses, the brand for personal ones, Always a founder, Always the brand]
+  - id: excuse
+    ask: What is your honest reason to write now?
+    why: Name the moment and offer one useful thing. Never make them feel watched.
+    type: excuse
+    writes: excuse.angle
+  - id: send
+    ask: What will send the message?
+    why: Gluely never sends. A human approves the template first, then your tool does it.
+    type: tool
+    job: outreach
+    writes: action.tool
+  - id: budget
+    ask: What is the most this play may spend each month?
+    why: Gluely checks every estimate against this before anything spends credits.
+    type: number
+    writes: budget.monthly_limit
+  - id: kill
+    ask: When should this play die?
+    why: Decide now, while you're honest.
+    type: kill
+cost:
+  volume: volume
+  lines:
+    - { step: source, label: Read product events, unit: event, count: checked }
+    - { step: send, label: Send messages, unit: message, count: touches }

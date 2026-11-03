@@ -1,6 +1,6 @@
 # Rules for anyone working on Gluely
 
-Gluely is an open-source GTM brain. The user's agent does the thinking. Gluely keeps the memory, the rules and the learning loop.
+Gluely is open-source GTM architecture, for B2B and B2C, sales-led and product-led. The user's agent does the thinking. Gluely keeps the memory, the rules and the learning loop.
 
 ## Non-negotiables
 1. **Gluely never sends a message.** Any outbound tool can plug in. We don't build one.

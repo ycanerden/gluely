@@ -778,3 +778,22 @@ test('a kill rule nobody can read never kills a play', async () => {
   assert.equal(evaluateRule('vibes are off', { meetings: 0 }), null);
   assert.equal(evaluateRule('happiness < 2', { meetings: 0 }), null);
 });
+
+test('in B2C the guard checks people, not companies, and a work email never marks a whole company', () => {
+  const dir = path.join(tempDir(), 'shop');
+  assert.equal(gluely(['init', dir, '--company', 'Shop', '--market', 'b2c', '--motion', 'product_led', '--json'], tempDir()).code, 0);
+  assert.equal(gluely(['init', path.join(tempDir(), 'x'), '--company', 'X', '--market', 'b2z', '--json'], tempDir()).json.error.code, 'bad_market');
+  write(dir, 'exports/list.csv', 'email\nfan@gmail.com\nbuyer@gmail.com\nnew@bigcorp.example\n');
+
+  let result = gluely(['guard', 'exports/list.csv', '--json'], dir);
+  assert.equal(result.json.market, 'b2c');
+  assert.equal(result.json.counts.held, 3);
+  assert.match(result.json.warnings.join(' '), /--customers/);
+
+  write(dir, 'exports/customers.csv', 'email\nbuyer@gmail.com\nsomeone@bigcorp.example\n');
+  result = gluely(['guard', 'exports/list.csv', '--customers', 'exports/customers.csv', '--json'], dir);
+  assert.deepEqual(result.json.counts, { clear: 2, owner: 0, held: 1 });
+  assert.match(result.json.rows[0].reason, /a customer/);
+  assert.deepEqual(result.json.warnings, []);
+  assert.equal(gluely(['plays', 'start', 'product-lifecycle', '--json'], dir).json.step.job, 'product-data');
+});
