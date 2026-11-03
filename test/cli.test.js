@@ -690,3 +690,91 @@ test('no opener breaks its own never list, and a new play dies on time, not on a
   gluely(['plays', 'start', 'post-engagers', '--json'], ws);
   assert.deepEqual(YAML.parse(fs.readFileSync(path.join(ws, 'plays/post-engagers.yaml'), 'utf8')).kill, { after_days: 90, if: 'meetings == 0' });
 });
+
+test('the guard keeps customers home, sends known people to their owner and clears only prospects', () => {
+  const ws = makeWorkspace();
+  fillContext(ws);
+  write(ws, 'context/exclusions/companies.csv', 'domain,name,reason,owner\nacme-customer.example,"Northwind, Inc.",customer,\nformer.example,Former Co,churned,\nfund.example,Seed Fund,investor,dana\nrival.example,Rival,competitor,\n');
+  write(ws, 'context/exclusions/people.csv', 'email,linkedin,name,reason,owner\nfriend@prospect.example,,Pat,close friend,sam\n,https://www.linkedin.com/in/known-person/,Kim,advisor,\n');
+  write(ws, 'exports/list.csv', [
+    'name,email,company,linkedin',
+    'A,a@acme-customer.example,Northwind,',
+    'B,b@northwind.co.uk,Northwind GmbH,',
+    'C,c@former.example,Former Co,',
+    'D,d@fund.example,Seed Fund,',
+    'E,friend@prospect.example,Prospect,',
+    'F,f@gmail.com,,linkedin.com/in/known-person',
+    'G,g@rival.example,Rival,',
+    'H,h@gmail.com,,',
+    'I,i@prospect.example,Prospect,',
+    'J,j@gmail.com,Fresh Startup,',
+  ].join('\n') + '\n');
+
+  const result = gluely(['guard', 'exports/list.csv', '--to', 'Any Enricher', '--json'], ws);
+  assert.equal(result.code, 0, result.out);
+  assert.deepEqual(result.json.counts, { clear: 2, owner: 2, held: 6 });
+  assert.deepEqual(result.json.owners, ['dana', 'sam']);
+  const reason = (line) => result.json.rows.find((r) => r.line === line).reason;
+  assert.match(reason(2), /customer/);
+  assert.match(reason(3), /shares a name/);
+  assert.match(reason(4), /churned/);
+  assert.match(reason(7), /no owner/);
+  assert.match(reason(9), /cannot be checked/);
+  assert.doesNotMatch(JSON.stringify(result.json), /a@acme-customer|friend@prospect/);
+
+  const clear = fs.readFileSync(path.join(ws, result.json.files.clear), 'utf8');
+  assert.match(clear, /i@prospect\.example/);
+  assert.match(clear, /Fresh Startup/);
+  assert.doesNotMatch(clear, /acme-customer|northwind|former|fund|friend@|rival/i);
+  assert.match(fs.readFileSync(path.join(ws, result.json.files.owner), 'utf8'), /dana/);
+  assert.match(gluely(['log', '--json'], ws).out, /Guard before Any Enricher: 2 clear, 2 to owners, 6 held/);
+  assert.equal(gluely(['flow', '--json'], ws).json.stages.find((s) => s.id === 'gate').status, 'working');
+});
+
+test('the guard warns when it knows no customers, and refuses a list it cannot read', () => {
+  const ws = makeWorkspace();
+  write(ws, 'exports/list.csv', 'email\nsomeone@prospect.example\n');
+  const result = gluely(['guard', 'exports/list.csv', '--json'], ws);
+  assert.equal(result.json.counts.clear, 1);
+  assert.match(result.json.warnings[0], /No customers/);
+  write(ws, 'exports/odd.csv', 'favourite_colour\nblue\n');
+  assert.equal(gluely(['guard', 'exports/odd.csv', '--json'], ws).json.error.code, 'unknown_columns');
+});
+
+test('results judge a play by the 50 and 100 rule, and ask about the inbox before the copy', () => {
+  const ws = makeWorkspace();
+  fillContext(ws);
+  write(ws, 'plays/first-play.yaml', PLAY());
+  const add = (...flags) => gluely(['results', 'add', 'first-play', ...flags, '--json'], ws);
+
+  assert.equal(gluely(['results', 'first-play', '--json'], ws).json.verdict, 'no_results');
+  assert.equal(add('--touches', '30', '--replies', '1').json.verdict, 'too_early');
+  assert.equal(add('--positive', '3', '--replies', '1').json.error.code, 'bad_number');
+
+  assert.equal(add('--touches', '30').json.verdict, 'kill');
+  write(ws, 'learning/plays.jsonl', '');
+  let judged = add('--touches', '60', '--replies', '2', '--positive', '1', '--spent', '30');
+  assert.equal(judged.json.verdict, 'keep_going');
+  assert.equal(judged.json.roi.per_positive, 30);
+  const [low, high] = judged.json.rates.positive_could_be;
+  assert.ok(low < 0.01 && high > 0.08);
+
+  judged = add('--touches', '60', '--meetings', '0');
+  assert.equal(judged.json.totals.touches, 120);
+  assert.equal(judged.json.verdict, 'kill');
+  assert.match(judged.json.why, /meeting_rate < 0.5%/);
+
+  write(ws, 'learning/plays.jsonl', '');
+  assert.equal(add('--touches', '274').json.verdict, 'check_deliverability');
+  assert.equal(add('--touches', '0', '--spent', '1', '--placement', 'spam').json.verdict, 'fix_deliverability');
+  assert.equal(add('--touches', '0', '--spent', '1', '--placement', 'inbox').json.verdict, 'kill');
+  assert.equal(add('--touches', '1', '--placement', 'somewhere').json.error.code, 'usage');
+});
+
+test('a kill rule nobody can read never kills a play', async () => {
+  const { evaluateRule } = await import('../src/results.js');
+  assert.equal(evaluateRule('meeting_rate < 0.5% and positive_rate < 1%', { meeting_rate: 0.004, positive_rate: 0.005 }), true);
+  assert.equal(evaluateRule('meetings == 0 or positive > 3', { meetings: 1, positive: 2 }), false);
+  assert.equal(evaluateRule('vibes are off', { meetings: 0 }), null);
+  assert.equal(evaluateRule('happiness < 2', { meetings: 0 }), null);
+});

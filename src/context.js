@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import { loadPeople } from './guard.js';
 import { CONTEXT_STATUSES, EVIDENCE } from './vocab.js';
 import { loadConfig, loadExclusions, readFrontmatter } from './workspace.js';
 
@@ -116,6 +117,7 @@ export function scanContext(ws, { now = Date.now() } = {}) {
       proof: files.filter((f) => f.rel.startsWith('proof/')).length,
       hunches: files.filter((f) => f.evidence === 'hunch').length,
       excluded_companies: exclusions.rows.length,
+      known_people: loadPeople(ws).length,
     },
     issues,
     claim_dirs: CLAIM_DIRS,

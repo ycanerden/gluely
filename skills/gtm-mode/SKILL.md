@@ -46,11 +46,14 @@ Read the one that applies, at `../principle-<name>/SKILL.md`:
 - `corrections-become-tests`: every correction is kept
 - `recommend-never-require`: tools are the company's choice
 - `challenge-the-brief`: test claims against evidence
+- `customer-data-stays-home`: customers never go to an outside tool
 
 ## Hard rules
 
 - Gluely never sends. Neither do you. Hand over drafts and let a human use their tool.
 - Check exclusions before spending money or attention: `gluely check company <domain> --json`.
+- Before any list goes to an outside tool, run `gluely guard <list.csv> --to <tool> --json`. Only the `clear` file leaves.
+- Record what each play produced with `gluely results add`, and judge it with `gluely results <play> --json`. Never judge a play's copy before you know where its emails landed.
 - Check drafts before showing them: `gluely check draft --channel <channel> --text "<draft>" --json`.
 - Propose changes to `context/` on a branch. A human merges them.
 - Before spending any credits or money, run `/check-cost`. Spend nothing unless `gluely cost <play> --json` says `can_spend` is `true`. Only a person can approve.

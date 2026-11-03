@@ -18,7 +18,7 @@ Walk the founder through a play one question at a time. They choose. You advise.
 
 The play stores the recipe in `enrich.waterfall`: `providers` in order, and `stop_on`. Gluely never makes the calls. Once `can_spend` is `true`, you run it with the tools the founder has connected:
 
-1. Skip excluded companies first: `gluely check company <domain> --json`.
+1. Sort the list first: `gluely guard <list.csv> --to <provider> --json`. Only the `clear` file goes to a provider. Hand the `owner` file to the people it names, and leave the `held` file alone.
 2. Try each provider in order, and stop at the first result that meets `stop_on`. Never call the next provider for a person already found.
 3. Follow the same rules for every provider: its own terms, its rate limits, and the estimate.
 4. Keep what each provider found and what it cost, then log the real hit rate: `gluely log add --kind result --area cost --play <id> --text "<provider>: <found> of <tried>" --from agent --by <agent/model> --json`. The next estimate can use it with `--hit-rate`.
