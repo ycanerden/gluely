@@ -10,6 +10,7 @@ A play is a hypothesis you can kill, not a campaign. If `gluely playbooks --json
    - `hypothesis`: who, why now, what you expect
    - `audience`: personas and ICP band
    - `excuse.variants`: two at most
+   - `excuse.proof`: the proof ids the message leans on. Only `repeated` or `measured` proof can go in an active play, so say so if all you have is a hunch
    - `action.tool`: whatever the founder already uses
    - `kill`: when to give up, decided now
 6. Run `gluely plays validate --json` and fix every error.

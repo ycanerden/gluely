@@ -141,6 +141,7 @@ const commands = {
       render() {
         const s = data.summary;
         line(!failed, `${s.total} context files: ${s.confirmed} confirmed, ${s.draft} draft, ${s.template} templates`);
+        if (s.hunches) console.log(`  ${s.hunches} ${s.hunches === 1 ? 'claim is' : 'claims are'} still a hunch. Plays can't lean on ${s.hunches === 1 ? 'it' : 'them'} yet`);
         printIssues(data.issues);
       },
     };

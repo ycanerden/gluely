@@ -608,3 +608,71 @@ test('the landing page shows exactly what is in the library', async () => {
   const { siteData } = await import('../scripts/site-data.mjs');
   assert.equal(fs.readFileSync(path.join(ROOT, 'site/data.js'), 'utf8'), siteData(), 'run node scripts/site-data.mjs');
 });
+
+const PROOF = (front) => `---\nid: faster-onboarding\nstatus: draft\nupdated: ${new Date().toISOString().slice(0, 10)}\n${front}\n---\n# Onboarding in a day\n\n**Claim:** Two customers went live in one day.\n`;
+
+test('a claim is a hunch until its sources say otherwise', () => {
+  const ws = makeWorkspace();
+  fillContext(ws);
+  write(ws, 'context/proof/faster-onboarding.md', PROOF(''));
+  let result = gluely(['context', 'check', '--json'], ws);
+  assert.equal(result.code, 0);
+  assert.equal(result.json.summary.hunches, 1);
+  assert.equal(result.json.files.find((f) => f.id === 'faster-onboarding').evidence, 'hunch');
+
+  write(ws, 'context/proof/faster-onboarding.md', PROOF('evidence: repeated\nsources: [deal-2026-03]'));
+  result = gluely(['context', 'check', '--json'], ws);
+  assert.equal(result.code, 1);
+  assert.match(JSON.stringify(result.json.issues), /two independent sources/);
+
+  write(ws, 'context/proof/faster-onboarding.md', PROOF('evidence: measured\nsources: [onboarding report]'));
+  assert.match(JSON.stringify(gluely(['context', 'check', '--json'], ws).json.issues), /metric/);
+
+  write(ws, 'context/proof/faster-onboarding.md', PROOF('evidence: certain'));
+  assert.match(JSON.stringify(gluely(['context', 'check', '--json'], ws).json.issues), /evidence must be one of/);
+
+  write(ws, 'context/proof/faster-onboarding.md', PROOF('evidence: repeated\nsources: [deal-2026-03, call-2026-04]'));
+  result = gluely(['context', 'check', '--json'], ws);
+  assert.equal(result.code, 0);
+  assert.equal(result.json.summary.hunches, 0);
+});
+
+test('an active play can only lean on proof that is repeated or measured', () => {
+  const ws = makeWorkspace();
+  fillContext(ws);
+  write(ws, 'context/proof/faster-onboarding.md', PROOF(''));
+  const play = (status) => PLAY().replace('excuse: { variants: [a] }', 'excuse: { variants: [a], proof: [faster-onboarding] }').replace('status: draft', `status: ${status}`);
+
+  write(ws, 'plays/first-play.yaml', play('draft'));
+  let result = gluely(['plays', 'validate', '--json'], ws);
+  assert.equal(result.code, 0);
+  assert.match(JSON.stringify(result.json.issues), /still a hunch/);
+
+  write(ws, 'plays/first-play.yaml', play('active'));
+  assert.equal(gluely(['plays', 'validate', '--json'], ws).code, 1);
+
+  write(ws, 'context/proof/faster-onboarding.md', PROOF('evidence: repeated\nsources: [deal-2026-03, call-2026-04]'));
+  assert.equal(gluely(['plays', 'validate', '--json'], ws).code, 0);
+
+  write(ws, 'plays/first-play.yaml', play('active').replace('[faster-onboarding]', '[made-up]'));
+  result = gluely(['plays', 'validate', '--json'], ws);
+  assert.equal(result.code, 1);
+  assert.match(JSON.stringify(result.json.issues), /made-up.*has no file/);
+});
+
+test('context warns about claims nobody has reviewed and dates that drift', () => {
+  const ws = makeWorkspace();
+  fillContext(ws);
+  write(ws, 'context/proof/old-win.md', '---\nid: old-win\nstatus: confirmed\nupdated: 2020-01-01\n---\n# Old win\n\nWe doubled pipeline last quarter.\n');
+  write(ws, 'context/messaging/note.md', '---\nid: note\nstatus: draft\n---\nSaw your post this week.\n');
+  const result = gluely(['context', 'check', '--json'], ws);
+  assert.equal(result.code, 0);
+  const text = JSON.stringify(result.json.issues);
+  assert.match(text, /old-win\.md.*not reviewed for \d+ days/);
+  assert.match(text, /write the date instead of .*last quarter/);
+  assert.doesNotMatch(text, /this week/);
+
+  const cfg = path.join(ws, 'workspace.yaml');
+  fs.writeFileSync(cfg, fs.readFileSync(cfg, 'utf8').replace('context: 180', 'context: 100000'));
+  assert.doesNotMatch(JSON.stringify(gluely(['context', 'check', '--json'], ws).json.issues), /not reviewed/);
+});

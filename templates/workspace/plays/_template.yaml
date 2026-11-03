@@ -13,6 +13,8 @@ audience:
 excuse:
   angle: What makes reaching out honest and useful
   variants: [a]
+  # Proof ids from context/proof/. An active play can only cite repeated or measured proof.
+  proof: []
 action:
   channels: [email]
   tool: any tool you like
