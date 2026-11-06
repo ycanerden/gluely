@@ -99,11 +99,27 @@ Phase 0 of 5: the brain pack.
 
 | Phase | Adds | Status |
 |---|---|---|
-| 0 | Stack map, onboarding, context, guided plays, tool library, cost checks, decision log, skills, brain tests, customer-data guard, play results | Working |
-| 1 | The ledger on any store: Person 360 and Account 360 with buying committees, freshness on every enrichment, content, imports, read-only MCP | Next |
+| 0 | Stack map, onboarding, context, guided plays, tool library, cost checks, decision log, skills, brain tests, customer-data guard, play results, MCP server | Working |
+| 1 | The ledger on any store: Person 360 and Account 360 with buying committees, freshness on every enrichment, content, imports | Next |
 | 2 | Work queue, excuses linked to signals, opt-outs | Planned |
 | 3 | Conversations, BDR drafts, reply-to-demo rate | Planned |
 | 4 | CRM, transcripts, won and lost, the full loop | Planned |
+
+## Use it from any agent (MCP)
+
+`gluely mcp` serves every command as an MCP tool over stdio, with the same checks as the CLI. There is no tool for approving spend: only a person can run `gluely cost approve`.
+
+A new workspace already has `.mcp.json` (Claude Code) and `.cursor/mcp.json` (Cursor), so opening your agent in the workspace is enough. Anywhere else, point it at your brain:
+
+```bash
+claude mcp add gluely -- gluely mcp --workspace ~/my-brain
+```
+
+```json
+{ "mcpServers": { "gluely": { "command": "gluely", "args": ["mcp", "--workspace", "/path/to/my-brain"] } } }
+```
+
+The JSON works for Claude Desktop (`claude_desktop_config.json`) and other MCP clients.
 
 ## Install the skills only
 

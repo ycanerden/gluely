@@ -12,6 +12,7 @@ import { color, fail, GluelyError, mark, printIssues } from './output.js';
 import { guardFile } from './guard.js';
 import { validatePlays } from './plays.js';
 import { answerStep, nextStep, startPlay } from './playbooks.js';
+import { serve } from './mcp.js';
 import { addResult, judgePlay, renderJudgement } from './results.js';
 import { planWaterfall, recordTest, renderWaterfall } from './waterfall.js';
 import { loadPrices } from './cost.js';
@@ -77,6 +78,9 @@ Tools
 Skills
   gluely skills list | install [--host claude,cursor]            the GTM skill pack
 
+Agents
+  gluely mcp [--workspace <dir>]                                 every command above as MCP tools, over stdio
+
 Add --json to any command for agents. Gluely never sends a message and never calls a model.`;
 
 export function parseArgs(argv) {
@@ -98,7 +102,7 @@ const activeWorkspace = () => process.env.GLUELY_WORKSPACE || findWorkspace();
 const line = (ok, text) => console.log(`${ok ? mark.ok() : mark.bad()} ${text}`);
 
 // Each command returns { data, render, exit }. `render` is skipped under --json.
-const commands = {
+export const commands = {
   init(args) {
     const data = initWorkspace({
       dir: args._[0],
@@ -551,6 +555,7 @@ export async function main(argv) {
     args._ = rest;
     if (args.flags.version) { console.log(VERSION); return 0; }
     if (args.flags.help) { console.log(HELP); return 0; }
+    if (name === 'mcp') { await serve(commands, { workspace: args.flags.workspace, version: VERSION }); return 0; }
     const command = name ? commands[name] : home;
     if (!command) fail('unknown_command', `Unknown command "${name}".`, 'Run gluely --help.');
     const { data, render, exit = 0 } = await command(args);
