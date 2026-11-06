@@ -1,9 +1,25 @@
 {
   "name": "gluely",
   "version": "0.0.1",
-  "description": "An open-source GTM brain. Skills for context, plays, excuses, replies and the learning loop.",
-  "author": { "name": "Gluely contributors" },
+  "description": "An open-source GTM brain. Skills for context, plays, excuses, replies and the learning loop, plus every gluely command as MCP tools.",
+  "author": {
+    "name": "Gluely contributors"
+  },
   "license": "MIT",
-  "keywords": ["gtm", "sales", "outbound", "skills", "learning-loop"],
-  "skills": "./skills/"
+  "keywords": [
+    "gtm",
+    "sales",
+    "outbound",
+    "skills",
+    "learning-loop"
+  ],
+  "skills": "./skills/",
+  "mcpServers": {
+    "gluely": {
+      "command": "gluely",
+      "args": [
+        "mcp"
+      ]
+    }
+  }
 }
