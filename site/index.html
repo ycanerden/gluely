@@ -3,667 +3,725 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Gluely: glue for your GTM stack</title>
-<meta name="description" content="Gluely is an open-source GTM brain. Keep your tools. Your agent does the thinking, and every correction teaches the brain.">
+<title>Gluely: the GTM brain for your agent</title>
+<meta name="description" content="Gluely is an open-source GTM brain for agents. Your agent does the thinking. Gluely remembers, checks the work, and learns from every correction.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' shape-rendering='crispEdges'%3E%3Cpath fill='%23ffb42e' d='M6 0h4v4H6z'/%3E%3Cpath fill='%23fff4d6' d='M3 5h10v1h1v7h-1v1H3v-1H2V6h1z'/%3E%3Cpath fill='%231c1636' d='M5 8h2v2H5zM9 8h2v2H9z'/%3E%3C/svg%3E">
 <style>
 @font-face { font-family: "Jersey 20"; src: url("fonts/jersey20.woff2") format("woff2"); font-weight: 400; font-display: swap; }
 @font-face { font-family: "Atkinson Hyperlegible Next"; src: url("fonts/atkinson.woff2") format("woff2"); font-weight: 200 800; font-display: swap; }
 
+/* One page of paper. Ink for words, sky for what you can act on, honey only for the glue. */
 :root {
-  --sky: #4a58cf;
+  --paper: #ffffff;
   --ink: #1c1636;
-  --milk: #fff4d6;
+  --body: #4b4763;
+  --quiet: #77738c;
+  --sky: #4a58cf;
+  --haze: #dfe2fb;
+  --rule: #e8e8f0;
+  --wash: #f6f6fa;
   --honey: #ffb42e;
-  --coral: #ff5a6e;
-  --mint: #56dfa0;
-  --layer-1: #4231a6;
-  --layer-2: #35268c;
-  --layer-3: #291c70;
-  --layer-4: #1f1554;
-  --brain-h: 96px;
-  --glue-x: 120px;
-  --glue-w: 18px;
-  --copy-x: 460px;
-  --pixel: 4px;
-  --step-0: 1.125rem;
-  --step-1: 1.5rem;
-  --step-2: 3rem;
-  --step-3: clamp(4rem, 8vw, 7.5rem);
-  --text-gap: clamp(1.75rem, 4vw, 3.5rem);
+  --no: #b8324f;
+  --ok: #1f7a55;
+  --side: 14rem;
+  --main: 52rem;
+  --pad: 2.5rem;
+  --gutter: max(1.25rem, calc((100vw - var(--side) - var(--main)) / 2));
 }
 
 * { box-sizing: border-box; margin: 0; }
-html { background: var(--layer-4); }
+html { background: var(--paper); overflow-x: clip; scroll-padding-top: 2rem; }
 body {
-  font: 400 var(--step-0)/1.55 "Atkinson Hyperlegible Next", system-ui, sans-serif;
-  color: var(--milk);
-  background: var(--sky);
-  overflow-x: hidden;
+  font: 400 1.0625rem/1.65 "Atkinson Hyperlegible Next", system-ui, sans-serif;
+  color: var(--body);
   -webkit-font-smoothing: antialiased;
+  display: grid;
+  grid-template-columns: var(--gutter) var(--side) minmax(0, var(--main)) var(--gutter);
 }
-h1, h2 { font-family: "Jersey 20", "Atkinson Hyperlegible Next", sans-serif; font-weight: 400; line-height: 0.98; text-wrap: balance; }
-h1 { font-size: var(--step-3); }
-h2 { font-size: var(--step-2); margin-bottom: 1rem; }
-p { max-width: 58ch; }
-code { white-space: nowrap; }
+h1, h2, h3 { font-family: "Jersey 20", "Atkinson Hyperlegible Next", sans-serif; font-weight: 400; color: var(--ink); text-wrap: balance; }
+h1 { font-size: 3rem; line-height: 1; letter-spacing: 0.005em; }
+h2 { font-size: 2.25rem; line-height: 1.05; margin-bottom: 0.9rem; }
+h3 { font-size: 1.6rem; line-height: 1.1; margin-bottom: 0.4rem; }
+p { max-width: 66ch; }
+p + p { margin-top: 1rem; }
 a { color: inherit; }
-:focus-visible { outline: 4px solid var(--honey); outline-offset: 4px; }
-
+code { font: 0.92em/1.4 ui-monospace, "SF Mono", Menlo, Consolas, monospace; color: var(--ink); }
+:focus-visible { outline: 2px solid var(--sky); outline-offset: 3px; }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 
-/* Hero: the sky, where the stack gets glued */
-.hero { position: relative; min-height: min(92svh, 800px); background: var(--sky); overflow: hidden; display: flex; align-items: center; }
-.scene { position: absolute; inset: 0; }
-#world { display: block; image-rendering: pixelated; }
-.hero-copy { position: relative; z-index: 2; margin-left: var(--copy-x); padding: 3rem clamp(1.25rem, 4vw, 3rem) 5.5rem 0; width: min(38rem, calc(100vw - var(--copy-x))); }
-.lede { font-size: var(--step-1); line-height: 1.35; margin-top: 1.25rem; max-width: 30ch; }
-.actions { display: flex; flex-wrap: wrap; gap: 1rem; align-items: center; margin-top: 2rem; }
+/* Corners are cut one pixel step, the way a sprite's would be. */
+.notch { clip-path: polygon(0 3px, 3px 3px, 3px 0, calc(100% - 3px) 0, calc(100% - 3px) 3px, 100% 3px, 100% calc(100% - 3px), calc(100% - 3px) calc(100% - 3px), calc(100% - 3px) 100%, 3px 100%, 3px calc(100% - 3px), 0 calc(100% - 3px)); }
+
+/* The sidebar */
+.side { grid-column: 2; position: sticky; top: 0; height: 100svh; display: flex; flex-direction: column; padding: 7rem 1.5rem 2.5rem 0; }
+.mark { display: inline-flex; align-items: center; gap: 0.55rem; text-decoration: none; color: var(--ink); font: 400 1.75rem/1 "Jersey 20", sans-serif; margin-bottom: 2.25rem; }
+.mark svg { width: 22px; height: 22px; image-rendering: pixelated; }
+.side nav { display: grid; gap: 0.15rem; justify-items: start; }
+.side nav a { text-decoration: none; color: var(--quiet); padding: 0.15rem 0; }
+.side nav a:hover, .side nav a[aria-current="true"] { color: var(--ink); }
+.side nav a { position: relative; }
+#sections a[aria-current="true"]::before { content: ""; position: absolute; left: -16px; top: 50%; width: 8px; height: 8px; margin-top: -4px; background: var(--honey); box-shadow: inset -2px -2px 0 #d4851a; }
+.side .more { margin-top: 2rem; }
+.state { margin-top: auto; display: flex; align-items: center; gap: 0.5rem; font-size: 0.85rem; color: var(--quiet); }
+.state i { width: 6px; height: 6px; background: var(--sky); flex: none; }
+
+/* The main column, held between two hairlines */
+main { grid-column: 3; position: relative; border-right: 1px solid var(--rule); min-width: 0; }
+/* The glue runs down the whole page. Lessons from the diagram flow into it, and each section is a bead on it. */
+main::before { content: ""; position: absolute; z-index: 1; top: 0; bottom: 0; left: -2px; width: 4px; background: var(--honey); box-shadow: inset -1px 0 0 #d4851a; }
+section { position: relative; }
+section::before { content: ""; position: absolute; z-index: 2; left: -8px; top: calc(6.5rem + 0.55rem); width: 16px; height: 16px; background: var(--honey); box-shadow: inset -3px -3px 0 #d4851a;
+  clip-path: polygon(0 4px, 4px 4px, 4px 0, 12px 0, 12px 4px, 100% 4px, 100% 12px, 12px 12px, 12px 100%, 4px 100%, 4px 12px, 0 12px); }
+.hero::before { top: calc(7rem + 0.9rem); }
+.block { padding: 0 var(--pad); }
+section { padding-top: 6.5rem; }
+.figure::after { content: ""; position: absolute; inset: -1.5rem 0 3.5rem 0; z-index: -1; background: radial-gradient(circle, #dfe0ea 1px, transparent 1.2px) 0 0 / 8px 8px; -webkit-mask: linear-gradient(90deg, transparent, #000 12%, #000 80%, transparent); mask: linear-gradient(90deg, transparent, #000 12%, #000 80%, transparent); }
+.hero { padding-top: 7rem; }
+.hero p { font-size: 1.125rem; margin-top: 1.4rem; max-width: 62ch; }
+.hero h1 + p { margin-top: 1.6rem; }
+
+.actions { display: flex; flex-wrap: wrap; gap: 0.75rem; margin-top: 2rem; }
 .button {
-  font: 400 1.6rem/1 "Jersey 20", sans-serif;
-  display: inline-block; padding: 0.9rem 1.2rem 1rem; color: var(--ink); background: var(--honey);
-  text-decoration: none; box-shadow: var(--pixel) var(--pixel) 0 var(--ink);
+  font: 500 0.98rem/1 "Atkinson Hyperlegible Next", sans-serif; text-decoration: none; cursor: pointer;
+  display: inline-block; padding: 0.62rem 0.9rem 0.66rem; border: 0;
+  color: #fff; background: var(--sky);
 }
-.button:hover { background: var(--milk); }
-.button:active { box-shadow: none; transform: translate(var(--pixel), var(--pixel)); }
-.swap-note { margin-top: 1.25rem; font-size: 1rem; min-height: 3em; max-width: 44ch; }
+.button:hover { background: #3a47b8; }
+.button.plain { color: var(--ink); background: #eeeff6; }
+.button.plain:hover { background: var(--haze); }
 
-.brick-hit {
-  position: absolute; z-index: 3; padding: 0; border: 0; background: transparent; cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
-}
-.brick-hit:hover { background: rgb(255 244 214 / 0.14); }
+/* The diagram runs out past the right hairline, to the edge of the window. */
+.figure { position: relative; isolation: isolate; margin-top: 4.5rem; width: calc(100% + var(--gutter) + 1px); }
+.canvas-wrap { overflow: hidden; }
+#loop { display: block; image-rendering: pixelated; }
+.labels { position: relative; height: 3.4rem; margin-top: 0.7rem; font-size: 0.82rem; line-height: 1.3; color: var(--quiet); }
+.labels span { position: absolute; top: 0; }
+.labels [data-at="back"] { color: #b4730f; white-space: nowrap; }
 
-/* The strata: scrolling down moves through the architecture */
-.strata { position: relative; }
-.glue {
-  position: absolute; z-index: 1; top: 0; bottom: calc(3.5rem + var(--brain-h) - var(--pixel)); left: var(--glue-x); width: var(--glue-w);
-  background: var(--milk); box-shadow: calc(var(--pixel) * -1) 0 0 var(--ink), var(--pixel) 0 0 var(--ink);
-}
-.layer { position: relative; padding: clamp(4rem, 9vw, 7rem) clamp(1.25rem, 5vw, 4rem) clamp(4rem, 9vw, 7rem) calc(var(--glue-x) + var(--glue-w) + var(--text-gap)); }
-.layer::after {
-  content: ""; position: absolute; left: 0; right: 0; bottom: -12px; height: 12px; z-index: 0;
-  background: var(--next);
-  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='12' shape-rendering='crispEdges'%3E%3Cpath d='M0 8h16v4H0zM0 4h4v4H0zM8 4h4v4H8zM4 0h4v4H4z'/%3E%3C/svg%3E") repeat-x;
-  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='12' shape-rendering='crispEdges'%3E%3Cpath d='M0 8h16v4H0zM0 4h4v4H0zM8 4h4v4H8zM4 0h4v4H4z'/%3E%3C/svg%3E") repeat-x;
-  transform: translateY(-12px);
-}
-.layer-1 { background: var(--layer-1); --next: var(--layer-2); }
-.layer-2 { background: var(--layer-2); --next: var(--layer-3); }
-.layer-3 { background: var(--layer-3); --next: var(--layer-4); }
-.layer-4 { background: var(--layer-4); padding-bottom: clamp(7rem, 12vw, 9rem); }
-.layer-4::after { display: none; }
-.layer-inner { display: grid; gap: clamp(2rem, 4vw, 4rem); align-items: start; grid-template-columns: minmax(0, 24rem) minmax(0, 38rem); }
-.layer-inner > * { position: relative; z-index: 2; }
+.works { margin-top: 3.5rem; background: var(--wash); border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule); padding: 1.6rem var(--pad); display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.6rem 2.25rem; }
+.works span { display: inline-flex; align-items: center; gap: 0.55rem; font: 400 1.6rem/1 "Jersey 20", sans-serif; color: #85829b; }
+.works svg { width: 22px; height: 22px; fill: currentColor; flex: none; }
+.works small { font-size: 0.85rem; color: var(--quiet); margin-right: 0.5rem; }
 
-/* Each layer's bead of glue, where the line passes through it */
-.bead {
-  position: absolute; z-index: 1; left: calc(var(--glue-x) - 12px); top: clamp(4.3rem, 9.2vw, 7.3rem);
-  width: calc(var(--glue-w) + 24px); height: 32px; background: var(--milk);
-  clip-path: polygon(0 8px, 8px 8px, 8px 0, calc(100% - 8px) 0, calc(100% - 8px) 8px, 100% 8px, 100% calc(100% - 8px), calc(100% - 8px) calc(100% - 8px), calc(100% - 8px) 100%, 8px 100%, 8px calc(100% - 8px), 0 calc(100% - 8px));
-}
-#brain {
-  position: absolute; z-index: 2; bottom: 3.5rem; left: calc(var(--glue-x) + var(--glue-w) / 2);
-  transform: translateX(-50%); image-rendering: pixelated;
-}
-
+/* Terminal output, printed on paper */
 .term {
-  font: 400 0.95rem/1.6 ui-monospace, "SF Mono", Menlo, Consolas, monospace;
-  color: var(--milk); background: #120c2e; padding: 1.25rem 1.4rem; overflow-x: auto; white-space: pre;
-  clip-path: polygon(0 8px, 8px 8px, 8px 0, calc(100% - 8px) 0, calc(100% - 8px) 8px, 100% 8px, 100% calc(100% - 8px), calc(100% - 8px) calc(100% - 8px), calc(100% - 8px) 100%, 8px 100%, 8px calc(100% - 8px), 0 calc(100% - 8px));
+  font: 400 0.86rem/1.65 ui-monospace, "SF Mono", Menlo, Consolas, monospace; color: var(--ink);
+  background: var(--wash); box-shadow: inset 0 0 0 1px var(--rule);
+  padding: 1.1rem 1.25rem; overflow-x: auto; white-space: pre; margin-top: 1.4rem;
 }
-.term .cmd { color: var(--honey); }
-.term .ok { color: var(--mint); }
-.term .no { color: #ff8b98; }
-.term .dim { color: #b7aee0; }
+.term .cmd { color: var(--sky); }
+.term .ok { color: var(--ok); }
+.term .no { color: var(--no); }
+.term .dim { color: var(--quiet); }
+.paste { display: grid; gap: 0.75rem; justify-items: start; }
+.paste .term { white-space: pre-wrap; max-width: 44rem; width: 100%; }
 
-.status { list-style: none; padding: 0; display: grid; gap: 1.25rem; }
-.status strong { font: 400 1.8rem/1.1 "Jersey 20", sans-serif; display: block; }
-.status .today strong { color: var(--mint); }
-.status .next strong { color: var(--honey); }
+/* How it works: the loop, in order */
+.steps { list-style: none; padding: 0; margin-top: 2.5rem; display: grid; gap: 3.5rem; counter-reset: step; }
+.steps > li { display: grid; grid-template-columns: 2.75rem minmax(0, 1fr); counter-increment: step; }
+.steps > li::before { content: counter(step); font: 400 2rem/1 "Jersey 20", sans-serif; color: var(--sky); padding-top: 0.05rem; }
+.steps .pair { display: grid; gap: 1rem; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.steps .pair .term { margin-top: 1.4rem; }
 
-.vault .actions { margin-top: 1.5rem; }
-footer { position: relative; z-index: 2; background: var(--layer-4); padding: 0 clamp(1.25rem, 5vw, 4rem) 3rem calc(var(--glue-x) + var(--glue-w) + var(--text-gap)); font-size: 1rem; color: #cfc7f0; }
-
-
-/* Extra strata. Each new layer steps one shade deeper, so the page still reads as a descent. */
-.layer-play { background: #3d2d9c; --next: #392a96; }
-.layer-cost { background: #392a96; --next: #35268c; }
-.layer-tools { background: #35268c; --next: var(--layer-2); }
-.layer-1 { --next: #3d2d9c; }
-.layer-2 { --next: #2f2280; }
-.layer-learn { background: #2f2280; --next: var(--layer-3); }
-.play-head { position: relative; z-index: 2; max-width: 44rem; margin-bottom: 1.75rem; }
-.play-tabs { position: relative; z-index: 2; display: flex; flex-wrap: wrap; gap: 0.6rem; margin-bottom: 1.25rem; }
+/* The play demo */
+.tabs { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 1.4rem; }
 .tab {
-  font: 400 1.35rem/1 "Jersey 20", sans-serif; color: var(--milk); background: transparent; cursor: pointer;
-  border: 0; box-shadow: inset 0 0 0 var(--pixel) var(--milk); padding: 0.55rem 0.8rem 0.65rem;
+  font: 400 0.9rem/1 "Atkinson Hyperlegible Next", sans-serif; color: var(--ink); background: var(--paper); cursor: pointer;
+  border: 0; box-shadow: inset 0 0 0 1px var(--rule); padding: 0.5rem 0.7rem;
 }
-.tab:hover { background: rgb(255 244 214 / 0.14); }
-.tab[aria-pressed="true"] { color: var(--ink); background: var(--honey); box-shadow: none; }
-.play-grid { position: relative; z-index: 2; display: grid; gap: clamp(1.5rem, 3vw, 2.5rem); grid-template-columns: minmax(0, 38rem) minmax(0, 20rem); align-items: start; }
-.play-term { white-space: normal; min-height: 25rem; display: flex; flex-direction: column; gap: 0.2rem; }
-.play-bar { color: var(--honey); letter-spacing: -0.02em; }
-.play-ask { font: 400 1.9rem/1.08 "Jersey 20", sans-serif; margin-top: 0.6rem; }
-.play-why { color: #b7aee0; margin-bottom: 0.7rem; }
-.play-options { list-style: none; padding: 0; display: grid; gap: 0.15rem; }
-.option {
-  width: 100%; text-align: left; font: inherit; color: var(--milk); background: transparent; border: 0;
-  padding: 0.12rem 0.5rem; cursor: pointer; display: flex; gap: 0.6rem; white-space: pre-wrap;
-}
-.option:hover, .option:focus-visible { background: rgb(255 180 46 / 0.2); }
-.option .num { color: #b7aee0; }
-.play-hint { color: #b7aee0; min-height: 3.2em; font-size: 0.85em; padding: 0.5rem 0.5rem 0; }
-.play-saved { color: var(--mint); }
+.tab:hover { background: var(--wash); }
+.tab[aria-pressed="true"] { color: #fff; background: var(--sky); box-shadow: none; }
+.play-grid { display: grid; gap: 1.5rem; grid-template-columns: minmax(0, 1fr) minmax(0, 15rem); align-items: start; margin-top: 0.9rem; }
+.play-term { white-space: normal; min-height: 23rem; display: flex; flex-direction: column; gap: 0.15rem; margin-top: 0; font-size: 0.86rem; }
+.play-bar { color: var(--sky); letter-spacing: -0.02em; }
+.play-ask { font: 400 1.6rem/1.1 "Jersey 20", sans-serif; margin-top: 0.55rem; }
+.play-why { color: var(--quiet); margin-bottom: 0.6rem; }
+.play-options { list-style: none; padding: 0; display: grid; gap: 0.1rem; }
+.option { width: 100%; text-align: left; font: inherit; color: var(--ink); background: transparent; border: 0; padding: 0.12rem 0.45rem; cursor: pointer; display: flex; gap: 0.6rem; white-space: pre-wrap; }
+.option:hover, .option:focus-visible { background: var(--haze); }
+.option .num { color: var(--quiet); }
+.play-hint { color: var(--quiet); min-height: 3.2em; padding: 0.5rem 0.45rem 0; }
+.play-saved { color: var(--ok); }
 .play-yaml { white-space: pre-wrap; margin-top: 0.4rem; }
 .play-again { align-self: flex-start; margin-top: auto; }
-.play-side { font-size: 1rem; }
-.play-side h3 { font: 400 1.6rem/1.1 "Jersey 20", sans-serif; margin-bottom: 0.4rem; }
-.play-side ol { padding-left: 1.4rem; margin-top: 0.6rem; }
-.play-side li { color: #cfc7f0; }
-.play-side li.done { color: var(--mint); }
-.play-side li.now { color: var(--honey); }
-.tool-grid { position: relative; z-index: 2; list-style: none; padding: 0; display: grid; gap: 0.5rem; grid-template-columns: repeat(auto-fill, minmax(11.5rem, 1fr)); max-width: 62rem; }
-.tool-grid li { background: var(--milk); color: var(--ink); padding: 0.5rem 0.7rem 0.6rem; box-shadow: var(--pixel) var(--pixel) 0 var(--ink); font-size: 0.85rem; line-height: 1.25; }
-.tool-grid strong { display: block; font: 400 1.35rem/1.05 "Jersey 20", sans-serif; }
+.play-side { font-size: 0.92rem; }
+.play-side h3 { font-size: 1.4rem; }
+.play-side ol { padding-left: 1.3rem; margin-top: 0.6rem; color: var(--quiet); }
+.play-side li.done { color: var(--ok); }
+.play-side li.now { color: var(--ink); }
 
-@media (max-width: 1080px) {
-  .layer-inner, .play-grid { grid-template-columns: minmax(0, 1fr); }
-  .play-term { min-height: 0; }
+/* Who it's for: four cells sharing hairlines */
+.who { list-style: none; padding: 0; margin-top: 2rem; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); border-top: 1px solid var(--rule); border-left: 1px solid var(--rule); }
+.who li { padding: 1.4rem 1.4rem 1.5rem; border-right: 1px solid var(--rule); border-bottom: 1px solid var(--rule); display: grid; gap: 0.4rem; grid-template-rows: auto 1fr auto; }
+.who p { font-size: 0.97rem; }
+.who code { font-size: 0.8rem; color: var(--sky); overflow-wrap: anywhere; }
+
+/* The tool library */
+.tool-grid { list-style: none; padding: 0; margin-top: 1rem; display: grid; grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr)); border-top: 1px solid var(--rule); border-left: 1px solid var(--rule); }
+.tool-grid li { padding: 0.7rem 0.85rem 0.8rem; border-right: 1px solid var(--rule); border-bottom: 1px solid var(--rule); font-size: 0.82rem; line-height: 1.35; color: var(--quiet); }
+.tool-grid strong { display: block; font: 400 1.3rem/1.05 "Jersey 20", sans-serif; color: var(--ink); margin-bottom: 0.15rem; }
+
+/* Questions */
+.faq { margin-top: 1.5rem; border-top: 1px solid var(--rule); max-width: 46rem; }
+.faq details { border-bottom: 1px solid var(--rule); }
+.faq summary { color: var(--ink); padding: 0.95rem 0; cursor: pointer; list-style: none; display: flex; justify-content: space-between; gap: 1rem; }
+.faq summary::-webkit-details-marker { display: none; }
+.faq summary::after { content: "+"; color: var(--sky); font: 400 1.4rem/1 "Jersey 20", sans-serif; }
+.faq details[open] summary::after { content: "-"; }
+.faq details p { padding: 0 0 1.1rem; font-size: 0.97rem; }
+
+/* The end of the loop */
+.vault { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 17rem); gap: 2.5rem; align-items: start; padding-bottom: 6rem; }
+.road { list-style: none; padding: 0; display: grid; gap: 1.1rem; font-size: 0.95rem; }
+.road strong { display: block; font: 400 1.4rem/1.1 "Jersey 20", sans-serif; color: var(--ink); }
+.road .today strong { color: var(--ok); }
+.road .next strong { color: var(--sky); }
+#brain { display: block; image-rendering: pixelated; margin-bottom: 1.5rem; }
+
+footer { border-top: 1px solid var(--rule); padding: 1.6rem var(--pad) 2.5rem; font-size: 0.9rem; color: var(--quiet); }
+footer nav { display: flex; flex-wrap: wrap; gap: 0.4rem 1.4rem; margin-bottom: 0.5rem; }
+footer a { color: var(--ink); }
+
+@media (max-width: 1100px) {
+  :root { --side: 12rem; --main: minmax(0, 1fr); }
+  body { grid-template-columns: 1.25rem var(--side) minmax(0, 1fr) 0; }
+  .figure { width: calc(100% + 1px); }
+  .steps .pair, .play-grid { grid-template-columns: minmax(0, 1fr); }
 }
-@media (max-width: 859px) {
-  :root { --step-2: 2.4rem; --text-gap: 1.25rem; }
-  .hero { display: block; min-height: 0; }
-  .scene { position: relative; inset: auto; height: 348px; }
-  .hero-copy { margin-left: 0; padding: 2.25rem 1.25rem 1.5rem; width: auto; }
-  .swap-note { min-height: 2.5em; margin-bottom: 0; }
-  .layer { padding-right: 1.25rem; }
-  .term { font-size: 0.8rem; padding: 1rem; white-space: pre-wrap; overflow-wrap: anywhere; }
-}
-@media (prefers-reduced-motion: reduce) {
-  .button:active { transform: none; }
+@media (max-width: 760px) {
+  :root { --pad: 1.25rem; }
+  body { display: block; }
+  .side { position: static; height: auto; padding: 1.25rem var(--pad) 0; display: block; }
+  .mark { margin-bottom: 0.9rem; }
+  .side nav { display: flex; flex-wrap: wrap; gap: 0.2rem 1rem; }
+  .side .more, .state { display: none; }
+  main { border: 0; }
+  main::before, section::before, .figure::after { display: none; }
+  .hero { padding-top: 3rem; }
+  h1 { font-size: 2.5rem; }
+  h2 { font-size: 2rem; }
+  section { padding-top: 4.5rem; }
+  .who, .vault { grid-template-columns: minmax(0, 1fr); }
+  .steps > li { grid-template-columns: 2rem minmax(0, 1fr); }
+  .term { font-size: 0.78rem; padding: 0.9rem; white-space: pre-wrap; overflow-wrap: anywhere; }
+  .labels { display: none; }
 }
 </style>
 </head>
 <body>
 
+<aside class="side">
+  <a class="mark" href="#top" aria-label="Gluely, back to the top">
+    <svg viewBox="0 0 16 16" shape-rendering="crispEdges" aria-hidden="true"><path fill="#ffb42e" d="M6 0h4v4H6z"/><path fill="#fff4d6" d="M3 5h10v1h1v7h-1v1H3v-1H2V6h1z"/><path fill="#1c1636" d="M3 5h10v1H3zM2 6h1v7H2zM13 6h1v7h-1zM3 13h10v1H3zM5 8h2v2H5zM9 8h2v2H9zM6 0h4v1H6z"/></svg>
+    gluely
+  </a>
+  <nav aria-label="Sections" id="sections">
+    <a href="#top">Overview</a>
+    <a href="#start">Get started</a>
+    <a href="#how">How it works</a>
+    <a href="#who">Who it's for</a>
+    <a href="#tools">Tools</a>
+    <a href="#faq">Questions</a>
+  </nav>
+  <nav aria-label="Elsewhere" class="more">
+    <a href="https://github.com/ycanerden/gluely">GitHub</a>
+    <a href="https://github.com/ycanerden/gluely/blob/main/docs/try-it.md">Try it in 10 minutes</a>
+  </nav>
+  <p class="state"><i aria-hidden="true"></i>Open source, early preview</p>
+</aside>
+
 <main>
-  <section class="hero" aria-labelledby="title">
-    <div class="scene" id="scene">
-      <canvas id="world" role="img" aria-label="A blob of glue sticks five tool bricks into one tower, and a line of glue runs down from it."></canvas>
-    </div>
-    <div class="hero-copy">
-      <h1 id="title">Glue for your GTM stack</h1>
-      <p class="lede">Keep your tools. Gluely is the open-source brain between them, and every correction teaches it something.</p>
+  <section class="hero" id="top" aria-labelledby="title">
+    <div class="block">
+      <h1 id="title">The GTM brain for your agent</h1>
+      <p>Gluely keeps what your agent needs to sell well: who you sell to, how you write, which plays work, and every correction you have made. Your agent does the thinking. Gluely remembers, checks the work, and learns.</p>
+      <p>It is open source and runs on your machine. Keep the tools you have, bring your own data and keys, and connect any agent through the command line or MCP. Nothing is sent and nothing is spent until a person says yes.</p>
       <div class="actions">
-        <a class="button" href="https://github.com/ycanerden/gluely">See the code on GitHub</a>
+        <a class="button notch" href="https://github.com/ycanerden/gluely">Get Gluely on GitHub</a>
+        <a class="button plain notch" href="#start">Set it up with your agent</a>
       </div>
-      <p class="swap-note" id="note" aria-live="polite">Your tools can change. Click a brick to swap one yourself.</p>
+    </div>
+
+    <figure class="figure" id="figure">
+      <div class="canvas-wrap"><canvas id="loop" role="img" aria-label="Diagram of the loop. A tower of your tools, glued together, feeds people and signals into the brain, one row each. A guard holds back customers and excluded companies. Cleared rows go out only after a person approves, and the lessons from the results run back along a line of glue to the start."></canvas></div>
+      <figcaption class="labels" id="labels">
+        <span data-at="tower">Your tools, glued together</span>
+        <span data-at="rows">Every person and signal, one row each</span>
+        <span data-at="gate">The guard holds customers and exclusions</span>
+        <span data-at="out">Out only after a person approves</span>
+        <span data-at="back">Results come back as lessons, into the glue</span>
+      </figcaption>
+    </figure>
+
+    <div class="works" aria-label="Agents that work with Gluely">
+      <small>Works with</small>
+      <span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 10.5h3v3h-3v3h-1.5v3H18v-3h-1.5v3H15v-3H9v3H7.5v-3H6v3H4.5v-3H3v-3H0v-3h3v-6h18Zm-15 0h1.5v-3H6Zm10.5 0H18v-3h-1.5z"/></svg>Claude Code</span><span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11.503.131 1.891 5.678a.84.84 0 0 0-.42.726v11.188c0 .3.162.575.42.724l9.609 5.55a1 1 0 0 0 .998 0l9.61-5.55a.84.84 0 0 0 .42-.724V6.404a.84.84 0 0 0-.42-.726L12.497.131a1.01 1.01 0 0 0-.996 0M2.657 6.338h18.55c.263 0 .43.287.297.515L12.23 22.918c-.062.107-.229.064-.229-.06V12.335a.59.59 0 0 0-.295-.51l-9.11-5.257c-.109-.063-.064-.23.061-.23"/></svg>Cursor</span><span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M22.2819 9.8211a5.9847 5.9847 0 0 0-.5157-4.9108 6.0462 6.0462 0 0 0-6.5098-2.9A6.0651 6.0651 0 0 0 4.9807 4.1818a5.9847 5.9847 0 0 0-3.9977 2.9 6.0462 6.0462 0 0 0 .7427 7.0966 5.98 5.98 0 0 0 .511 4.9107 6.051 6.051 0 0 0 6.5146 2.9001A5.9847 5.9847 0 0 0 13.2599 24a6.0557 6.0557 0 0 0 5.7718-4.2058 5.9894 5.9894 0 0 0 3.9977-2.9001 6.0557 6.0557 0 0 0-.7475-7.0729zm-9.022 12.6081a4.4755 4.4755 0 0 1-2.8764-1.0408l.1419-.0804 4.7783-2.7582a.7948.7948 0 0 0 .3927-.6813v-6.7369l2.02 1.1686a.071.071 0 0 1 .038.052v5.5826a4.504 4.504 0 0 1-4.4945 4.4944zm-9.6607-4.1254a4.4708 4.4708 0 0 1-.5346-3.0137l.142.0852 4.783 2.7582a.7712.7712 0 0 0 .7806 0l5.8428-3.3685v2.3324a.0804.0804 0 0 1-.0332.0615L9.74 19.9502a4.4992 4.4992 0 0 1-6.1408-1.6464zM2.3408 7.8956a4.485 4.485 0 0 1 2.3655-1.9728V11.6a.7664.7664 0 0 0 .3879.6765l5.8144 3.3543-2.0201 1.1685a.0757.0757 0 0 1-.071 0l-4.8303-2.7865A4.504 4.504 0 0 1 2.3408 7.872zm16.5963 3.8558L13.1038 8.364 15.1192 7.2a.0757.0757 0 0 1 .071 0l4.8303 2.7913a4.4944 4.4944 0 0 1-.6765 8.1042v-5.6772a.79.79 0 0 0-.407-.667zm2.0107-3.0231l-.142-.0852-4.7735-2.7818a.7759.7759 0 0 0-.7854 0L9.409 9.2297V6.8974a.0662.0662 0 0 1 .0284-.0615l4.8303-2.7866a4.4992 4.4992 0 0 1 6.6802 4.66zM8.3065 12.863l-2.02-1.1638a.0804.0804 0 0 1-.038-.0567V6.0742a4.4992 4.4992 0 0 1 7.3757-3.4537l-.142.0805L8.704 5.459a.7948.7948 0 0 0-.3927.6813zm1.0976-2.3654l2.602-1.4998 2.6069 1.4998v2.9994l-2.5974 1.4997-2.6067-1.4997Z"/></svg>Codex</span><span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13.85 0a4.16 4.16 0 0 0-2.95 1.217L1.456 10.66a.835.835 0 0 0 0 1.18.835.835 0 0 0 1.18 0l9.442-9.442a2.49 2.49 0 0 1 3.541 0 2.49 2.49 0 0 1 0 3.541L8.59 12.97l-.1.1a.835.835 0 0 0 0 1.18.835.835 0 0 0 1.18 0l.1-.098 7.03-7.034a2.49 2.49 0 0 1 3.542 0l.049.05a2.49 2.49 0 0 1 0 3.54l-8.54 8.54a1.96 1.96 0 0 0 0 2.755l1.753 1.753a.835.835 0 0 0 1.18 0 .835.835 0 0 0 0-1.18l-1.753-1.753a.266.266 0 0 1 0-.394l8.54-8.54a4.185 4.185 0 0 0 0-5.9l-.05-.05a4.16 4.16 0 0 0-2.95-1.218c-.2 0-.401.02-.6.048a4.17 4.17 0 0 0-1.17-3.552A4.16 4.16 0 0 0 13.85 0m0 3.333a.84.84 0 0 0-.59.245L6.275 10.56a4.186 4.186 0 0 0 0 5.902 4.186 4.186 0 0 0 5.902 0L19.16 9.48a.835.835 0 0 0 0-1.18.835.835 0 0 0-1.18 0l-6.985 6.984a2.49 2.49 0 0 1-3.54 0 2.49 2.49 0 0 1 0-3.54l6.983-6.985a.835.835 0 0 0 0-1.18.84.84 0 0 0-.59-.245"/></svg>any MCP client</span>
     </div>
   </section>
 
-  <div class="strata">
-    <div class="glue" aria-hidden="true"></div>
+  <section id="start" aria-labelledby="start-title">
+    <div class="block">
+      <h2 id="start-title">Start with one paste</h2>
+      <p>Paste this into your agent. It installs Gluely, makes your brain in its own private folder, and asks you before it connects anything.</p>
+      <div class="paste">
+        <pre class="term notch" id="agent-prompt">Read https://github.com/ycanerden/gluely/blob/main/docs/try-it.md and follow it for my company. Make the brain in its own private folder. Ask me before you connect a tool, and never send a message or spend a credit.</pre>
+        <button class="button plain notch" type="button" id="copy-prompt">Copy the prompt</button>
+      </div>
+      <p style="margin-top:2rem">Already set up? Connect the brain to any MCP client:</p>
+      <pre class="term notch"><span class="cmd">$ claude mcp add gluely -- gluely mcp --workspace ~/my-brain</span></pre>
+    </div>
+  </section>
 
-    <section class="layer layer-1">
-      <span class="bead" aria-hidden="true"></span>
-      <div class="layer-inner">
-        <div>
-          <h2>Your agent does the thinking</h2>
-          <p>Use Claude Code, Cursor, Grok or whatever you trust. Run <code>/setup-gluely</code> and it maps your stack, reads your real deals with your permission, and challenges your ICP before it writes anything down.</p>
-        </div>
-        <pre class="term" aria-label="An example of the agent challenging an ICP, with made-up numbers"><span class="dim"># example, with made-up numbers</span>
-
+  <section id="how" aria-labelledby="how-title">
+    <div class="block">
+      <h2 id="how-title">How it works</h2>
+      <p>The company is different every time. The loop is the same, and every turn of it makes the next draft better.</p>
+      <ol class="steps">
+        <li>
+          <div>
+            <h3>Your agent learns the company, and argues with it</h3>
+            <p>Run <code>/setup-gluely</code>. Your agent maps your stack, reads your real deals with your permission, and challenges your ICP before it writes anything down.</p>
+            <pre class="term notch" aria-label="An example of the agent challenging an ICP, with made-up numbers"><span class="dim"># example, with made-up numbers</span>
 You said mid-market. Your deals say otherwise:
 7 of 9 won deals had under 30 people.
 
 <span class="cmd">Who fits your ICP perfectly and never buys?</span></pre>
-      </div>
-    </section>
+          </div>
+        </li>
+        <li id="play">
+          <div>
+            <h3>Plays are set up one question at a time</h3>
+            <p>Pick a classic. Gluely asks about each step, shows your options and saves your answers, each play with a kill rule. Press the answers to try it.</p>
+            <div class="tabs" role="group" aria-label="Choose a playbook" id="play-tabs"></div>
+            <div class="play-grid">
+              <div class="term play-term notch" id="play-term" aria-live="polite"></div>
+              <aside class="play-side" id="play-side"></aside>
+            </div>
+          </div>
+        </li>
+        <li>
+          <div>
+            <h3>Nothing leaves without a check</h3>
+            <p>Gluely works out the bill from your own prices before anything spends a credit, and a missing price is never counted as free. Lists are sorted before they leave, so customers and excluded companies are held back. Your agent can read the estimate, but only a person can approve it.</p>
+            <div class="pair">
+              <pre class="term notch" aria-label="Output from gluely cost, with made-up prices"><span class="cmd">$ gluely cost job-switch</span>
+<span class="dim"># made-up prices</span>
+Check the list   $4.12
+Find contacts    $0.06 to $0.12
 
-    <section class="layer layer-play" id="play">
-      <span class="bead" aria-hidden="true"></span>
-      <div class="play-head">
-        <h2>Set up a play, one question at a time</h2>
-        <p>Pick a classic. Gluely asks about each step, shows your options and saves your answers. Press the answers to try it.</p>
-      </div>
-      <div class="play-tabs" role="group" aria-label="Choose a playbook" id="play-tabs"></div>
-      <div class="play-grid">
-        <div class="term play-term" id="play-term" aria-live="polite"></div>
-        <aside class="play-side" id="play-side"></aside>
-      </div>
-    </section>
+Total            $4.18 to $4.24
+A person needs to approve it.</pre>
+              <pre class="term notch" aria-label="Output from gluely check"><span class="cmd">$ gluely check company rival.example</span>
+<span class="no">✘ excluded: competitor</span>
 
-    <section class="layer layer-cost">
-      <span class="bead" aria-hidden="true"></span>
-      <div class="layer-inner">
-        <div>
-          <h2>Know the cost before you spend a credit</h2>
-          <p>Before a scrape or an enrichment run, Gluely works out the bill from your own prices. A missing price stays missing and is never counted as free, and it warns you when most of the money goes before your ICP filter. Your agent can read the estimate, but only a person can approve it. If a price or the volume changes, it needs approving again.</p>
-        </div>
-        <pre class="term" aria-label="Output from gluely cost, with made-up prices"><span class="cmd">$ gluely cost job-switch</span>
-<span class="dim"># example, with made-up prices</span>
-Check the list  412 checks           $4.12
-Find contacts   1 to 2.1 lookups     $0.06 to $0.12
-Send messages   2.1 to 4.1 messages  $0.00
-
-Total           $4.18 to $4.24
-Per person      $2.06 to $4.06
-
-<span class="cmd">→</span> Within your $150 limit. A person needs to
-  approve it before anything spends credits.</pre>
-      </div>
-    </section>
-
-    <section class="layer layer-tools" id="tools">
-      <span class="bead" aria-hidden="true"></span>
-      <div class="play-head">
-        <h2>A tool library that ranks nobody</h2>
-        <p>Every tool is listed by the job it does, in alphabetical order. Yours come first, and any tool you type in works.</p>
-      </div>
-      <div class="play-tabs" role="group" aria-label="Filter tools by job" id="tool-tabs"></div>
-      <ul class="tool-grid" id="tool-grid"></ul>
-    </section>
-
-    <section class="layer layer-2">
-      <span class="bead" aria-hidden="true"></span>
-      <div class="layer-inner">
-        <div>
-          <h2>Gluely checks the work</h2>
-          <p>It never sends a message and never calls a model. It holds your rules: your voice, your exclusions and your plays, each with a kill rule. Every command also speaks JSON, so your agent can use it too.</p>
-        </div>
-        <pre class="term" aria-label="Output from gluely check"><span class="cmd">$ gluely check draft --channel email \
-    --text "Hi Jane, I hope this finds you well"</span>
-<span class="no">✘ Draft breaks your voice rules</span>
-<span class="no">  ✘ banned phrase: "hope this finds you well"</span>
-
-<span class="cmd">$ gluely check company rival.example</span>
-<span class="no">✘ rival.example is excluded: competitor</span></pre>
-      </div>
-    </section>
-
-    <section class="layer layer-learn">
-      <span class="bead" aria-hidden="true"></span>
-      <div class="layer-inner">
-        <div>
-          <h2>It learns how you write</h2>
-          <p>Every decision and every edit you make is logged, with who made it and why. Your agent reads those lessons before it writes the next draft. When you keep changing the same thing, Gluely shows you, and you can turn it into a rule that holds for good.</p>
-        </div>
-        <pre class="term" aria-label="Output from gluely learn"><span class="cmd">$ gluely learn</span>
-<span class="dim"># example</span>
-voice 3 open, belongs in context/messaging/voice.md
+<span class="cmd">$ gluely check draft --channel email \
+  --text "I hope this finds you well"</span>
+<span class="no">✘ banned phrase</span></pre>
+            </div>
+          </div>
+        </li>
+        <li>
+          <div>
+            <h3>Every correction teaches it</h3>
+            <p>Every decision and every edit is logged, with who made it and why. Your agent reads those lessons before it writes the next draft. When you keep changing the same thing, Gluely shows you, and you can turn it into a rule.</p>
+            <pre class="term notch" aria-label="Output from gluely learn"><span class="cmd">$ gluely learn</span>
+voice  3 open, belongs in context/messaging/voice.md
   I never use exclamation marks
   Changed "Quick question" to "One question"
 
-You keep removing  "quick" 2x
-
-<span class="cmd">$ gluely check draft --channel email \
-    --text "Quick thought on the new team"</span>
-<span class="no">✘ Draft breaks your voice rules</span>
-<span class="no">  ✘ banned phrase: "quick"</span></pre>
-      </div>
-    </section>
-
-    <section class="layer layer-3">
-      <span class="bead" aria-hidden="true"></span>
-      <div class="layer-inner">
-        <div>
-          <h2>Every correction becomes a test</h2>
-          <p>Early on, reply rates are mostly noise, but your corrections aren't. Tell the brain it got something wrong and it keeps the lesson. Each context change is then tested against the last one, so you see it when the brain gets worse.</p>
-        </div>
-        <pre class="term" aria-label="Output from gluely test"><span class="cmd">$ gluely test</span>
+You keep removing  "quick" 2x</pre>
+          </div>
+        </li>
+        <li>
+          <div>
+            <h3>Every lesson becomes a test</h3>
+            <p>Early reply rates are mostly noise, but your corrections are not. Each one can become a test, and every change to the context is tested against the last one, so you see it when the brain gets worse.</p>
+            <pre class="term notch" aria-label="Output from gluely test"><span class="cmd">$ gluely test</span>
 Brain tests   <span class="dim">context 319e1d3</span>
 <span class="ok">✔</span> Rule tests   4/4
 <span class="ok">✔</span> Agent tests  6/7 correct
   <span class="no">✘ icp-warm-founder: answered hot, expected warm</span></pre>
-      </div>
-    </section>
-
-    <section class="layer layer-4 vault">
-      <canvas id="brain" role="img" aria-label="The line of glue ends in a pixel brain with a padlock on it."></canvas>
-      <div class="layer-inner">
-        <div>
-          <h2>Your brain stays yours</h2>
-          <p>Your context, plays and tests live in your own private repo. Gluely has no servers, so your data stays in your own stack. It is free, MIT licensed, and recommends tools without ever requiring one.</p>
-          <div class="actions">
-            <a class="button" href="https://github.com/ycanerden/gluely">Get Gluely on GitHub</a>
           </div>
-        </div>
-        <ul class="status">
-          <li class="today"><strong>Works today</strong>Stack map, agent onboarding, guided plays, the tool library, cost checks, the decision log and brain tests.</li>
-          <li class="next"><strong>Next</strong>The ledger on any data store, with Person 360, content and imports.</li>
-          <li><strong>After that</strong>Opt-outs, reply tracking, BDR drafts, CRM sync, transcripts and the full loop.</li>
-        </ul>
+        </li>
+      </ol>
+    </div>
+  </section>
+
+  <section id="who" aria-labelledby="who-title">
+    <div class="block">
+      <h2 id="who-title">Who it's for</h2>
+      <p>One architecture for every kind of team. Each brain stays private to the company it belongs to.</p>
+      <ul class="who">
+        <li>
+          <h3>Founders selling alone</h3>
+          <p>Write down who you sell to, then let your own deals argue with it. Start with the people who already know you.</p>
+          <code>gluely plays start own-network</code>
+        </li>
+        <li>
+          <h3>GTM engineers</h3>
+          <p>Keep the stack you have. Gluely adds the rules between the tools: who is excluded, what a play costs, and which tool really finds the right address.</p>
+          <code>gluely waterfall contact-data</code>
+        </li>
+        <li>
+          <h3>Freelancers and agencies</h3>
+          <p>One private brain for each client, never mixed. Each one learns that client's voice, and you take your method from one to the next.</p>
+          <code>gluely init ~/client-brain</code>
+        </li>
+        <li>
+          <h3>Product-led apps</h3>
+          <p>A trial ending, a cancel or a downgrade each gets a note that fits the moment, in the right voice for the address.</p>
+          <code>gluely plays start product-lifecycle</code>
+        </li>
+      </ul>
+    </div>
+  </section>
+
+  <section id="tools" aria-labelledby="tools-title">
+    <div class="block">
+      <h2 id="tools-title">Use any tool</h2>
+      <p>Gluely provides no data. Bring whatever you already pay for. The library lists tools by the job they do, in alphabetical order, and ranks nobody. Your own tests rank your tools.</p>
+      <div class="tabs" role="group" aria-label="Filter tools by job" id="tool-tabs"></div>
+      <ul class="tool-grid" id="tool-grid"></ul>
+    </div>
+  </section>
+
+  <section id="faq" aria-labelledby="faq-title">
+    <div class="block">
+      <h2 id="faq-title">Questions</h2>
+      <div class="faq">
+        <details>
+          <summary>Does Gluely send emails or messages?</summary>
+          <p>No. Gluely never sends anything and never calls a model. Your agent drafts, Gluely checks the draft, and a person decides what goes out through the tool you already use.</p>
+        </details>
+        <details>
+          <summary>Does Gluely see my data?</summary>
+          <p>No. Your brain is a folder on your machine, kept in a private repo you own, and Gluely has no servers. Your agent sees what you connect to it, so connect only what you would show that agent's provider, and keep connections read-only.</p>
+        </details>
+        <details>
+          <summary>Which agents work?</summary>
+          <p>Any agent that can run commands or connect to an MCP server. Claude Code and Cursor get the skills as slash commands. Codex, Grok and others read the same skills as plain markdown files.</p>
+        </details>
+        <details>
+          <summary>Where does the data come from?</summary>
+          <p>From your own tools and accounts. Gluely provides no data and resells nothing, so you can use any provider you like and test them against each other.</p>
+        </details>
+        <details>
+          <summary>What does it cost?</summary>
+          <p>Gluely is free. Your data tools charge what they charge, so Gluely works out the bill from your own prices before anything spends a credit, and only a person can approve it.</p>
+        </details>
+        <details>
+          <summary>Is it ready?</summary>
+          <p>It is an early preview. The brain works today: context, guided plays, the customer guard, cost checks, results, the decision log, tests and the MCP server. Signals, the person database, replies and CRM sync come next.</p>
+        </details>
       </div>
-    </section>
-  </div>
+    </div>
+  </section>
+
+  <section aria-labelledby="vault-title">
+    <div class="block vault">
+      <div>
+        <canvas id="brain" role="img" aria-label="A pixel brain with a padlock on it."></canvas>
+        <h2 id="vault-title">Your brain stays yours</h2>
+        <p>Your context, plays and tests live in your own private repo. Gluely has no servers, so your data stays in your own stack. It is free, MIT licensed, and recommends tools without ever requiring one.</p>
+        <div class="actions">
+          <a class="button notch" href="https://github.com/ycanerden/gluely">Get Gluely on GitHub</a>
+        </div>
+      </div>
+      <ul class="road">
+        <li class="today"><strong>Works today</strong>Stack map, agent onboarding, guided plays, the tool library, cost checks, the decision log, brain tests and the MCP server.</li>
+        <li class="next"><strong>Next</strong>The ledger on any data store, with Person 360, content and imports.</li>
+        <li><strong>After that</strong>Opt-outs, reply tracking, BDR drafts, CRM sync, transcripts and the full loop.</li>
+      </ul>
+    </div>
+  </section>
+
+  <footer>
+    <nav aria-label="More">
+      <a href="https://github.com/ycanerden/gluely">GitHub</a>
+      <a href="https://github.com/ycanerden/gluely/blob/main/docs/try-it.md">Try it in 10 minutes</a>
+      <a href="https://github.com/ycanerden/gluely/issues/new?template=tester-report.md">Send a tester report</a>
+      <a href="https://github.com/ycanerden/gluely/blob/main/LICENSE">MIT license</a>
+    </nav>
+    Gluely is open source, and it never sends a message for you.
+  </footer>
 </main>
 
-<footer>Gluely is open source, and it never sends a message for you.</footer>
-
 <script>
+// The loop, drawn on a pixel grid: your tools, the brain's rows, the guard, the way out, and the glue back.
 (() => {
-  const PAL = {
-    sky: '#4a58cf', cloud: '#6271e2', ink: '#1c1636', milk: '#fff4d6', shade: '#e8d6a6', honey: '#ffb42e', honeyDark: '#d4851a',
-    coral: '#ff5a6e', coralDark: '#c93a5a', coralLight: '#ff9aa8', mint: '#56dfa0', mintDark: '#2fa877', blue: '#8fc7ff', blueDark: '#5a8fd8',
-    plum: '#b77bff', plumDark: '#8350cf', layer: '#4231a6',
+  const C = {
+    ink: '#1c1636', line: '#c3c3d3', faint: '#e1e1ea', dot: '#a9a6ba', num: '#aaa7bb', hatch: '#d3d3df',
+    sky: '#4a58cf', haze: '#d3d8fa', out: '#9aa3ea', honey: '#ffb42e', honeyDark: '#d4851a', milk: '#fff4d6', shade: '#e8d6a6', blush: '#ff9aa8',
   };
-
-  const BRICKS = [
-    { role: 'data store', fill: 'plum', tools: ['SNOWFLAKE', 'SQLITE', 'SUPABASE', 'POSTGRES', 'BIGQUERY', 'YOURS'] },
-    { role: 'CRM', fill: 'blue', tools: ['HUBSPOT', 'ATTIO', 'SALESFORCE', 'PIPEDRIVE', 'A SPREADSHEET', 'YOURS'] },
-    { role: 'outreach', fill: 'mint', tools: ['INSTANTLY', 'LEMLIST', 'SMARTLEAD', 'HEYREACH', 'BY HAND', 'YOURS'] },
-    { role: 'signals', fill: 'honey', tools: ['APIFY', 'PHANTOMBUSTER', 'CLAY', 'UNIPILE', 'YOURS'] },
-    { role: 'agent', fill: 'coral', tools: ['CLAUDE CODE', 'CURSOR', 'CODEX', 'GROK', 'YOURS'] },
-  ].map((b) => ({ ...b, index: 0, hop: 0 }));
-
-  const NAMES = {
-    SQLITE: 'SQLite', HUBSPOT: 'HubSpot', BIGQUERY: 'BigQuery', POSTGRES: 'Postgres', PHANTOMBUSTER: 'PhantomBuster', HEYREACH: 'HeyReach',
-    'A SPREADSHEET': 'A spreadsheet', 'BY HAND': 'Sending by hand', 'CLAUDE CODE': 'Claude Code', YOURS: 'Your own tool',
-  };
-
-  // A 5x7 pixel font, one number per row.
   const FONT = {
-    A:[14,17,17,31,17,17,17],B:[30,17,17,30,17,17,30],C:[14,17,16,16,16,17,14],D:[30,17,17,17,17,17,30],E:[31,16,16,30,16,16,31],
-    F:[31,16,16,30,16,16,16],G:[14,17,16,23,17,17,15],H:[17,17,17,31,17,17,17],I:[14,4,4,4,4,4,14],J:[7,2,2,2,2,18,12],
-    K:[17,18,20,24,20,18,17],L:[16,16,16,16,16,16,31],M:[17,27,21,21,17,17,17],N:[17,25,21,19,17,17,17],O:[14,17,17,17,17,17,14],
-    P:[30,17,17,30,16,16,16],Q:[14,17,17,17,21,18,13],R:[30,17,17,30,20,18,17],S:[15,16,16,14,1,1,30],T:[31,4,4,4,4,4,4],
-    U:[17,17,17,17,17,17,14],V:[17,17,17,17,17,10,4],W:[17,17,17,21,21,27,17],X:[17,17,10,4,10,17,17],Y:[17,17,10,4,4,4,4],
-    Z:[31,1,2,4,8,16,31],'!':[4,4,4,4,4,0,4],' ':[0,0,0,0,0,0,0],
+    A:[14,17,17,31,17,17,17],C:[14,17,16,16,16,17,14],D:[30,17,17,17,17,17,30],E:[31,16,16,30,16,16,31],G:[14,17,16,23,17,17,15],
+    H:[17,17,17,31,17,17,17],I:[14,4,4,4,4,4,14],L:[16,16,16,16,16,16,31],M:[17,27,21,21,17,17,17],N:[17,25,21,19,17,17,17],
+    O:[14,17,17,17,17,17,14],P:[30,17,17,30,16,16,16],R:[30,17,17,30,20,18,17],S:[15,16,16,14,1,1,30],T:[31,4,4,4,4,4,4],
+    U:[17,17,17,17,17,17,14],' ':[0,0,0,0,0,0,0],
+    0:[14,17,19,21,25,17,14],1:[4,12,4,4,4,4,14],2:[14,17,1,2,4,8,31],3:[31,2,4,2,1,17,14],4:[2,6,10,18,31,2,2],
+    5:[31,16,30,1,1,17,14],6:[6,8,16,30,17,17,14],7:[31,1,2,4,8,8,8],8:[14,17,17,14,17,17,14],9:[14,17,17,15,1,2,12],
   };
-
-  const HERO = [
-    '........kkkk........',
-    '.......koooOk.......',
-    '.......koooOk.......',
-    '......kkkkkkkk......',
-    '.....kooooooOOk.....',
-    '.....kkkkkkkkkk.....',
-    '....kmmmmmmmmmmk....',
-    '...kmmmmmmmmmmmmk...',
-    '..kmmmmmmmmmmmmmmk..',
-    '..kmmmmmmmmmmmmmmk..',
-    '.kmmmmmmmmmmmmmmmmk.',
-    '.kmmmmmmmmmmmmmmmsk.',
-    '.kmmmmmmmmmmmmmmmsk.',
-    '.kmmmmmmmmmmmmmmssk.',
-    '.kmmmmmmmmmmmmmsssk.',
-    '.ksmmmmmmmmmmmssssk.',
-    '..kssssssssssssssk..',
-    '...kkkkkkkkkkkkkk...',
+  // The glue blob from the brand, sitting on top of the stack.
+  const BLOB = [
+    '........kkkk........', '.......koooOk.......', '.......koooOk.......', '......kkkkkkkk......', '.....kooooooOOk.....',
+    '.....kkkkkkkkkk.....', '....kmmmmmmmmmmk....', '...kmmmmmmmmmmmmk...', '..kmmmmmmmmmmmmmmk..', '..kmmmmmmmmmmmmmmk..',
+    '.kmmmmmmmmmmmmmmmmk.', '.kmmmmmmmmmmmmmmmsk.', '.kmmmmmmmmmmmmmmmsk.', '.kmmmmmmmmmmmmmmssk.', '.kmmmmmmmmmmmmmsssk.',
+    '.ksmmmmmmmmmmmssssk.', '..kssssssssssssssk..', '...kkkkkkkkkkkkkk...',
   ];
-  const HERO_COLORS = { k: 'ink', o: 'honey', O: 'honeyDark', m: 'milk', s: 'shade' };
+  const BLOB_C = { k: 'ink', o: 'honey', O: 'honeyDark', m: 'milk', s: 'shade' };
+  const LOCK = ['..kkk..', '.k...k.', '.k...k.', 'kkkkkkk', 'k.....k', 'k..k..k', 'k.....k', 'kkkkkkk'];
+  const BRICKS = ['DATA STORE', 'CRM', 'OUTREACH', 'SIGNALS', 'AGENT']; // bottom to top
+  const SIGNALS = 3, AGENT = 4;
 
-  const BRAIN = [
-    '.......kkkkkk..kkkkkk.......',
-    '.....kkppppppkkppppppkk.....',
-    '....kppPPPppppkkppppPPpk....',
-    '...kpppppPpppkkppppPpppk....',
-    '..kppPpppppppkkpppppppPpk...',
-    '.kpppPPppppPpkkpPpppPPpppk..',
-    '.kppppppppPPpkkpPPppppppppk.',
-    'kppPPppppppppkkppppppppPPppk',
-    'kpppPPpppkkkkkkkkkkpppPPpppk',
-    'kppppppppkhhhhhhhhkppppppppk',
-    'kpppppPpkkhkkkkkkhkkpPpppppk',
-    '.kppPPppkhhkkkkkkhhkppPPppk.',
-    '.kppppppkhhhhhhhhhhkppppppk.',
-    '..kppppPkhhhhkkhhhhkPppppk..',
-    '...kpppPkhhhhkkhhhhkPpppk...',
-    '....kkppkhhhhhhhhhhkppkk....',
-    '......kkkHHHHHHHHHHkkk......',
-    '.........kkkkkkkkkk.........',
-  ];
-  const BRAIN_COLORS = { k: 'ink', p: 'coralLight', P: 'coralDark', h: 'honey', H: 'honeyDark' };
-
-  const BW = 104, BH = 20, SEAM = 4, HERO_W = 20, HERO_H = 18;
-  // Where glue runs over the brick below: x offset from the tower, then length. Kept clear of the labels.
-  const DRIPS = [[4, 9], [BW - 11, 13], [5, 6], [BW - 12, 10]];
+  const S = 2, H = 176, ROWS = 14, ROW_H = 10, TOP = 14, TW = 104, BH = 20, SEAM = 3, BASE = TOP + ROWS * ROW_H;
   const TICK = 1000 / 12;
-  const FALL_GAP = 8, START = 6;
-  const JUMP_AT = START + BRICKS.length * FALL_GAP + 4, JUMP_LEN = 12;
-  const END = JUMP_AT + JUMP_LEN;
   const reduced = matchMedia('(prefers-reduced-motion: reduce)');
-
-  const canvas = document.getElementById('world');
+  const canvas = document.getElementById('loop');
   const ctx = canvas.getContext('2d');
-  const scene = document.getElementById('scene');
-  const root = document.documentElement;
-  const note = document.getElementById('note');
+  const figure = document.getElementById('figure');
 
-  let W = 0, H = 0, scale = 3, towerX = 0, groundY = 0, tick = reduced.matches ? END : 0, alert = 0, timer = null;
+  let OX = 20, IW = 0, W = 0, rx = 0, rw = 0, gx = 0, re = 0, loopX = 0, tick = 0, timer = null, flash = 0, blinkAt = 40;
+  let seed = 7;
+  const rand = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+  const px = (x, y, w, h, c) => { ctx.fillStyle = C[c] || c; ctx.fillRect(x, y, w, h); };
 
-  const rect = (x, y, w, h, color) => { ctx.fillStyle = PAL[color]; ctx.fillRect(x, y, w, h); };
-  const brickY = (i) => groundY - (i + 1) * BH - i * SEAM;
-  const brickFall = (i) => START + i * FALL_GAP;
-
-  function text(str, x, y, color) {
-    ctx.fillStyle = PAL[color];
-    for (const ch of str) {
-      (FONT[ch] || FONT[' ']).forEach((row, r) => {
-        for (let c = 0; c < 5; c++) if (row & (16 >> c)) ctx.fillRect(x + c, y + r, 1, 1);
-      });
+  function text(str, x, y, c) {
+    for (const ch of String(str)) {
+      (FONT[ch] || FONT[' ']).forEach((row, r) => { for (let i = 0; i < 5; i++) if (row & (16 >> i)) px(x + i, y + r, 1, 1, c); });
       x += 6;
     }
   }
-
-  function drawBrick(brick, x, y) {
-    rect(x, y, BW, BH, 'ink');
-    rect(x + 1, y + 1, BW - 2, BH - 2, brick.fill);
-    rect(x + 1, y + 1, BW - 2, 1, 'milk');
-    rect(x + 1, y + BH - 3, BW - 2, 2, `${brick.fill}Dark`);
-    const label = brick.tools[brick.index];
-    text(label, x + Math.floor((BW - label.length * 6 + 1) / 2), y + 6, 'ink');
-  }
-
-  function drawHero(x, y, lookX, blink) {
-    sprite(HERO, HERO_COLORS, x, y, rect);
-    for (const eyeX of [x + 5, x + 12]) {
-      if (blink) rect(eyeX, y + 11, 3, 1, 'ink');
-      else {
-        rect(eyeX, y + 9, 3, 4, 'ink');
-        rect(eyeX + (lookX > 0 ? 1 : 0), y + 9, 2, 2, 'milk');
-      }
+  const sprite = (rows, colors, x, y) => rows.forEach((row, r) => [...row].forEach((ch, i) => { if (ch !== '.') px(x + i, y + r, 1, 1, colors[ch]); }));
+  const dotAt = (x, y, c) => { px(x, y - 1, 3, 3, c); px(x - 1, y, 5, 1, c); px(x + 1, y - 2, 1, 5, c); };
+  // A pixel line that only ever moves in whole steps, so it reads as drawn on the grid.
+  function stair(x0, y0, x1, y1, c, upto = x1) {
+    let x = x0, y = y0;
+    const run = Math.max(1, Math.abs(x1 - x0));
+    const every = Math.max(1, Math.round(run / Math.max(1, Math.abs(y1 - y0))));
+    for (let i = 0; x <= Math.min(x1, upto); i++, x++) {
+      if (y !== y1 && i > 0 && i % every === 0) y += Math.sign(y1 - y);
+      px(x, y, 1, 1, c);
     }
-    rect(x + 8, y + 13, 1, 1, 'ink');
-    rect(x + 11, y + 13, 1, 1, 'ink');
-    rect(x + 9, y + 14, 2, 1, 'ink');
-    rect(x + 3, y + 13, 2, 1, 'coralLight');
-    rect(x + 15, y + 13, 2, 1, 'coralLight');
+    return y;
   }
 
-  function sprite(rows, colors, x, y, paint) {
-    rows.forEach((row, r) => {
-      [...row].forEach((ch, c) => { if (ch !== '.') paint(x + c, y + r, 1, 1, colors[ch]); });
+  const brickY = (i) => BASE - (i + 1) * BH - i * SEAM;
+  const rowY = (i) => TOP + i * ROW_H;
+  // Cleared rows join one of three lanes on the way out, in order, so no two lines cross.
+  const lane = (i) => (i < 5 ? TOP + 24 : i < 10 ? TOP + 68 : TOP + 112);
+
+  // Each row is a person or account moving through the brain.
+  let rows = [];
+  function reset() {
+    seed = 7;
+    const start = { 1: 'clear', 3: 'held', 5: 'clear', 7: 'clear', 8: 'held', 10: 'clear', 12: 'held' };
+    rows = Array.from({ length: ROWS }, (_, i) => {
+      const state = start[i] || 'idle';
+      return { state, x: state === 'held' ? gx - 3 : state === 'clear' ? re : rx, out: state === 'clear' ? 1 : 0, age: Math.floor(rand() * 80) };
     });
   }
 
-  function drawCloud(x, y, size) {
-    rect(x + 6 * size, y, 10 * size, 2 * size, 'cloud');
-    rect(x + 2 * size, y + 2 * size, 20 * size, 2 * size, 'cloud');
-    rect(x, y + 4 * size, 28 * size, 2 * size, 'cloud');
-  }
+  const lessons = [];
 
-  function drawGround() {
-    rect(0, groundY, W, H - groundY, 'mint');
-    rect(0, groundY, W, 1, 'milk');
-    for (let y = groundY + 5; y < H; y++) {
-      const density = (y - groundY - 5) / Math.max(1, H - groundY - 5);
-      for (let x = (y % 2); x < W; x += 2) {
-        if (((x * 7 + y * 13) % 8) / 8 < density * 1.5) rect(x, y, 1, 1, 'mintDark');
+  function drawTower() {
+    px(0, BASE, TW + 2, 1, 'line');
+    BRICKS.forEach((label, i) => {
+      const y = brickY(i);
+      px(0, y, TW, BH, 'line');
+      px(1, y + 1, TW - 2, BH - 2, '#ffffff');
+      text(label, 6, y + 7, i === AGENT && flash > 0 ? 'honeyDark' : 'ink');
+      for (let s = 0; s < 3; s++) {
+        const sx = TW - 30 + s * 9;
+        const lit = (i === SIGNALS && s === Math.floor(tick / 6) % 3) || (i === AGENT && flash > 0 && s === 2);
+        px(sx, y + 8, 7, 4, lit ? (i === AGENT ? 'honey' : 'sky') : 'line');
+        if (!lit) px(sx + 1, y + 9, 5, 2, '#ffffff');
       }
+      if (i > 0) {
+        const sy = y + BH;
+        px(-1, sy, TW + 2, SEAM, 'honey');
+        px(-1, sy + SEAM - 1, TW + 2, 1, 'honeyDark');
+        if (i === 2 || i === 4) { px(i === 2 ? 10 : TW - 16, sy + SEAM, 3, i === 2 ? 4 : 6, 'honey'); px(i === 2 ? 12 : TW - 14, sy + SEAM, 1, i === 2 ? 4 : 6, 'honeyDark'); }
+      }
+    });
+    for (let x = 4; x < TW - 4; x += 2) px(x, brickY(4) - 3, 1, 3, 'faint');
+    const blink = tick >= blinkAt && tick < blinkAt + 2;
+    const bx = Math.floor((TW - 20) / 2), by = brickY(4) - 3 - 18;
+    sprite(BLOB, BLOB_C, bx, by);
+    for (const ex of [bx + 5, bx + 12]) {
+      if (blink) px(ex, by + 11, 3, 1, 'ink');
+      else { px(ex, by + 9, 3, 4, 'ink'); px(ex + 1, by + 9, 2, 2, 'milk'); }
     }
-    rect(0, H - 2, W, 2, 'layer');
-    const beat = Math.floor(tick / 6) % 2;
-    for (let x = 9; x < W; x += 23 + (x % 7)) {
-      rect(x, groundY - 2 - ((x + beat) % 2), 1, 2 + ((x + beat) % 2), 'mintDark');
-      rect(x + 2, groundY - 1, 1, 1, 'mintDark');
-    }
+    px(bx + 8, by + 13, 1, 1, 'ink'); px(bx + 11, by + 13, 1, 1, 'ink'); px(bx + 9, by + 14, 2, 1, 'ink');
+    px(bx + 3, by + 13, 2, 1, 'blush'); px(bx + 15, by + 13, 2, 1, 'blush');
   }
 
-  // Glue squeezed out between two bricks, with one drip running down the brick below.
-  function drawSeam({ y, grown, drip: [dx, len] }) {
-    const x = towerX;
-    rect(x - 3, y, BW + 6, SEAM, 'ink');
-    rect(x - 2, y + 1, BW + 4, SEAM - 2, 'milk');
-    rect(x + 1, y, BW - 2, SEAM, 'milk');
-    rect(x + 1, y + SEAM - 1, BW - 2, 1, 'shade');
-    const length = Math.max(0, Math.min(len, grown));
-    if (!length) return;
-    const top = y + SEAM - 1;
-    rect(x + dx - 1, top, 8, length + 1, 'ink');
-    rect(x + dx, top + length + 1, 6, 1, 'ink');
-    rect(x + dx, top, 6, length + 1, 'milk');
-    rect(x + dx + 4, top + 1, 2, length, 'shade');
+  function drawRows() {
+    const from = brickY(SIGNALS) + BH / 2;
+    for (let i = 0; i < ROWS; i++) stair(TW + 1, from, rx - 16, rowY(i) + 4, 'faint');
+    for (let y = TOP - 6; y < BASE + 2; y += 3) px(gx, y, 1, 2, 'line');
+    sprite(LOCK, { k: 'ink' }, gx - 3, TOP - 14);
+
+    rows.forEach((row, i) => {
+      const y = rowY(i);
+      text(String(i + 1).padStart(2, '0'), rx - 14, y + 2, 'num');
+      if (row.state === 'clear') px(rx, y + 1, re - rx, ROW_H - 2, 'haze');
+      if (row.state === 'held') {
+        for (let yy = y + 1; yy < y + ROW_H - 1; yy++) for (let xx = rx; xx < gx - 1; xx++) if ((xx + yy) % 4 === 0) px(xx, yy, 1, 1, 'hatch');
+      }
+      if (row.state === 'idle' || row.state === 'moving') for (let xx = rx; xx < re; xx += 3) px(xx, y + 5, 1, 1, 'faint');
+      px(re + 2, y + 2, 1, ROW_H - 4, 'line');
+
+      if (row.state === 'moving') dotAt(row.x, y + 5, 'dot');
+      if (row.state === 'held') dotAt(gx - 4, y + 5, 'dot');
+      if (row.state === 'clear') {
+        dotAt(Math.min(row.x, re - 4), y + 5, 'sky');
+        if (row.out > 0) {
+          const mid = re + 4 + Math.max(24, Math.round((IW - re) * 0.45));
+          const reach = re + 4 + Math.round((IW - re - 4) * row.out);
+          const at = stair(re + 4, y + 5, mid, lane(i), 'out', reach);
+          if (reach > mid) px(mid, at, reach - mid, 1, 'out');
+        }
+      }
+    });
+  }
+
+  function drawLoop() {
+    const y = H - 9;
+    px(loopX, lane(13), 2, y - lane(13), 'honey');
+    px(loopX + 1, lane(13), 1, y - lane(13), 'honeyDark');
+    px(-OX, y, loopX + OX + 1, 2, 'honey');
+    px(-OX, y + 2, loopX + OX + 1, 1, 'honeyDark');
+    px(10, BASE + 1, 2, y - BASE, 'honey');
+    for (const l of lessons) dotAt(l.x, y + 1, 'honeyDark');
   }
 
   function render() {
-    rect(0, 0, W, H, 'sky');
-    const sway = Math.floor(tick / 36) % 2;
-    drawCloud(W - 62 + sway, 14, 2);
-    drawCloud(W - 40 - sway, 58, 1);
-    drawCloud(towerX + 4 - sway, 14, 1);
-
-    drawGround();
-
-    const glueX = towerX + 12;
-    const settled = BRICKS.filter((_, i) => tick >= brickFall(i) + 7).length;
-    if (settled) {
-      rect(glueX - 1, groundY - 1, 8, H - groundY + 1, 'ink');
-      rect(glueX, groundY - 1, 6, H - groundY + 1, 'milk');
-    }
-
-    const seams = [];
-    BRICKS.forEach((brick, i) => {
-      const t = tick - brickFall(i);
-      if (t < 0) return;
-      const target = brickY(i);
-      const y = Math.min(target, Math.round(-BH + t * t * 1.7));
-      const lift = brick.hop > 0 ? (brick.hop > 2 ? 2 : 1) : 0;
-      drawBrick(brick, towerX, y - lift);
-      const landed = y >= target;
-      if (landed && i > 0) seams.push({ y: target + BH, grown: t - FALL_GAP + 3, drip: DRIPS[i - 1] });
-    });
-    seams.forEach(drawSeam);
-
-    const topY = brickY(BRICKS.length - 1) - HERO_H;
-    const floorX = towerX + BW + 8;
-    const floorY = groundY - HERO_H;
-    const topX = towerX + Math.floor((BW - HERO_W) / 2);
-    let x = floorX, y = floorY;
-    if (tick >= END) { x = topX; y = topY; }
-    else if (tick >= JUMP_AT) {
-      const u = (tick - JUMP_AT) / JUMP_LEN;
-      x = Math.round(floorX + (topX - floorX) * u);
-      y = Math.round(floorY + (topY - floorY) * u - 30 * 4 * u * (1 - u));
-    } else {
-      const since = (tick - START) % FALL_GAP;
-      if (tick >= START + FALL_GAP - 1 && since < 3) y -= [2, 3, 1][since];
-    }
-    const blink = tick >= END && tick % 42 < 2;
-    drawHero(x, y, tick >= END ? 1 : -1, blink);
-    if (alert > 0 && alert % 4 > 0) text('!', x + HERO_W + 3, y + 2, 'milk');
-
-    for (const b of BRICKS) if (b.hop > 0) b.hop--;
-    if (alert > 0) alert--;
+    ctx.clearRect(0, 0, W, H);
+    ctx.save();
+    ctx.translate(OX, 0);
+    drawLoop();
+    drawRows();
+    drawTower();
+    ctx.restore();
   }
 
   function step() {
-    render();
     tick++;
-    const busy = alert > 0 || BRICKS.some((b) => b.hop > 0) || tick <= END;
-    if (reduced.matches && !busy) { stop(); return; }
+    if (tick % 9 === 0) {
+      const idle = rows.map((r, i) => (r.state === 'idle' ? i : -1)).filter((i) => i >= 0);
+      if (idle.length > 5) { const r = rows[idle[Math.floor(rand() * idle.length)]]; r.state = 'moving'; r.x = rx; r.age = 0; }
+    }
+    for (const row of rows) {
+      row.age++;
+      if (row.state === 'moving') {
+        row.x += 3;
+        if (row.x >= gx - 4) { row.state = rand() < 0.3 ? 'held' : 'clear'; row.age = 0; }
+      } else if (row.state === 'clear') {
+        if (row.x < re - 4) row.x += 3;
+        else if (row.out < 1) row.out = Math.min(1, row.out + 0.06);
+        if (row.age > 170) {
+          row.state = 'idle'; row.out = 0; row.x = rx;
+          if (lessons.length < 2) lessons.push({ x: loopX });
+        }
+      } else if (row.state === 'held' && row.age > 130) { row.state = 'idle'; row.x = rx; }
+    }
+    for (const l of lessons) l.x -= 3;
+    // A lesson lights the agent as it passes the stack, then joins the glue that runs down the page.
+    for (const l of lessons) if (!l.told && l.x <= 12) { l.told = true; flash = 10; blinkAt = tick + 2; }
+    if (lessons.length && lessons[0].x <= -OX) lessons.shift();
+    if (flash > 0) flash--;
+    if (tick > blinkAt + 2) blinkAt = tick + 50 + Math.floor(rand() * 60);
+    render();
   }
-  const start = () => { if (!timer) timer = setInterval(step, TICK); };
+
+  const start = () => { if (!timer && !reduced.matches) timer = setInterval(step, TICK); };
   const stop = () => { clearInterval(timer); timer = null; };
 
-  const toolName = (tool) => NAMES[tool] || tool.charAt(0) + tool.slice(1).toLowerCase();
-
-  function swap(brick, describe, spoken) {
-    brick.index = (brick.index + 1) % brick.tools.length;
-    brick.hop = 4;
-    describe();
-    if (!spoken) return;
-    note.textContent = `${toolName(brick.tools[brick.index])} is in as your ${brick.role}. Nothing else had to change.`;
-  }
-
-  const describers = [];
-  const hits = BRICKS.map((brick, i) => {
-    const button = document.createElement('button');
-    button.type = 'button';
-    button.className = 'brick-hit';
-    const describe = () => button.setAttribute('aria-label', `Swap your ${brick.role} tool. Now ${toolName(brick.tools[brick.index])}.`);
-    describe();
-    describers[i] = describe;
-    button.addEventListener('click', () => {
-      lastTouch = performance.now();
-      swap(brick, describe, true);
-      alert = 12;
-      if (tick < END) tick = END;
-      start();
-    });
-    scene.appendChild(button);
-    return button;
-  });
-
   function layout() {
-    const wide = innerWidth >= 860;
-    const width = document.documentElement.clientWidth;
-    scale = innerWidth >= 1800 ? 5 : innerWidth >= 1280 ? 4 : wide ? 3 : 2;
-    const height = wide ? scene.clientHeight : 348;
-    W = Math.ceil(width / scale);
-    H = Math.ceil(height / scale);
-    canvas.width = W;
-    canvas.height = H;
-    canvas.style.width = `${W * scale}px`;
-    canvas.style.height = `${H * scale}px`;
-    groundY = H - 18;
-    towerX = wide ? Math.max(12, Math.round(W * 0.06)) : 10;
-
-    root.style.setProperty('--glue-x', `${(towerX + 12) * scale}px`);
-    root.style.setProperty('--glue-w', `${6 * scale}px`);
-    root.style.setProperty('--copy-x', `${(towerX + BW + HERO_W + 16) * scale}px`);
-    root.style.setProperty('--brain-h', `${BRAIN.length * scale}px`);
-    root.style.setProperty('--pixel', `${scale}px`);
-
-    hits.forEach((button, i) => {
-      Object.assign(button.style, {
-        left: `${towerX * scale}px`,
-        top: `${brickY(i) * scale}px`,
-        width: `${BW * scale}px`,
-        height: `${BH * scale}px`,
-      });
-    });
-    drawBrain();
+    const width = Math.floor(figure.getBoundingClientRect().width);
+    const narrow = innerWidth < 760;
+    OX = Math.round(parseFloat(getComputedStyle(document.querySelector('.block')).paddingLeft) / S);
+    W = Math.max(260 + OX, Math.floor(width / S));
+    IW = W - OX;
+    rx = TW + 34;
+    re = Math.min(IW - (narrow ? 26 : 70), rx + (narrow ? 999 : 300));
+    rw = re - rx;
+    gx = rx + Math.round(rw * 0.62);
+    loopX = Math.min(IW - 6, re + Math.round((IW - re) * 0.7));
+    canvas.width = W; canvas.height = H;
+    canvas.style.width = `${W * S}px`; canvas.style.height = `${H * S}px`;
+    placeLabels();
+    reset();
     render();
   }
 
-  function drawBrain() {
-    const c = document.getElementById('brain');
-    c.width = BRAIN[0].length;
-    c.height = BRAIN.length;
-    c.style.width = `${c.width * scale}px`;
-    c.style.height = `${c.height * scale}px`;
-    const g = c.getContext('2d');
-    sprite(BRAIN, BRAIN_COLORS, 0, 0, (x, y, w, h, color) => { g.fillStyle = PAL[color]; g.fillRect(x, y, w, h); });
+  // Captions sit under the part they name. Each one stops short of the next, and the last one is hidden if the window cuts it off.
+  function placeLabels() {
+    const box = document.getElementById('labels');
+    const spots = { tower: 0, rows: rx, gate: gx, out: re + 10 };
+    const room = innerWidth - figure.getBoundingClientRect().left - 16;
+    const row = [...box.querySelectorAll('span')].filter((l) => l.dataset.at !== 'back');
+    row.forEach((label, i) => {
+      const left = (OX + spots[label.dataset.at]) * S;
+      const next = row[i + 1] ? (OX + spots[row[i + 1].dataset.at]) * S : room;
+      label.style.left = `${left}px`;
+      label.style.maxWidth = `${Math.min(224, next - left - 20)}px`;
+      label.hidden = next - left < 100;
+    });
+    const back = box.querySelector('[data-at="back"]');
+    const dy = box.getBoundingClientRect().top - canvas.getBoundingClientRect().top;
+    back.style.left = `${(OX + rx) * S}px`;
+    back.style.top = `${(BASE + 3) * S - dy}px`;
+    back.style.maxWidth = 'none';
   }
-
-  // The tower swaps its own tools every few seconds, one brick at a time, so the point lands
-  // without a click. It stops for reduced motion, and waits a while after someone clicks.
-  const AUTO_EVERY = 2600, AUTO_REST = 9000;
-  let lastTouch = 0, autoBrick = 0;
-  setInterval(() => {
-    if (reduced.matches || document.hidden || tick <= END) return;
-    if (performance.now() - lastTouch < AUTO_REST) return;
-    autoBrick = (autoBrick + 2) % BRICKS.length;
-    swap(BRICKS[autoBrick], describers[autoBrick], false);
-  }, AUTO_EVERY);
 
   addEventListener('resize', layout);
   document.addEventListener('visibilitychange', () => (document.hidden ? stop() : start()));
-  document.fonts?.ready.then(layout);
+  reduced.addEventListener?.('change', () => (reduced.matches ? stop() : start()));
   layout();
   start();
+
+  // The brain at the end of the page.
+  const BRAIN = [
+    '.......kkkkkk..kkkkkk.......', '.....kkppppppkkppppppkk.....', '....kppPPPppppkkppppPPpk....', '...kpppppPpppkkppppPpppk....',
+    '..kppPpppppppkkpppppppPpk...', '.kpppPPppppPpkkpPpppPPpppk..', '.kppppppppPPpkkpPPppppppppk.', 'kppPPppppppppkkppppppppPPppk',
+    'kpppPPpppkkkkkkkkkkpppPPpppk', 'kppppppppkhhhhhhhhkppppppppk', 'kpppppPpkkhkkkkkkhkkpPpppppk', '.kppPPppkhhkkkkkkhhkppPPppk.',
+    '.kppppppkhhhhhhhhhhkppppppk.', '..kppppPkhhhhkkhhhhkPppppk..', '...kpppPkhhhhkkhhhhkPpppk...', '....kkppkhhhhhhhhhhkppkk....',
+    '......kkkHHHHHHHHHHkkk......', '.........kkkkkkkkkk.........',
+  ];
+  const brain = document.getElementById('brain');
+  brain.width = BRAIN[0].length; brain.height = BRAIN.length;
+  brain.style.width = `${brain.width * 3}px`; brain.style.height = `${brain.height * 3}px`;
+  const g = brain.getContext('2d');
+  const BC = { k: '#1c1636', p: '#ff9aa8', P: '#c93a5a', h: '#ffb42e', H: '#d4851a' };
+  BRAIN.forEach((row, r) => [...row].forEach((ch, i) => { if (ch !== '.') { g.fillStyle = BC[ch]; g.fillRect(i, r, 1, 1); } }));
+})();
+</script>
+<script>
+// Copy the setup prompt, and mark the section you are reading in the sidebar.
+(() => {
+  const copy = document.getElementById('copy-prompt');
+  const prompt = document.getElementById('agent-prompt');
+  copy.addEventListener('click', async () => {
+    try { await navigator.clipboard.writeText(prompt.textContent); copy.textContent = 'Copied'; }
+    catch { getSelection().selectAllChildren(prompt); copy.textContent = 'Selected. Press Cmd+C or Ctrl+C'; }
+    setTimeout(() => { copy.textContent = 'Copy the prompt'; }, 2400);
+  });
+
+  // The section you are reading is the last one whose top has passed 40% of the window.
+  const links = [...document.querySelectorAll('#sections a')];
+  const targets = links.map((a) => [a, document.getElementById(a.hash.slice(1))]).filter(([, el]) => el);
+  let queued = false;
+  const mark = () => {
+    queued = false;
+    const line = innerHeight * 0.4;
+    let current = targets[0][0];
+    for (const [a, el] of targets) if (el.getBoundingClientRect().top <= line) current = a;
+    for (const [a] of targets) a.setAttribute('aria-current', String(a === current));
+  };
+  addEventListener('scroll', () => { if (!queued) { queued = true; requestAnimationFrame(mark); } }, { passive: true });
+  addEventListener('resize', mark);
+  mark();
 })();
 </script>
 <script src="data.js"></script>
@@ -686,7 +744,7 @@ Brain tests   <span class="dim">context 319e1d3</span>
     text: ['Your own answer'],
   };
 
-  let book = playbooks.find((b) => b.id === 'job-switch');
+  let book = playbooks.find((b) => b.id === 'job-switch') || playbooks[0];
   let at = 0;
   let answers = [];
 
@@ -740,8 +798,7 @@ Brain tests   <span class="dim">context 319e1d3</span>
 
   function finish(term) {
     term.append(make('div', 'play-saved', `✔ plays/${book.id}.yaml is ready as a draft`));
-    const rows = answers.map((a) => `${a.step.id}: ${a.label}`).join('\n');
-    term.append(make('div', 'play-yaml', rows));
+    term.append(make('div', 'play-yaml', answers.map((a) => `${a.step.id}: ${a.label}`).join('\n')));
     term.append(make('div', 'dim', 'Next, the cost check runs, then a person approves it.'));
     const again = make('button', 'tab play-again', 'Start again');
     again.type = 'button';

@@ -731,6 +731,29 @@ test('the guard keeps customers home, sends known people to their owner and clea
   assert.equal(gluely(['flow', '--json'], ws).json.stages.find((s) => s.id === 'gate').status, 'working');
 });
 
+test('the guard holds a customer one typo away, but not short names or non-customers', () => {
+  const ws = makeWorkspace();
+  fillContext(ws);
+  write(ws, 'context/exclusions/companies.csv', 'domain,name,reason,owner\nglobex.example,Globex,customer,\nacme.example,Acme,customer,\nrival.example,Rivalry,competitor,\n');
+  write(ws, 'exports/list.csv', [
+    'name,email,company',
+    'A,a@globexx.example,Globexx',
+    'B,b@glbex.example,Glbex',
+    'C,c@acne.example,Acne',
+    'D,d@rivalyr.example,Rivalyr',
+    'E,e@initech.example,Initech',
+  ].join('\n') + '\n');
+  const result = gluely(['guard', 'exports/list.csv', '--json'], ws);
+  assert.equal(result.code, 0, result.out);
+  const row = (line) => result.json.rows.find((r) => r.line === line);
+  assert.equal(row(2).bucket, 'held');
+  assert.match(row(2).reason, /looks like Globex/);
+  assert.equal(row(3).bucket, 'held');
+  assert.deepEqual(result.json.counts, { clear: 3, owner: 0, held: 2 });
+  assert.equal(row(4), undefined);
+  assert.equal(row(5), undefined);
+});
+
 test('the guard warns when it knows no customers, and refuses a list it cannot read', () => {
   const ws = makeWorkspace();
   write(ws, 'exports/list.csv', 'email\nsomeone@prospect.example\n');
