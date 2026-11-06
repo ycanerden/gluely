@@ -42,6 +42,17 @@ export const domainName = (domain) => {
   return base.split('.').pop();
 };
 
+// One typo apart: "Globexx" or "Globx" for Globex. Short names are skipped, since "Acme" and "Acne"
+// are different companies more often than they are a typo.
+const NEAR_MIN = 5;
+export function nearName(a, b) {
+  if (!a || !b || a === b || a.length < NEAR_MIN || b.length < NEAR_MIN || Math.abs(a.length - b.length) > 1) return false;
+  let i = 0;
+  while (i < a.length && a[i] === b[i]) i++;
+  if (a.length === b.length) return a.slice(i + 1) === b.slice(i + 1) || (a[i] === b[i + 1] && a[i + 1] === b[i] && a.slice(i + 2) === b.slice(i + 2));
+  return a.length > b.length ? a.slice(i + 1) === b.slice(i) : a.slice(i) === b.slice(i + 1);
+}
+
 const normalizeProfile = (value) => String(value || '').trim().toLowerCase().replace(/^https?:\/\//, '').replace(/^www\./, '').replace(/\/+$/, '');
 
 // In B2C an email names a person, so only a domain column names a company.
@@ -107,13 +118,18 @@ export function sortRow(row, { companies, people, market = 'b2b', customer_peopl
 
   const byDomain = domain && companies.find((c) => c.domain && normalizeDomain(c.domain) === domain);
   const byName = !byDomain && companies.find((c) => [normalizeName(c.name), domainName(c.domain)].some((n) => n && names.has(n)));
-  const match = byDomain || byName;
+  // A customer one typo away is held too, because a misspelled export still names your customer.
+  const byNear = !byDomain && !byName && companies.find((c) => isCustomer(c)
+    && [normalizeName(c.name), domainName(c.domain)].some((n) => [...names].some((m) => nearName(n, m))));
+  const match = byDomain || byName || byNear;
 
   if (match && isCustomer(match)) {
     const label = match.name || match.domain;
     return byDomain
       ? { bucket: 'held', reason: `${label} is a ${match.reason}. Customer data never goes to an outside tool` }
-      : { bucket: 'held', reason: `shares a name with ${label}, a ${match.reason}. Held like a customer until a person checks` };
+      : byName
+        ? { bucket: 'held', reason: `shares a name with ${label}, a ${match.reason}. Held like a customer until a person checks` }
+        : { bucket: 'held', reason: `looks like ${label}, a ${match.reason}, one letter apart. Held like a customer until a person checks` };
   }
 
   const person = people.find((p) => (email && p.email && p.email.trim().toLowerCase() === email)

@@ -6,11 +6,9 @@ Data got cheap. Search, scraping and enrichment cost cents now. The hard part is
 
 Gluely isn't an outbound tool, and it doesn't pick your vendors. Bring any scraper, sequencer, CRM, data store and agent. We can recommend, but we never require. Every GTM motion runs the same loop, so Gluely is the base you build on, and your outcomes keep improving your ICP, personas and messaging.
 
-![The Gluely loop](docs/flow.svg)
+![Gluely architecture: your agent thinks, Gluely remembers and checks, your brain stays in your own private repo, and your tools do the work](docs/architecture.svg)
 
 > **Early preview.** Gluely is at version 0.0.1, phase 0 of 5. The brain works: context, plays, cost checks, draft checks, the customer-data guard, play results, the decision log and brain tests. Signals, the Person 360 database, replies and CRM sync don't exist yet. See [Status](#status).
-
-Green works today, yellow has started, blue is next, grey is a later phase, and white is your own tool or team. [The statecharts](docs/charts/README.md) show how the send gates, Person 360, play arbitration and learning are meant to behave.
 
 ## Try it
 
@@ -25,9 +23,17 @@ gluely flow       # the loop, drawn from your real state
 
 Then open your agent in that folder and run `/setup-gluely`. It maps your stack, asks for read-only connections, analyzes your real deals and challenges your ICP before it writes anything.
 
+Testing Gluely for real? [Try it in 10 minutes](docs/try-it.md) with any agent, then [tell us where it hurt](https://github.com/ycanerden/gluely/issues/new?template=tester-report.md).
+
 ## How it works
 
 **The brain asks, your agent reasons, the brain validates.** The CLI never calls a model, and it never sends a message.
+
+**Every motion runs the same loop.** Context feeds plays, plays meet signals, every list passes the gate, your tools do the work, and what happens comes back as lessons.
+
+![The Gluely loop, stage by stage](docs/flow.svg)
+
+Green works today, yellow has started, blue is next, grey is a later phase, and white is your own tool or team. [The statecharts](docs/charts/README.md) show how the send gates, Person 360, play arbitration and learning are meant to behave.
 
 | Layer | What it is | Who owns it |
 |---|---|---|
@@ -99,11 +105,27 @@ Phase 0 of 5: the brain pack.
 
 | Phase | Adds | Status |
 |---|---|---|
-| 0 | Stack map, onboarding, context, guided plays, tool library, cost checks, decision log, skills, brain tests, customer-data guard, play results | Working |
-| 1 | The ledger on any store: Person 360 and Account 360 with buying committees, freshness on every enrichment, content, imports, read-only MCP | Next |
+| 0 | Stack map, onboarding, context, guided plays, tool library, cost checks, decision log, skills, brain tests, customer-data guard, play results, MCP server | Working |
+| 1 | The ledger on any store: Person 360 and Account 360 with buying committees, freshness on every enrichment, content, imports | Next |
 | 2 | Work queue, excuses linked to signals, opt-outs | Planned |
 | 3 | Conversations, BDR drafts, reply-to-demo rate | Planned |
 | 4 | CRM, transcripts, won and lost, the full loop | Planned |
+
+## Use it from any agent (MCP)
+
+`gluely mcp` serves every command as an MCP tool over stdio, with the same checks as the CLI. There is no tool for approving spend: only a person can run `gluely cost approve`.
+
+A new workspace already has `.mcp.json` (Claude Code) and `.cursor/mcp.json` (Cursor), so opening your agent in the workspace is enough. Anywhere else, point it at your brain:
+
+```bash
+claude mcp add gluely -- gluely mcp --workspace ~/my-brain
+```
+
+```json
+{ "mcpServers": { "gluely": { "command": "gluely", "args": ["mcp", "--workspace", "/path/to/my-brain"] } } }
+```
+
+The JSON works for Claude Desktop (`claude_desktop_config.json`) and other MCP clients.
 
 ## Install the skills only
 

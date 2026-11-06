@@ -2,7 +2,8 @@
 
 This private repo is the memory of {{company}}'s go-to-market. You are the reasoning. The `gluely` CLI keeps the rules.
 
-- Start with `gluely doctor --json`, then use `/gtm-mode`.
+- Start with `gluely doctor --json`, then use `/gtm-mode`. New brain? Use `/setup-gluely` first.
+- No slash commands in your agent (Grok, Codex, others)? Each skill is plain markdown: read `.claude/skills/<name>/SKILL.md`, for example `.claude/skills/setup-gluely/SKILL.md`, and follow it step by step.
 - Add `--json` to every `gluely` command.
 - Never send a message to a real person or upload a list to a sending tool without asking first. Gluely never sends, and neither do you.
 - Humans approve anything a prospect reads, and any change to `context/`.

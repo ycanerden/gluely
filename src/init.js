@@ -13,13 +13,16 @@ const isInside = (child, parent) => {
   return rel === '' || (!rel.startsWith('..') && !path.isAbsolute(rel));
 };
 
-function copyTemplate(source, target, vars) {
+// Dotfiles are stored without the dot, so the repo itself never picks them up.
+const DOTTED = { gitignore: '.gitignore', 'mcp.json': '.mcp.json', cursor: '.cursor' };
+
+function copyTemplate(source, target, vars, root = true) {
   fs.mkdirSync(target, { recursive: true });
   for (const entry of fs.readdirSync(source, { withFileTypes: true })) {
     if (entry.name === '.DS_Store') continue;
     const from = path.join(source, entry.name);
-    const to = path.join(target, entry.name === 'gitignore' ? '.gitignore' : entry.name);
-    if (entry.isDirectory()) copyTemplate(from, to, vars);
+    const to = path.join(target, (root && DOTTED[entry.name]) || entry.name);
+    if (entry.isDirectory()) copyTemplate(from, to, vars, false);
     else fs.writeFileSync(to, fs.readFileSync(from, 'utf8').replace(/\{\{(\w+)\}\}/g, (_, key) => vars[key] ?? ''));
   }
 }
