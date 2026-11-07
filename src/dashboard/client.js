@@ -16,7 +16,6 @@
   }
   function add(parent) { for (var i = 1; i < arguments.length; i++) if (arguments[i]) parent.appendChild(arguments[i]); return parent; }
   function pct(v) { if (v === null || v === undefined) return '–'; var p = v * 100; return (p > 0 && p < 10 ? p.toFixed(1) : p.toFixed(0)) + '%'; }
-  function money(v) { if (v === null || v === undefined) return '–'; var c = D.currency || ''; var n = v >= 100 ? fmt.format(Math.round(v)) : v.toFixed(2); return c.length > 1 ? n + ' ' + c : c + n; }
   function ago(iso) {
     if (!iso) return 'never';
     var s = Math.max(0, (NOW - Date.parse(iso)) / 1000);
@@ -55,42 +54,13 @@
     });
   })();
 
-  // Sidebar
-  $('#company').textContent = D.company.name || 'Your workspace';
-  $('#domain').textContent = D.company.domain || 'no domain set';
-  $('#play-count').textContent = D.plays.length;
-  var nav = $('#plays-nav');
-  if (!D.plays.length) add(nav, el('li', 'empty', 'No plays yet.'));
-  D.plays.forEach(function (p) {
-    var a = el('a'); a.href = '#play-' + p.id;
-    var v = verdictOf(p);
-    add(a, el('span', 'dot ' + (STATUS[p.status] || '')), el('span', 'id', p.id), el('span', 'sub', (p.status || 'unknown') + ' · ' + v[1].toLowerCase()));
-    a.title = p.hypothesis || p.id;
-    add(nav, add(el('li'), a));
-  });
-  var facts = [
-    ['Rule tests', D.tests.rules.passed + '/' + D.tests.rules.total],
-    ['Agent tests', D.tests.agent.correct + '/' + D.tests.agent.answered + (D.tests.agent.pending ? ' · ' + D.tests.agent.pending + ' waiting' : '')],
-    ['Open lessons', D.learning.open],
-    ['Promoted', D.learning.promoted],
-    ['Decisions', D.learning.decisions],
-  ];
-  facts.forEach(function (f) { add($('#facts'), add(el('div'), el('dt', '', f[0]), el('dd', '', f[1]))); });
-  $('#generated').textContent = 'Drawn ' + D.generated_at.slice(0, 16).replace('T', ' ') + ' UTC';
-  $('#version').textContent = 'Context ' + D.context_version;
-
   // Hero
   $('#eyebrow-domain').textContent = D.company.domain || 'workspace';
   $('#eyebrow-version').textContent = 'context ' + D.context_version;
   $('#eyebrow-plays').textContent = D.plays.filter(function (p) { return p.status === 'active'; }).length + ' active plays';
   $('#hero-title').textContent = D.company.name || 'Your GTM loop';
   var last = D.plays.map(function (p) { return p.last_at; }).filter(Boolean).sort().pop();
-  var lede = $('#lede');
-  if (D.totals.touches) {
-    add(lede, document.createTextNode(''), el('b', 'num', fmt.format(D.totals.touches)), document.createTextNode(' touches, '),
-      el('b', 'num', fmt.format(D.totals.positive)), document.createTextNode(' positive, '),
-      el('b', 'num', fmt.format(D.totals.meetings)), document.createTextNode(' meetings. Last result ' + ago(last) + '.'));
-  } else lede.textContent = 'No results yet. The loop starts when the first batch comes back.';
+  $('#lede').textContent = D.totals.touches ? 'Last result ' + ago(last) + '. Drawn ' + D.generated_at.slice(0, 16).replace('T', ' ') + ' UTC.' : 'No results yet. The loop starts when the first batch comes back.';
   $('#next-step').textContent = D.next.step;
   $('#next-how').textContent = D.next.how || '';
   var cmd = D.next.command || 'gluely doctor';
@@ -103,19 +73,22 @@
     try { navigator.clipboard.writeText(cmd).then(function () { done('Copied'); }, select); } catch (e) { select(); }
   });
 
-  // Activity
-  var METRICS = [['touches', 'Touches'], ['replies', 'Replies'], ['positive', 'Positive'], ['meetings', 'Meetings'], ['decisions', 'Decisions']];
+  // Activity. The tabs carry the totals, so they double as the funnel.
+  var T = D.totals;
+  var METRICS = [['touches', 'Touches', null], ['replies', 'Replies', D.rates.reply], ['positive', 'Positive', D.rates.positive], ['meetings', 'Meetings', D.rates.meeting], ['decisions', 'Decisions', null]];
   var metric = 'touches';
   try { metric = localStorage.getItem('gluely.metric') || metric; } catch (e) { /* storage is optional */ }
   if (!METRICS.some(function (m) { return m[0] === metric; })) metric = 'touches';
+  var cal = D.calendar;
   var tabs = $('#tabs');
   METRICS.forEach(function (m) {
-    var b = el('button', '', m[1]); b.type = 'button'; b.dataset.metric = m[0];
+    var total = m[0] === 'decisions' ? cal.days.reduce(function (a, d) { return a + d.decisions; }, 0) : T[m[0]];
+    var b = el('button'); b.type = 'button'; b.dataset.metric = m[0];
+    add(b, el('span', 'tab-name', m[1]), el('span', 'tab-n num', fmt.format(total)), m[2] === null ? null : el('span', 'tab-r num', pct(m[2])));
     b.addEventListener('click', function () { metric = m[0]; try { localStorage.setItem('gluely.metric', metric); } catch (e) { /* optional */ } drawHeat(); });
     add(tabs, b);
   });
 
-  var cal = D.calendar;
   var heat = $('#heat');
   heat.style.setProperty('--weeks', cal.weeks);
   var caption = $('#heat-caption');
@@ -132,19 +105,17 @@
     tabs.querySelectorAll('button').forEach(function (b) { b.setAttribute('aria-pressed', String(b.dataset.metric === metric)); });
     var label = METRICS.filter(function (m) { return m[0] === metric; })[0][1].toLowerCase();
     heat.textContent = '';
-    var months = el('div', 'heat-months'); add(months, el('span'));
+    var months = el('div', 'heat-months');
     var grid = el('div', 'heat-grid');
     var values = cal.days.map(function (d) { return d[metric]; });
     var level = levels(values);
     var lastMonth = -1;
     for (var w = 0; w < cal.weeks; w++) {
-      var first = cal.days[w * 7];
-      var m = new Date(first.date + 'T00:00:00Z').getUTCMonth();
-      var span = el('span', '', m !== lastMonth && (w > 0 || new Date(first.date + 'T00:00:00Z').getUTCDate() <= 7) ? MONTHS[m] : '');
-      if (m !== lastMonth) lastMonth = m;
-      add(months, span);
+      var first = new Date(cal.days[w * 7].date + 'T00:00:00Z');
+      var m = first.getUTCMonth();
+      add(months, el('span', '', m !== lastMonth && (w > 0 || first.getUTCDate() <= 7) ? MONTHS[m] : ''));
+      lastMonth = m;
     }
-    for (var r = 0; r < 7; r++) add(grid, el('span', 'wd', r % 2 === 0 ? DAYS[r] : ''));
     for (var i = 0; i < cal.weeks * 7; i++) {
       var day = cal.days[i];
       var cell = el('span', 'cell');
@@ -154,15 +125,17 @@
       cell.dataset.i = i;
       add(grid, cell);
     }
-    add(heat, months, grid);
+    var days = el('div', 'heat-days');
+    for (var r = 0; r < 7; r++) add(days, el('span', '', r % 2 === 0 ? DAYS[r] : ''));
+    add(heat, add(el('div', 'heat-body'), days, add(el('div', 'heat-scroll'), months, grid)));
+    var scroller = heat.querySelector('.heat-scroll'); scroller.scrollLeft = scroller.scrollWidth;
     var total = values.reduce(function (a, b) { return a + b; }, 0);
     var activeDays = values.filter(function (v) { return v > 0; }).length;
     var best = cal.days.reduce(function (a, d) { return d[metric] > (a ? a[metric] : 0) ? d : a; }, null);
     var summary = $('#heat-summary'); summary.textContent = '';
     add(summary, el('b', 'num', fmt.format(total)), document.createTextNode(' ' + label + ' in ' + cal.weeks + ' weeks, on ' + activeDays + (activeDays === 1 ? ' day' : ' days')),
-      best ? document.createTextNode('. Busiest: ' + longDay(best.date) + ', ' + fmt.format(best[metric]) + '.') : document.createTextNode('.'));
+      document.createTextNode(best ? '. Busiest: ' + longDay(best.date) + ', ' + fmt.format(best[metric]) + '.' : '.'));
     heat.setAttribute('aria-label', fmt.format(total) + ' ' + label + ' logged over the last ' + cal.weeks + ' weeks');
-    var wrap = heat.parentNode; wrap.scrollLeft = wrap.scrollWidth;
     caption.textContent = total ? 'Point at a day to see it.' : (metric === 'decisions' ? 'Nothing logged yet. Decisions land here as you go.' : 'Nothing yet. Add a batch with gluely results add <play> --touches <n> --positive <n>.');
   }
   heat.addEventListener('pointerover', function (e) {
@@ -173,77 +146,35 @@
   });
   drawHeat();
 
-  // Funnel
-  var T = D.totals;
-  var steps = [['Touches', T.touches, null], ['Replies', T.replies, D.rates.reply], ['Positive', T.positive, D.rates.positive], ['Meetings', T.meetings, D.rates.meeting]];
-  var funnel = $('#funnel');
-  steps.forEach(function (s) {
-    var bar = el('span', 'bar'); var fill = el('i'); fill.style.width = (T.touches ? Math.max(0, s[1] / T.touches) * 100 : 0) + '%';
-    add(bar, fill);
-    add(funnel, add(el('li'), el('span', '', s[0]), bar, el('span', 'n num', fmt.format(s[1])), el('span', 'r num', s[2] === null ? '' : pct(s[2]))));
+  // Plays: one line each, against the 50 and 100 rule.
+  var rows = $('#rows');
+  if (!D.plays.length) add(rows, add(el('li', 'empty'), document.createTextNode('No plays yet. Set one up with '), el('code', '', 'gluely plays start')));
+  D.plays.forEach(function (p) {
+    var v = verdictOf(p);
+    var goal = Math.max(p.decide_at || D.rules.decide_at, 1);
+    var touches = p.totals ? p.totals.touches : 0;
+    var row = el('li', 'row');
+    row.title = (p.hypothesis ? p.hypothesis + '\n' : '') + (p.kill_if ? 'Kill if ' + p.kill_if + '\n' : '') + (p.why || '');
+    var track = el('span', 'track'); var fill = el('i', v[0] || 'quiet'); fill.style.width = Math.min(1, touches / goal) * 100 + '%';
+    add(track, fill);
+    if (D.rules.kill_from < goal) { var tick = el('span', 'tick'); tick.style.left = (D.rules.kill_from / goal) * 100 + '%'; add(track, tick); }
+    add(rows, add(row,
+      add(el('span', 'name'), el('span', 'dot ' + (STATUS[p.status] || '')), el('span', 'id', p.id)),
+      el('span', 'chip ' + v[0], v[1]),
+      track,
+      el('span', 'n num', fmt.format(touches) + '/' + goal),
+      el('span', 'r num', p.rates && touches ? pct(p.rates.positive) : '–')));
   });
-  var range = D.rates.positive_could_be;
-  var rangeText = $('#range-text');
-  if (range) {
-    var top = Math.max(0.05, Math.ceil(range[1] * 1.25 * 20) / 20);
-    var track = $('#range-track');
-    var spanEl = el('span', 'span'); spanEl.style.left = (range[0] / top) * 100 + '%'; spanEl.style.width = ((range[1] - range[0]) / top) * 100 + '%';
-    var pt = el('span', 'pt'); pt.style.left = (D.rates.positive / top) * 100 + '%';
-    add(track, spanEl, pt);
-    add($('#range-scale'), el('span', '', '0%'), el('span', '', pct(top / 2)), el('span', '', pct(top)));
-    add(rangeText, document.createTextNode('Positive rate '), el('b', 'num', pct(D.rates.positive)),
-      document.createTextNode(T.touches < D.rules.kill_from ? '. Under ' + D.rules.kill_from + ' touches, so it is still noise.' : '. It could really be anywhere from ' + pct(range[0]) + ' to ' + pct(range[1]) + '.'));
-  } else { rangeText.textContent = 'No touches yet, so there is no rate to show.'; $('#range-track').hidden = true; }
-  var moneyRows = [['Spent', T.spent ? money(T.spent) : null], ['Per meeting', D.roi.per_meeting === null ? null : money(D.roi.per_meeting)], ['Pipeline', D.roi.pipeline_per_spent === null ? null : D.roi.pipeline_per_spent.toFixed(1) + '× spend']];
-  moneyRows.forEach(function (m) { add($('#money'), add(el('div'), el('dt', '', m[0]), el('dd', m[1] === null ? 'none' : 'num', m[1] === null ? 'not yet' : m[1]))); });
 
-  // Decision log
+  // Decision log: the five newest, one line each.
   var GLYPH = { decision: '◆', correction: '✎', input: '↳', result: '▪' };
   var log = $('#log');
   if (!D.log.length) add(log, add(el('li', 'empty'), document.createTextNode('Nothing logged yet. Keep a decision with '), el('code', '', 'gluely log add')));
-  D.log.forEach(function (e) {
-    var meta = add(el('span', 'm'), el('span', '', e.kind + ' · ' + e.area), el('span', '', e.by || ''), el('span', 'num', ago(e.at)));
-    if (e.state && e.state !== 'open') add(meta, el('span', 'chip ' + (e.state === 'promoted' ? 'ok' : ''), e.state));
-    add(log, add(el('li'), el('span', 'k ' + e.kind, GLYPH[e.kind] || '·'), el('span', 't', e.text), meta));
+  D.log.slice(0, 5).forEach(function (e) {
+    var item = el('li'); item.title = e.kind + ' · ' + e.area + (e.by ? ' · ' + e.by : '') + (e.state && e.state !== 'open' ? ' · ' + e.state : '');
+    add(log, add(item, el('span', 'k ' + e.kind, GLYPH[e.kind] || '·'), el('span', 't', e.text), el('span', 'a num', ago(e.at))));
   });
-
-  // Plays
-  var rows = $('#rows');
-  if (!D.plays.length) add(rows, add(el('p', 'empty'), document.createTextNode('No plays yet. Set one up with '), el('code', '', 'gluely plays start')));
-  else add(rows, add(el('div', 'row head'), el('span', '', 'Play'), el('span', '', 'Verdict'), el('span', '', 'Toward a decision'), el('span', 'rate', 'Positive')));
-  D.plays.forEach(function (p) {
-    var v = verdictOf(p);
-    var row = el('div', 'row'); row.id = 'play-' + p.id;
-    var name = add(el('b'), el('span', 'dot ' + (STATUS[p.status] || '')), el('span', '', p.id));
-    var who = add(el('div', 'who'), name, p.hypothesis ? el('p', '', p.hypothesis) : null, p.kill_if ? el('p', 'rule', 'kill if ' + p.kill_if) : null);
-    var chip = el('span', 'chip ' + v[0], v[1]); chip.title = p.why || '';
-    var verdict = add(el('div', 'verdict'), chip);
-    var progress = el('div', 'progress');
-    if (p.totals) {
-      var goal = Math.max(p.decide_at || D.rules.decide_at, 1);
-      var trackEl = el('div', 'track');
-      var fillEl = el('i', v[0] || 'quiet'); fillEl.style.width = Math.min(1, p.totals.touches / goal) * 100 + '%';
-      add(trackEl, fillEl);
-      if (D.rules.kill_from < goal) { var tick = el('span', 'tick'); tick.style.left = (D.rules.kill_from / goal) * 100 + '%'; tick.title = 'From ' + D.rules.kill_from + ' touches a play with no positive reply can die'; add(trackEl, tick); }
-      add(progress, trackEl, add(el('div', 'track-label'), el('span', 'num', fmt.format(p.totals.touches) + ' / ' + goal + ' touches'), el('span', 'num', p.batches + (p.batches === 1 ? ' batch' : ' batches') + (p.last_at ? ' · ' + ago(p.last_at) : ''))));
-    } else add(progress, el('p', 'empty', p.why));
-    var r = p.rates;
-    var rate = add(el('div', 'rate num'), document.createTextNode(r && p.totals.touches ? pct(r.positive) : '–'),
-      r && r.positive_could_be ? el('small', '', pct(r.positive_could_be[0]) + '–' + pct(r.positive_could_be[1])) : null);
-    add(rows, add(row, who, verdict, progress, rate));
-  });
-
-  // The loop, with each stage only as far along as it really is.
-  var loop = $('#loop'); var detail = $('#loop-detail');
-  var STAGE = { working: 'ok', started: 'warn', later: '', tool: 'sky' };
-  D.stages.forEach(function (s) {
-    var b = add(el('span', 'stage ' + s.status), el('span', 'dot ' + (STAGE[s.status] || '')), el('span', '', s.label));
-    b.title = s.status + ': ' + s.detail; b.tabIndex = 0;
-    var show = function () { detail.textContent = s.label + ' (' + s.status + '): ' + s.detail; };
-    b.addEventListener('pointerenter', show); b.addEventListener('focus', show);
-    add(loop, add(el('li'), b));
-  });
-  detail.textContent = D.note;
+  $('#foot-note').textContent = D.note;
 
   // The hero: a light streak, ordered-dithered like a sprite, drifting slowly.
   (function hero() {

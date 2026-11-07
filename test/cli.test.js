@@ -876,7 +876,7 @@ test('the dashboard counts what was logged, keeps workspace text inert, and stay
   assert.equal(data.roi.per_meeting, 20);
   assert.equal(data.plays[0].verdict, 'too_early');
   assert.equal(data.log.length, 1, 'bookkeeping Gluely writes for itself is not a decision');
-  assert.ok(data.stages.some((s) => s.id === 'replies' && s.status === 'later'), 'the page tells the truth about what works');
+  assert.match(data.note, /not tracked yet/, 'the page says what it cannot count');
 
   const page = fs.readFileSync(path.join(ws, data.file), 'utf8');
   assert.match(page, /^<!DOCTYPE html>/);

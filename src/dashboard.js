@@ -1,11 +1,11 @@
 // `gluely dashboard`: the loop's numbers on one page. Everything here is read from the
-// workspace (results, the decision log, the loop) and nothing is guessed, so an empty
+// workspace (results and the decision log) and nothing is guessed, so an empty
 // workspace gets an empty dashboard. The page itself is drawn in dashboard-page.js.
+// Where the loop stands lives in gluely doctor and gluely flow, so it is not repeated here.
 import fs from 'node:fs';
 import path from 'node:path';
 import { loadPrices } from './cost.js';
 import { diagnose } from './doctor.js';
-import { buildFlow } from './flow.js';
 import { loadEntries } from './log.js';
 import { fail, GluelyError } from './output.js';
 import { readPlay } from './playbooks.js';
@@ -101,12 +101,6 @@ export function buildDashboard(ws, { weeks = 26, now = Date.now() } = {}) {
     calendar: calendar(results, events, span, now),
     plays,
     log: events.slice(-8).reverse().map(({ id, at, kind, area, text, by, state: where, play }) => ({ id, at, kind, area, text, by, state: where, play: play || null })),
-    learning: state.learning,
-    tests: {
-      rules: { passed: state.tests.deterministic.passed, total: state.tests.deterministic.total },
-      agent: { correct: state.tests.reasoned.correct, answered: state.tests.reasoned.answered, pending: state.tests.reasoned.pending.length },
-    },
-    stages: buildFlow(state).stages,
     note: 'Results are counted on the day they were added with gluely results add. Signups, trials and reply streams are not tracked yet.',
   };
 }

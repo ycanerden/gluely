@@ -23,86 +23,48 @@ export function renderDashboardPage(data, { standalone = true } = {}) {
 <style>
 ${asset('style.css')}
 </style>
-<div class="app">
-  <aside class="side" aria-label="Workspace">
-    <div class="brand">
-      <canvas id="mascot" width="20" height="18" aria-hidden="true"></canvas>
-      <div><b id="company">Gluely</b><span id="domain"></span></div>
-    </div>
-    <nav aria-label="Plays">
-      <div class="side-head"><span>Plays</span><span id="play-count" class="num">0</span></div>
-      <ul class="plays-nav" id="plays-nav"></ul>
-    </nav>
-    <div>
-      <div class="side-head"><span>Brain</span></div>
-      <dl class="facts" id="facts"></dl>
-    </div>
-    <div class="side-foot"><span id="version"></span><span id="generated"></span></div>
-  </aside>
-
-  <main class="main">
-    <section class="hero" aria-labelledby="hero-title">
-      <canvas id="hero-canvas" aria-hidden="true"></canvas>
-      <div class="hero-in">
-        <p class="eyebrow"><span id="eyebrow-domain"></span><span id="eyebrow-version"></span><span id="eyebrow-plays"></span></p>
-        <div>
-          <h1 id="hero-title">Your GTM loop</h1>
-          <p class="lede" id="lede"></p>
-        </div>
-        <div class="prompt">
-          <p class="ask"><span id="next-step"></span><small id="next-how"></small></p>
-          <div class="prompt-row"><span id="next-label">Next</span><code id="next-cmd"></code><button class="copy" id="copy" type="button">Copy</button></div>
-        </div>
+<main class="app">
+  <section class="hero" aria-labelledby="hero-title">
+    <canvas id="hero-canvas" aria-hidden="true"></canvas>
+    <div class="hero-in">
+      <p class="eyebrow"><canvas id="mascot" width="20" height="18" aria-hidden="true"></canvas><span id="eyebrow-domain"></span><span id="eyebrow-version"></span><span id="eyebrow-plays"></span></p>
+      <div>
+        <h1 id="hero-title">Your GTM loop</h1>
+        <p class="lede" id="lede"></p>
       </div>
-    </section>
-
-    <section class="panel" aria-labelledby="activity-title">
-      <div class="panel-head">
-        <h2 id="activity-title"><span class="glyph">▦</span>Activity</h2>
-        <div class="tabs" id="tabs" role="group" aria-label="What to count"></div>
+      <div class="prompt">
+        <p class="ask"><span id="next-step"></span><small id="next-how"></small></p>
+        <div class="prompt-row"><span id="next-label">Next</span><code id="next-cmd"></code><button class="copy" id="copy" type="button">Copy</button></div>
       </div>
-      <div class="heat-wrap"><div class="heat" id="heat" role="img"></div></div>
-      <div class="heat-foot">
-        <span id="heat-summary"></span>
-        <span class="legend" aria-hidden="true"><span>Less</span><i class="cell"></i><i class="cell l1"></i><i class="cell l2"></i><i class="cell l3"></i><i class="cell l4"></i><span>More</span></span>
-      </div>
-      <p class="heat-foot" id="heat-caption" aria-live="polite"></p>
-    </section>
-
-    <div class="pair">
-      <section class="panel" aria-labelledby="funnel-title">
-        <div class="panel-head"><h2 id="funnel-title"><span class="glyph">▤</span>Where touches go</h2></div>
-        <ul class="funnel" id="funnel"></ul>
-        <div class="range">
-          <p id="range-text"></p>
-          <div class="range-track" id="range-track"></div>
-          <div class="range-scale" id="range-scale"></div>
-        </div>
-        <dl class="money" id="money"></dl>
-      </section>
-      <section class="panel" aria-labelledby="log-title">
-        <div class="panel-head"><h2 id="log-title"><span class="glyph">◆</span>Decision log</h2><span class="chip">newest first</span></div>
-        <ul class="log" id="log"></ul>
-      </section>
     </div>
+  </section>
 
+  <section class="panel" aria-labelledby="activity-title">
+    <div class="panel-head">
+      <h2 id="activity-title"><span class="glyph">▦</span>Activity</h2>
+    </div>
+    <div class="tabs" id="tabs" role="group" aria-label="What to count"></div>
+    <div class="heat" id="heat" role="img"></div>
+    <div class="heat-foot">
+      <span id="heat-summary"></span>
+      <span class="legend" aria-hidden="true"><span>Less</span><i class="cell"></i><i class="cell l1"></i><i class="cell l2"></i><i class="cell l3"></i><i class="cell l4"></i><span>More</span></span>
+    </div>
+    <p class="heat-foot" id="heat-caption" aria-live="polite"></p>
+  </section>
+
+  <div class="pair">
     <section class="panel" aria-labelledby="plays-title">
-      <div class="panel-head"><h2 id="plays-title"><span class="glyph">▶</span>Plays</h2><span class="chip">${data.rules.kill_from} touches to judge, ${data.rules.decide_at} to decide</span></div>
-      <div class="rows" id="rows"></div>
+      <div class="panel-head"><h2 id="plays-title"><span class="glyph">▶</span>Plays</h2><span class="hint">${data.rules.kill_from} touches to judge, ${data.rules.decide_at} to decide</span></div>
+      <ul class="rows" id="rows"></ul>
     </section>
-
-    <section class="panel" aria-labelledby="loop-title">
-      <div class="panel-head"><h2 id="loop-title"><span class="glyph">↻</span>The loop</h2></div>
-      <ul class="loop" id="loop"></ul>
-      <div class="loop-legend">
-        <span><i class="dot ok"></i>working</span><span><i class="dot warn"></i>started</span><span><i class="dot"></i>later</span><span><i class="dot sky"></i>your tool</span>
-      </div>
-      <p class="loop-detail" id="loop-detail"></p>
+    <section class="panel" aria-labelledby="log-title">
+      <div class="panel-head"><h2 id="log-title"><span class="glyph">◆</span>Decisions</h2><span class="hint">newest first</span></div>
+      <ul class="log" id="log"></ul>
     </section>
+  </div>
 
-    <footer class="foot"><span>Drawn by gluely dashboard from your own workspace.</span><span>Gluely never sends a message and never calls a model.</span></footer>
-  </main>
-</div>
+  <footer class="foot"><span id="foot-note"></span><span>Gluely never sends a message and never calls a model.</span></footer>
+</main>
 <script type="application/json" id="gluely-data">${embed(data)}</script>
 <script type="application/json" id="gluely-sprite">${embed({ rows: SPRITE, rgb: RGB })}</script>
 <script>
