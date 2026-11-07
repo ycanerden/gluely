@@ -8,7 +8,7 @@ const rich = () => process.stdout.isTTY && !process.env.NO_COLOR;
 
 export class Cancelled extends Error {}
 
-const SPRITE = [
+export const SPRITE = [
   '........kkkk........',
   '.......koooOk.......',
   '.......koooOk.......',
@@ -28,7 +28,7 @@ const SPRITE = [
   '..kssssssssssssssk..',
   '...kkkkkkkkkkkkkk...',
 ];
-const RGB = { k: [28, 22, 54], o: [255, 180, 46], O: [212, 133, 26], m: [255, 244, 214], s: [232, 214, 166], w: [255, 255, 255], r: [255, 154, 168] };
+export const RGB = { k: [28, 22, 54], o: [255, 180, 46], O: [212, 133, 26], m: [255, 244, 214], s: [232, 214, 166], w: [255, 255, 255], r: [255, 154, 168] };
 
 // Two pixels per character cell, using the half block, so pixels stay square.
 export function mascot() {

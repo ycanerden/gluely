@@ -16,7 +16,7 @@ const MONEY = ['spent', 'pipeline'];
 
 const file = (ws) => path.join(ws, 'learning', 'plays.jsonl');
 
-function readAll(ws) {
+export function readResults(ws) {
   if (!fs.existsSync(file(ws))) return [];
   return fs.readFileSync(file(ws), 'utf8').split('\n').filter(Boolean).map((row, i) => {
     try { return JSON.parse(row); } catch { return fail('bad_results', `learning/plays.jsonl line ${i + 1} is not valid JSON.`); }
@@ -77,7 +77,7 @@ const pct = (v) => `${(v * 100).toFixed(v < 0.1 ? 1 : 0)}%`;
 
 export function judgePlay(ws, id, now = Date.now()) {
   const spec = readPlay(ws, id);
-  const entries = readAll(ws).filter((e) => e.play === id);
+  const entries = readResults(ws).filter((e) => e.play === id);
   const totals = Object.fromEntries([...COUNTS, ...MONEY].map((k) => [k, entries.reduce((sum, e) => sum + (e[k] || 0), 0)]));
   const first = entries[0]?.at;
   const days = first ? Math.floor((now - Date.parse(first)) / 86400000) : 0;

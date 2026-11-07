@@ -3,6 +3,8 @@ import path from 'node:path';
 import { addCase, checkCompany, checkDraft, pendingCases, runTests, submitAnswer } from './brain-tests.js';
 import { scanContext } from './context.js';
 import { estimateCost, setAssumptions, setPrice } from './cost.js';
+import { buildDashboard, DEFAULT_OUT, writeDashboard } from './dashboard.js';
+import { renderDashboardPage } from './dashboard-page.js';
 import { diagnose } from './doctor.js';
 import { buildFlow, renderFlow } from './flow.js';
 import { initWorkspace } from './init.js';
@@ -33,6 +35,7 @@ Start
   gluely                                                         your home screen
   gluely doctor                                                  where you stand and what to do next
   gluely flow                                                    the loop, drawn from real state
+  gluely dashboard [--out <file>] [--weeks 26]                   the loop's numbers on one page you open in a browser
 
 Brain
   gluely context check | version                                 is the context filled and valid?
@@ -140,6 +143,19 @@ export const commands = {
     const state = diagnose(requireWorkspace());
     const data = buildFlow(state);
     return { data, render: () => console.log(renderFlow(data, state.company.name)) };
+  },
+
+  dashboard(args) {
+    const ws = requireWorkspace();
+    const data = buildDashboard(ws, { weeks: args.flags.weeks ?? 26 });
+    data.file = writeDashboard(ws, data, args.flags.out || DEFAULT_OUT, renderDashboardPage);
+    return {
+      data,
+      render() {
+        line(true, `Dashboard written to ${data.file}`);
+        console.log(color.dim(`  ${data.totals.touches} touches, ${data.plays.length} plays, ${data.log.length ? 'recent decisions' : 'no decisions yet'}. Open it in any browser.`));
+      },
+    };
   },
 
   context(args) {

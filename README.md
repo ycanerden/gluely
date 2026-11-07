@@ -19,6 +19,7 @@ gluely init ../my-brain --company "Acme" --domain acme.example --market b2b --mo
 cd ../my-brain
 gluely            # your home screen
 gluely flow       # the loop, drawn from your real state
+gluely dashboard  # results, activity, plays and decisions on one page (exports/dashboard.html)
 ```
 
 Then open your agent in that folder and run `/setup-gluely`. It maps your stack, asks for read-only connections, analyzes your real deals and challenges your ICP before it writes anything.

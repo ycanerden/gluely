@@ -27,6 +27,9 @@ const BY = str('Who is answering, for example claude-code/opus. Defaults to the 
 const TOOLS = [
   { name: 'status', title: 'Where the workspace stands', cli: ['doctor'], description: 'Checks the workspace and says what to do next. Call this first.' },
   { name: 'flow', title: 'The loop, from real state', cli: ['flow'], description: 'The GTM loop with each step marked done, open or blocked.' },
+  { name: 'dashboard', title: 'Draw the dashboard', cli: ['dashboard'], flags: { out: 'out', weeks: 'weeks' }, writes: true,
+    description: 'Write the dashboard page (results, activity, plays, decisions, the loop) and return the numbers behind it. Point the person to the file it names.',
+    input: schema({ out: str('Where to write the page, relative to the workspace. Defaults to exports/dashboard.html'), weeks: num('Weeks of activity to show, 1 to 104') }) },
   { name: 'context_check', title: 'Check the context', cli: ['context', 'check'], description: 'Is the company context filled in and valid? Lists errors and hunches.' },
 
   { name: 'playbooks', title: 'Example playbooks', cli: ['playbooks'], description: 'Playbooks a new play can start from.' },
