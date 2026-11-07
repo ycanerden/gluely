@@ -64,7 +64,7 @@ Learning
 
 Results
   gluely results <play>                                          what a play produced, and keep or kill
-  gluely results add <play> --touches <n> --positive <n> [--replies n] [--meetings n] [--spent n] [--placement inbox|spam]
+  gluely results add <play> --touches <n> --positive <n> [--replies n] [--meetings n] [--spent n] [--placement inbox|spam] [--on YYYY-MM-DD]
 
 Cost
   gluely cost <play> [--fit 30%] [--touches 2] [--checks 1]      estimate before spending credits
@@ -262,7 +262,14 @@ export const commands = {
     const id = sub === 'add' ? args._[1] : sub;
     if (!id) fail('usage', 'Usage: gluely results <play> | gluely results add <play> --touches <n> --positive <n>');
     const data = sub === 'add' ? addResult(ws, id, args.flags) : judgePlay(ws, id);
-    return { data, render: () => renderJudgement(data, { color, line }) };
+    return {
+      data,
+      render() {
+        if (data.added) line(true, `Added ${data.added.touches} touches to ${id} on ${data.added.on}`);
+        for (const warning of data.warnings || []) console.log(`${mark.warn()} ${warning}`);
+        renderJudgement(data, { color, line });
+      },
+    };
   },
 
   check(args) {

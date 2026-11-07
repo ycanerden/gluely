@@ -9,7 +9,7 @@ import { diagnose } from './doctor.js';
 import { loadEntries } from './log.js';
 import { fail, GluelyError } from './output.js';
 import { readPlay } from './playbooks.js';
-import { DECIDE_AT, interval, judgePlay, KILL_FROM, readResults } from './results.js';
+import { dayOf, DECIDE_AT, interval, judgePlay, KILL_FROM, readResults } from './results.js';
 
 export const DEFAULT_OUT = 'exports/dashboard.html';
 const COUNTS = ['touches', 'replies', 'positive', 'meetings', 'spent', 'pipeline'];
@@ -31,7 +31,7 @@ function calendar(results, events, weeks, now) {
     days.push(day);
   }
   for (const r of results) {
-    const day = index.get(String(r.at).slice(0, 10));
+    const day = index.get(dayOf(r));
     if (!day) continue;
     day.batches += 1;
     for (const k of COUNTS) day[k] += r[k] || 0;
@@ -101,7 +101,7 @@ export function buildDashboard(ws, { weeks = 26, now = Date.now() } = {}) {
     calendar: calendar(results, events, span, now),
     plays,
     log: events.slice(-8).reverse().map(({ id, at, kind, area, text, by, state: where, play }) => ({ id, at, kind, area, text, by, state: where, play: play || null })),
-    note: 'Results are counted on the day they were added with gluely results add. Signups, trials and reply streams are not tracked yet.',
+    note: 'Each batch counts on the day it happened (gluely results add --on), or the day it was added when it has no date. Signups, trials and reply streams are not tracked yet.',
   };
 }
 

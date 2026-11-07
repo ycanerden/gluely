@@ -16,6 +16,21 @@ const MONEY = ['spent', 'pipeline'];
 
 const file = (ws) => path.join(ws, 'learning', 'plays.jsonl');
 
+// The day a batch happened. Older batches have no `on`, so they count on the day they were added.
+export const dayOf = (entry) => entry.on || String(entry.at).slice(0, 10);
+
+// --on is the day the touches went out, so weekly imports and backfills land on the right days.
+function readDay(value, today) {
+  if (value === undefined) return today;
+  const day = String(value);
+  const parsed = Date.parse(`${day}T00:00:00Z`);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(day) || Number.isNaN(parsed) || new Date(parsed).toISOString().slice(0, 10) !== day) {
+    fail('bad_date', '--on must be a day like 2026-11-02: the day the touches went out.');
+  }
+  if (day > today) fail('bad_date', `--on ${day} is in the future. Results are added after they happen.`);
+  return day;
+}
+
 export function readResults(ws) {
   if (!fs.existsSync(file(ws))) return [];
   return fs.readFileSync(file(ws), 'utf8').split('\n').filter(Boolean).map((row, i) => {
@@ -32,7 +47,8 @@ const count = (flag, value) => {
 
 export function addResult(ws, id, flags) {
   readPlay(ws, id);
-  const entry = { at: new Date().toISOString(), play: id };
+  const at = new Date().toISOString();
+  const entry = { at, on: readDay(flags.on, at.slice(0, 10)), play: id };
   for (const key of [...COUNTS, ...MONEY]) entry[key] = count(key, flags[key]);
   if (!entry.touches && !entry.replies && !entry.spent) fail('usage', 'Pass at least --touches, and what came back: --replies, --positive, --meetings, --spent.');
   for (const [part, whole] of [['replies', 'touches'], ['positive', 'replies'], ['meetings', 'positive']]) {
@@ -41,9 +57,13 @@ export function addResult(ws, id, flags) {
   const placement = flags.placement ?? 'unchecked';
   if (!PLACEMENTS.includes(placement)) fail('usage', `--placement must be one of ${PLACEMENTS.join(', ')}: where test emails landed.`);
   Object.assign(entry, { placement, by: flags.by || 'human', context_version: contextVersion(ws).version });
+  // Results are append-only, so a day added twice counts twice. Say so instead of guessing.
+  const warnings = readResults(ws).some((e) => e.play === id && dayOf(e) === entry.on)
+    ? [`${id} already has a batch on ${entry.on}. If this one repeats it, the day now counts twice.`]
+    : [];
   fs.mkdirSync(path.dirname(file(ws)), { recursive: true });
   fs.appendFileSync(file(ws), `${JSON.stringify(entry)}\n`);
-  return { added: entry, ...judgePlay(ws, id) };
+  return { added: entry, warnings, ...judgePlay(ws, id) };
 }
 
 // A 95% Wilson interval: what a rate could really be, given how few touches stand behind it.
@@ -79,8 +99,8 @@ export function judgePlay(ws, id, now = Date.now()) {
   const spec = readPlay(ws, id);
   const entries = readResults(ws).filter((e) => e.play === id);
   const totals = Object.fromEntries([...COUNTS, ...MONEY].map((k) => [k, entries.reduce((sum, e) => sum + (e[k] || 0), 0)]));
-  const first = entries[0]?.at;
-  const days = first ? Math.floor((now - Date.parse(first)) / 86400000) : 0;
+  const first = entries.map(dayOf).sort()[0];
+  const days = first ? Math.floor((now - Date.parse(`${first}T00:00:00Z`)) / 86400000) : 0;
   const placement = [...entries].reverse().find((e) => e.placement !== 'unchecked')?.placement || 'unchecked';
   const metrics = {
     ...totals, days,
