@@ -3,6 +3,8 @@ import path from 'node:path';
 import { addCase, checkCompany, checkDraft, pendingCases, runTests, submitAnswer } from './brain-tests.js';
 import { scanContext } from './context.js';
 import { estimateCost, setAssumptions, setPrice } from './cost.js';
+import { buildDashboard, DEFAULT_OUT, writeDashboard } from './dashboard.js';
+import { renderDashboardPage } from './dashboard-page.js';
 import { diagnose } from './doctor.js';
 import { buildFlow, renderFlow } from './flow.js';
 import { initWorkspace } from './init.js';
@@ -21,6 +23,7 @@ import { loadStack, setStack } from './stack.js';
 import { CHANNELS } from './vocab.js';
 import { beside, Cancelled, interactive, mascot, say } from './ui.js';
 import { confirmApproval, costFlow, pickPlaybook, renderCost, walkPlay } from './walk.js';
+import { installInfo, updateGluely } from './update.js';
 import { contextVersion, findWorkspace, GLUELY_ROOT, requireWorkspace } from './workspace.js';
 
 const VERSION = JSON.parse(fs.readFileSync(path.join(GLUELY_ROOT, 'package.json'), 'utf8')).version;
@@ -33,6 +36,7 @@ Start
   gluely                                                         your home screen
   gluely doctor                                                  where you stand and what to do next
   gluely flow                                                    the loop, drawn from real state
+  gluely dashboard [--out <file>] [--weeks 26]                   the loop's numbers on one page you open in a browser
 
 Brain
   gluely context check | version                                 is the context filled and valid?
@@ -77,6 +81,9 @@ Tools
 
 Skills
   gluely skills list | install [--host claude,cursor]            the GTM skill pack
+
+Gluely itself
+  gluely update                                                  get the latest Gluely, with git. Your workspace is not touched
 
 Agents
   gluely mcp [--workspace <dir>]                                 every command above as MCP tools, over stdio
@@ -124,7 +131,7 @@ export const commands = {
   },
 
   doctor() {
-    const data = diagnose(requireWorkspace());
+    const data = { ...diagnose(requireWorkspace()), install: installInfo() };
     return {
       data,
       render() {
@@ -132,6 +139,7 @@ export const commands = {
         for (const check of data.checks) line(check.ok, `${check.name.padEnd(11)} ${color.dim(check.detail)}`);
         console.log();
         printNext(data.next, '');
+        printUpdate(data.install, '');
       },
     };
   },
@@ -140,6 +148,34 @@ export const commands = {
     const state = diagnose(requireWorkspace());
     const data = buildFlow(state);
     return { data, render: () => console.log(renderFlow(data, state.company.name)) };
+  },
+
+  dashboard(args) {
+    const ws = requireWorkspace();
+    const data = buildDashboard(ws, { weeks: args.flags.weeks ?? 26 });
+    data.file = writeDashboard(ws, data, args.flags.out || DEFAULT_OUT, renderDashboardPage);
+    return {
+      data,
+      render() {
+        line(true, `Dashboard written to ${data.file}`);
+        console.log(color.dim(`  ${data.totals.touches} touches, ${data.plays.length} plays, ${data.log.length ? 'recent decisions' : 'no decisions yet'}. Open it in any browser.`));
+      },
+    };
+  },
+
+  update() {
+    const data = updateGluely();
+    return {
+      data,
+      render() {
+        if (!data.updated) { line(true, `Gluely ${data.to.version} (${data.to.commit}) is already the latest.`); return; }
+        line(true, `Gluely updated from ${data.from.commit} to ${data.to.commit}`);
+        for (const change of data.changes.slice(0, 12)) console.log(`  ${mark.next()} ${change}`);
+        if (data.changes.length > 12) console.log(color.dim(`  and ${data.changes.length - 12} more`));
+        if (data.needs_install) console.log(`${mark.warn()} Dependencies changed. Run ${color.cyan('npm install')} in ${data.root}`);
+        console.log(color.dim('  Your workspace was not touched. Run gluely skills install there to refresh the skills.'));
+      },
+    };
   },
 
   context(args) {
@@ -487,6 +523,12 @@ function renderStep(state) {
   console.log(`${mark.next()} gluely plays answer ${state.play} ${step.id} <value>`);
 }
 
+// A nudge, never a check: Gluely does not go online to see if it is behind.
+function printUpdate(install, indent) {
+  if (!install.remind) return;
+  console.log(`${indent}${mark.warn()} ${color.dim(`This copy of Gluely is ${install.days_old} days old. Run`)} ${color.cyan('gluely update')} ${color.dim('for the latest.')}`);
+}
+
 // Commands sit on their own line, so the words around them can't be mistaken for one.
 function printNext(next, indent) {
   console.log(`${indent}${mark.next()} ${color.bold(next.step)}`);
@@ -513,6 +555,7 @@ function renderHome(state) {
   console.log();
   printNext(state.next, '  ');
   console.log();
+  printUpdate(state.install, '  ');
   if (!state.context.template) say(`${color.bold('With your agent')}  open claude or cursor in this folder, then type ${color.cyan('/gtm-mode')}`);
   say(color.dim('More: gluely tools, gluely flow, gluely learn, gluely --help'));
   console.log();
@@ -534,7 +577,7 @@ function renderWelcome() {
 function home() {
   const ws = activeWorkspace();
   if (!ws) return { data: { workspace: null, next: 'gluely init <dir> --company <name>' }, render: renderWelcome };
-  const data = diagnose(ws);
+  const data = { ...diagnose(ws), install: installInfo() };
   return { data, render: () => renderHome(data) };
 }
 
