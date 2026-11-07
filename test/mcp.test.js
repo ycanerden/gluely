@@ -83,3 +83,17 @@ test('a new workspace is wired for Claude Code and Cursor', () => {
   assert.ok(fs.existsSync(path.join(ws, '.cursor', 'mcp.json')));
   assert.ok(!fs.existsSync(path.join(ws, 'mcp.json')) && !fs.existsSync(path.join(ws, 'cursor')));
 });
+
+test('an agent can ask where a deal is at, but cannot erase anyone', () => {
+  const ws = makeWorkspace();
+  const stage = call('gluely_account_stage', { domain: 'globex.example', stage: 'in_conversation', name: 'Globex', owner: 'sam' });
+  const note = call('gluely_account_note', { domain: 'globex.example', text: 'Asked about the security review' });
+  const used = call('gluely_skill_used', { skill: 'gtm-mode/bdr-reply', outcome: 'worked' });
+  const deal = call('gluely_account', { domain: 'globex.example' });
+  const list = { jsonrpc: '2.0', id: 'list', method: 'tools/list' };
+  const { byId } = mcp([stage, note, used, deal, list], { cwd: ws });
+  const answer = byId[deal.id].result.structuredContent;
+  assert.deepEqual([answer.stage, answer.owner, answer.notes[0].untrusted], ['in_conversation', 'sam', true]);
+  assert.equal(byId[used.id].result.structuredContent.by, 'test-agent');
+  assert.ok(!byId.list.result.tools.some((t) => t.name.includes('erase')), 'erasure requests stay with people');
+});

@@ -1,6 +1,6 @@
 # The store contract
 
-Status: design for phase 1, not built yet.
+Status: design for phase 1. The plain file store for accounts works. The contract and other stores aren't built yet.
 
 Gluely doesn't choose your database. Any store that passes the contract can hold the brain's memory.
 
@@ -41,7 +41,7 @@ Every store runs `gluely store test`, which reports what it can do on your real 
 
 ## No database yet?
 
-A company with no store gets a plain append-only file in its workspace. It runs with no install and exports to any database later, so nobody has to choose on day one.
+A company with no store gets a plain append-only file in its workspace: `accounts/events.jsonl`, written by `gluely accounts`. It runs with no install and exports to any database later, so nobody has to choose on day one. It has `append`, `read` and `erase` today. `claim` comes with the work queue. An erasure is the only rewrite: the person's details go, and a hashed opt-out stays so the guard holds them.
 
 ## Rules every adapter follows
 

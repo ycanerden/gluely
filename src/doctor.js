@@ -1,8 +1,9 @@
+import { listAccounts } from './accounts.js';
 import { scanContext } from './context.js';
 import { runTests } from './brain-tests.js';
 import { learn } from './log.js';
 import { validatePlays } from './plays.js';
-import { installedSkills } from './skills.js';
+import { installedSkills, skillUsage } from './skills.js';
 import { loadStack } from './stack.js';
 import { contextVersion, git, loadConfig } from './workspace.js';
 
@@ -16,6 +17,7 @@ export function diagnose(ws) {
   const stack = loadStack(ws);
   const version = contextVersion(ws);
   const learned = learn(ws);
+  const accounts = listAccounts(ws);
   const isRepo = git(ws, ['rev-parse', '--is-inside-work-tree']) === 'true';
 
   const { summary } = context;
@@ -53,6 +55,7 @@ export function diagnose(ws) {
     context: summary,
     plays: plays.plays.map(({ id, status, signal }) => ({ id, status, signal })),
     tests,
-    learning: { open: learned.open, promoted: learned.promoted, decisions: learned.decisions },
+    learning: { open: learned.open, promoted: learned.promoted, decisions: learned.decisions, skill_runs: skillUsage(ws).runs },
+    accounts: { total: accounts.total, by_stage: accounts.by_stage, people: accounts.people, signals: accounts.signals },
   };
 }

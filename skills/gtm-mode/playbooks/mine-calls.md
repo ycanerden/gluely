@@ -9,3 +9,4 @@ Calls are where buyers say why they buy. Only use calls with recording consent.
 5. Paraphrase. Never put a prospect's name, company or long quote in `context/`.
 6. Propose the change on a branch, listing the evidence and the plays it affects.
 7. Add a test for anything the brain should now handle differently.
+8. Keep what happened on the account itself, such as who was on the call and what moved: see `deal-status.md`. The account keeps the history, and `context/` keeps the lesson.

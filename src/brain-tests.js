@@ -4,6 +4,7 @@ import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import YAML from 'yaml';
+import { guardCompanies } from './accounts.js';
 import { loadExcuses, loadVoice } from './context.js';
 import { fail } from './output.js';
 import { TEST_KINDS } from './vocab.js';
@@ -59,8 +60,8 @@ export function checkDraft(ws, text, channel) {
 
 export function checkCompany(ws, value) {
   const domain = normalizeDomain(value);
-  const hit = loadExclusions(ws).rows.find((row) => normalizeDomain(row.domain) === domain);
-  return { domain, blocked: Boolean(hit), reason: hit?.reason || (hit ? 'excluded' : null) };
+  const hit = [...loadExclusions(ws).rows, ...guardCompanies(ws)].find((row) => normalizeDomain(row.domain) === domain);
+  return { domain, blocked: Boolean(hit), reason: hit?.reason || (hit ? 'excluded' : null), ...(hit?.from ? { from: hit.from } : {}) };
 }
 
 function runDeterministic(ws, item) {

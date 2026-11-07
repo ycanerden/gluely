@@ -8,7 +8,7 @@ Gluely isn't an outbound tool, and it doesn't pick your vendors. Bring any scrap
 
 ![Gluely architecture: your agent thinks, Gluely remembers and checks, your brain stays in your own private repo, and your tools do the work](docs/architecture.svg)
 
-> **Early preview.** Gluely is at version 0.0.1, phase 0 of 5. The brain works: context, plays, cost checks, draft checks, the customer-data guard, play results, the decision log and brain tests. Signals, the Person 360 database, replies and CRM sync don't exist yet. See [Status](#status).
+> **Early preview.** Gluely is at version 0.0.1, phase 0 of 5. The brain works: context, plays, cost checks, draft checks, the customer-data guard, play results, the decision log, brain tests and account memory in a plain file. Signal sources, Person 360 on your own database, replies and CRM sync don't exist yet. See [Status](#status).
 
 ## Try it
 
@@ -63,6 +63,17 @@ gluely guard exports/list.csv --to "your enrichment tool"
 
 **Plays are judged by what they produced.** `gluely results add` records touches, replies, meetings and spend. `gluely results` shows the range a rate could really be, the cost per meeting, and a verdict: under 50 touches it's too early, from 50 a play with no positive reply can die, and at 100 its kill rule decides. Zero replies on email asks where the emails landed before anyone blames the copy. A person makes the final call.
 
+**Know where every deal is at.** `gluely accounts show globex.example` answers from the brain's own memory: the stage and how it moved, who owns it, the champion, buyer and blockers (and which of them nobody has named yet), the latest signals and what was said on the last call. Call notes are kept as untrusted data, because they're what prospects said. Once an account is in a conversation or a customer, `gluely guard` holds it, and `gluely accounts erase` handles an erasure request while keeping the opt-out. Today this lives in a plain file in `accounts/`, which git ignores so an erasure really erases. Other stores plug in during phase 1.
+
+```bash
+gluely accounts stage globex.example in_conversation --name Globex --owner sam
+gluely accounts person globex.example --name "Pat Doe" --role champion --title "Head of Sales"
+gluely accounts note globex.example --kind call --text "Budget opens in Q3. Security review first."
+gluely accounts show globex.example
+```
+
+**Know which skills earn their place.** Agents keep each skill run with `gluely skills used <skill> --outcome worked|corrected|abandoned`. `gluely skills usage` shows how often each skill runs, how often a person had to fix the result and why, and which skills nobody runs.
+
 **Product-led too.** The product lifecycle playbook answers a trial ending, a cancel or a downgrade with a stage-specific note. A work address gets a founder's plain note, a personal one gets the brand.
 
 **Set up a play one question at a time.** `gluely plays start` walks you through a playbook: job switch, post engagers, hiring signal, inbound demo request or own network. At each step it shows your options, saves your answer and tells you the honest arithmetic. If you stop, it picks up where you left off. Agents use the same steps with `gluely plays next` and `gluely plays answer --json`.
@@ -88,9 +99,29 @@ gluely learn
 
 **Build on it.** Add your own signals in `workspace.yaml`, your own plays in `plays/`, and your own tests in `tests/`, with no change to core.
 
+## The brain, folder by folder
+
+```text
+my-brain/                     one private repo per company
+  workspace.yaml              company, market, motion, your stack, your own signals
+  context/                    what the brain believes. A person approves every change
+    company.md icp.md         who you are, and who you sell to
+    positioning.md            competitors, and the line every team repeats
+    personas/                 the people who buy, by type
+    proof/ objections/        claims, each marked hunch, repeated or measured
+    messaging/                voice rules and excuses to write
+    exclusions/               customers, partners and known people who never leave
+  plays/                      experiments, each with a kill rule
+  tests/                      every correction, kept as a test
+  accounts/                   every account: stage, people, signals, call notes. Not in git
+  learning/                   append-only: decisions, play results, skill runs, waterfall tests
+  .claude/ .cursor/           the skills your agent reads
+  exports/                    lists in and out. Not in git
+```
+
 ## Your data
 
-- **Your brain stays yours.** It's a private git repo on your machine. `gluely init` refuses to create one inside this public repo, and `exports/` and `transcripts/` are ignored by git. Keep the brain's remote private.
+- **Your brain stays yours.** It's a private git repo on your machine. `gluely init` refuses to create one inside this public repo, and `exports/`, `transcripts/` and `accounts/` are ignored by git. Keep the brain's remote private.
 - **The CLI calls nothing.** It never calls a model or another service, and never sends a message. Its only outside command is `git`, run on your own files.
 - **Your agent sees what you connect.** When `/setup-gluely` reads your CRM or deals, it reads them through your agent and its model provider. Gluely can't see or limit that, so connect only what you'd show that provider, and keep connections read-only.
 - **Most rules are instructions to your agent.** The skills tell it to treat prospect text as data, ask before it sends and never spend without approval. A good agent follows them, but Gluely can't force it. The one hard lock is spending: only a person in a terminal can approve it, and `gluely cost` reports `can_spend: false` until they do.
@@ -105,8 +136,8 @@ Phase 0 of 5: the brain pack.
 
 | Phase | Adds | Status |
 |---|---|---|
-| 0 | Stack map, onboarding, context, guided plays, tool library, cost checks, decision log, skills, brain tests, customer-data guard, play results, MCP server | Working |
-| 1 | The ledger on any store: Person 360 and Account 360 with buying committees, freshness on every enrichment, content, imports | Next |
+| 0 | Stack map, onboarding, context, guided plays, tool library, cost checks, decision log, skills and their usage, brain tests, customer-data guard, play results, MCP server | Working |
+| 1 | The ledger on any store: Person 360 and Account 360 with buying committees, freshness on every enrichment, content, imports. Account memory with stages, committees, signals and notes already works in a plain file | Started |
 | 2 | Work queue, excuses linked to signals, opt-outs | Planned |
 | 3 | Conversations, BDR drafts, reply-to-demo rate | Planned |
 | 4 | CRM, transcripts, won and lost, the full loop | Planned |

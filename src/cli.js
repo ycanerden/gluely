@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import { addNote, addPerson, addSignal, erasePerson, listAccounts, setStage, showAccount } from './accounts.js';
 import { addCase, checkCompany, checkDraft, pendingCases, runTests, submitAnswer } from './brain-tests.js';
 import { scanContext } from './context.js';
 import { estimateCost, setAssumptions, setPrice } from './cost.js';
@@ -16,7 +17,7 @@ import { serve } from './mcp.js';
 import { addResult, judgePlay, renderJudgement } from './results.js';
 import { planWaterfall, recordTest, renderWaterfall } from './waterfall.js';
 import { loadPrices } from './cost.js';
-import { HOSTS, installSkills, listSkills } from './skills.js';
+import { HOSTS, installSkills, listSkills, recordUse, SKILL_OUTCOMES, skillUsage } from './skills.js';
 import { loadStack, setStack } from './stack.js';
 import { CHANNELS } from './vocab.js';
 import { beside, Cancelled, interactive, mascot, say } from './ui.js';
@@ -43,6 +44,15 @@ Brain
   gluely check draft --channel <c> (--text <t> | --file <f>)     test a draft against your voice
   gluely check company <domain>                                  is this company excluded?
   gluely guard <list.csv> [--to <tool>] [--customers <csv>]      sort a list before it leaves: clear, to owners, held
+
+Accounts
+  gluely accounts [--stage s] [--owner o]                        every account, its owner and its stage
+  gluely accounts show <domain>                                  where is this deal at?
+  gluely accounts stage <domain> <stage> [--name n] [--owner o]  lead, in_conversation, customer, former_customer
+  gluely accounts person <domain> --name <n> --role <r> [--title t] [--email e]   champion, buyer, blocker, user, influencer
+  gluely accounts signal <domain> <signal> [--text t]            a reason to act now
+  gluely accounts note <domain> --text <t> [--kind call]         what was said, kept as untrusted data
+  gluely accounts erase --email <e> | --linkedin <l>             an erasure request. The opt-out stays
 
 Tests
   gluely test                                                    run tests and compare context versions
@@ -77,6 +87,8 @@ Tools
 
 Skills
   gluely skills list | install [--host claude,cursor]            the GTM skill pack
+  gluely skills used <skill> --outcome worked|corrected|abandoned   keep which skill ran and how it went
+  gluely skills usage                                            which skills get used, and how often they need fixing
 
 Agents
   gluely mcp [--workspace <dir>]                                 every command above as MCP tools, over stdio
@@ -99,6 +111,7 @@ export function parseArgs(argv) {
 }
 
 const activeWorkspace = () => process.env.GLUELY_WORKSPACE || findWorkspace();
+const plural = (n, word, many = `${word}s`) => `${n} ${n === 1 ? word : many}`;
 const line = (ok, text) => console.log(`${ok ? mark.ok() : mark.bad()} ${text}`);
 
 // Each command returns { data, render, exit }. `render` is skipped under --json.
@@ -140,6 +153,56 @@ export const commands = {
     const state = diagnose(requireWorkspace());
     const data = buildFlow(state);
     return { data, render: () => console.log(renderFlow(data, state.company.name)) };
+  },
+
+  accounts(args) {
+    const ws = requireWorkspace();
+    const [sub, domain, value] = args._;
+    const f = args.flags;
+    if (sub === 'show') {
+      const data = showAccount(ws, domain, { notes: f.notes ? Number(f.notes) : undefined });
+      return { data, render: () => renderAccount(data) };
+    }
+    if (sub === 'stage') {
+      if (!value) fail('usage', 'Usage: gluely accounts stage <domain> <lead|in_conversation|customer|former_customer>');
+      const data = setStage(ws, domain, value, { name: f.name, owner: f.owner, why: f.why, by: f.by });
+      return { data, render: () => line(true, `${data.name || data.domain} is now ${data.stage}`) };
+    }
+    if (sub === 'person') {
+      const data = addPerson(ws, domain, { name: f.name, role: f.role, title: f.title, email: f.email, linkedin: f.linkedin, owner: f.owner, by: f.by });
+      return { data, render: () => line(true, `Kept ${f.name} as ${f.role} at ${data.name || data.domain}`) };
+    }
+    if (sub === 'signal') {
+      const data = addSignal(ws, domain, value, { text: f.text, by: f.by });
+      return { data, render: () => line(true, `Kept ${value} for ${data.name || data.domain}`) };
+    }
+    if (sub === 'note') {
+      const data = addNote(ws, domain, { text: f.text, kind: f.kind, by: f.by });
+      return { data, render: () => line(true, `Kept a ${data.note.kind} note for ${data.company}`) };
+    }
+    if (sub === 'erase') {
+      const data = erasePerson(ws, { email: f.email, linkedin: f.linkedin, by: f.by });
+      return {
+        data,
+        render() {
+          line(true, `Erased ${data.erased} records and scrubbed ${data.notes_scrubbed} notes. Kept ${data.kept}.`);
+          console.log(`${mark.next()} ${data.note}`);
+        },
+      };
+    }
+    if (sub) fail('usage', 'Usage: gluely accounts [show | stage | person | signal | note | erase]');
+    const data = listAccounts(ws, { stage: f.stage, owner: f.owner });
+    return {
+      data,
+      render() {
+        const counts = Object.entries(data.by_stage).filter(([, n]) => n).map(([st, n]) => `${n} ${st.replace('_', ' ')}`).join(', ');
+        console.log(color.bold('Accounts') + color.dim(`   ${data.total} kept${counts ? `: ${counts}` : ''}, ${plural(data.people, 'person', 'people')}`));
+        if (!data.total) console.log(color.dim('Nothing yet. Start with gluely accounts stage <domain> lead --name <name>.'));
+        for (const a of data.accounts) {
+          console.log(`  ${(a.name || a.domain).padEnd(24)} ${String(a.stage || '-').padEnd(16)} ${String(a.owner || '').padEnd(10)} ${color.dim(`${plural(a.people, 'person', 'people')}, ${plural(a.signals, 'signal')}, ${plural(a.notes, 'note')}, quiet ${a.days_quiet}d`)}`);
+        }
+      },
+    };
   },
 
   context(args) {
@@ -458,7 +521,27 @@ export const commands = {
         },
       };
     }
-    if (sub !== 'install') fail('usage', 'Usage: gluely skills list | install [--host claude,cursor]');
+    if (sub === 'used') {
+      const { outcome, play, why, by } = args.flags;
+      const data = recordUse(requireWorkspace(), args._[1], { outcome, play, why, by });
+      return { data, render: () => line(true, `Kept: ${data.skill} ${data.outcome}`) };
+    }
+    if (sub === 'usage') {
+      const data = skillUsage(requireWorkspace());
+      return {
+        data,
+        render() {
+          console.log(color.bold('Skill usage') + color.dim(`   ${data.runs} runs`));
+          if (!data.runs) console.log(color.dim(`Nothing yet. Agents keep each run with gluely skills used <skill> --outcome ${SKILL_OUTCOMES.join('|')}.`));
+          for (const s of data.skills) {
+            console.log(`  ${s.skill.padEnd(30)} ${String(s.runs).padStart(3)} runs  ${color.dim(`${s.worked} worked, ${s.corrected} corrected, ${s.abandoned} abandoned, last ${s.last.slice(0, 10)}`)}`);
+            for (const r of s.reasons) console.log(color.dim(`      ${r.outcome}: ${r.why}`));
+          }
+          if (data.runs && data.never_used.length) console.log(`\n${color.dim(`Never used: ${data.never_used.join(', ')}`)}`);
+        },
+      };
+    }
+    if (sub !== 'install') fail('usage', 'Usage: gluely skills list | install [--host claude,cursor] | used <skill> | usage');
     const hosts = args.flags.host ? args.flags.host.split(',') : Object.keys(HOSTS);
     for (const host of hosts) if (!HOSTS[host]) fail('bad_host', `Unknown host "${host}". Use ${Object.keys(HOSTS).join(', ')}.`);
     const data = installSkills(requireWorkspace(), hosts);
@@ -485,6 +568,24 @@ function renderStep(state) {
   console.log(`${state.number}/${state.total}  ${color.bold(step.ask)}\n${color.dim(step.why)}`);
   for (const option of step.options || []) console.log(`  ${option.value === option.label ? option.label : `${option.value}: ${option.label}`}`);
   console.log(`${mark.next()} gluely plays answer ${state.play} ${step.id} <value>`);
+}
+
+function renderAccount(a) {
+  console.log(color.bold(a.name || a.domain) + color.dim(`   ${a.domain}`));
+  console.log(`  ${color.dim('Stage'.padEnd(9))}${a.stage || 'none yet'}${a.since ? color.dim(` since ${a.since.slice(0, 10)}`) : ''}${a.owner ? `, owned by ${a.owner}` : ''}`);
+  console.log(`  ${color.dim('Quiet'.padEnd(9))}${a.days_quiet} days`);
+  console.log(`\n  ${color.bold('People')}`);
+  if (!a.people.length) console.log(color.dim('    nobody named yet'));
+  for (const p of a.people) console.log(`    ${p.role.padEnd(11)} ${p.name}${p.title ? color.dim(`, ${p.title}`) : ''}${p.owner ? color.dim(`  owner ${p.owner}`) : ''}`);
+  if (a.missing.length) console.log(`    ${mark.warn()} no ${a.missing.join(' or ')} named`);
+  if (a.signals.length) {
+    console.log(`\n  ${color.bold('Signals')}`);
+    for (const s of a.signals) console.log(`    ${color.dim(s.at.slice(0, 10))} ${s.signal}${s.text ? color.dim(`  ${s.text}`) : ''}`);
+  }
+  if (a.notes.length) {
+    console.log(`\n  ${color.bold('Notes')} ${color.dim(`latest ${a.notes.length} of ${a.notes_total}. ${a.notes_are}`)}`);
+    for (const n of a.notes) console.log(`    ${color.dim(`${n.at.slice(0, 10)} ${n.kind}`)} ${n.text}`);
+  }
 }
 
 // Commands sit on their own line, so the words around them can't be mistaken for one.

@@ -4,3 +4,6 @@
 .DS_Store
 exports/
 transcripts/
+# Account memory holds people's details, and an erasure must really erase them.
+# Git history can't forget, so it stays out of git, like transcripts.
+accounts/

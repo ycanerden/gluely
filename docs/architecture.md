@@ -50,17 +50,17 @@ These are the nouns Gluely understands. Every company maps its own world onto th
 
 | Noun | Meaning | Status |
 |---|---|---|
-| `person`, `company` | Who | Partial: only as rows in lists and exclusions |
-| `signal` | Why now. A company can add its own under `extensions.signals` | Works |
+| `person`, `company` | Who | Partial: rows in lists and exclusions, and accounts with their people in `accounts/` |
+| `signal` | Why now. A company can add its own under `extensions.signals` | Works. Kept on accounts by hand, with no sources yet |
 | `claim` | Something the brain believes, with evidence `hunch`, `repeated` or `measured` | Works |
 | `play` | A hypothesis you can kill. **An experiment is a play** | Works |
 | `touch`, `reply`, `meeting` | What happened | Partial: counts per play, not per person |
 | `case` | A test: an input and the answer a human expects | Works |
 | `lesson` | A human correction, waiting to become a rule | Works |
-| `stage` | Where a person or company stands: `lead`, `in_conversation`, `customer`, `former_customer` | Proposed |
-| `relationship` | Who owns the contact with someone, which isn't always the CRM record owner | Proposed |
+| `stage` | Where a company stands: `lead`, `in_conversation`, `customer`, `former_customer` | Works for accounts. Not yet read from a mapping |
+| `relationship` | Who owns the contact with someone, which isn't always the CRM record owner, and the part they play in a deal: `champion`, `buyer`, `blocker`, `user`, `influencer` | Partial: an owner and a role per person on an account |
 
-Two nouns are proposed, because the tryout's HubSpot mapping found nothing to map deal stages and "in a conversation with sales" onto. The test for adding a noun: can three very different companies all use it? If only one can, it goes in their workspace.
+Stage and relationship were added because the tryout's HubSpot mapping found nothing to map deal stages and "in a conversation with sales" onto. The test for adding a noun: can three very different companies all use it? If only one can, it goes in their workspace.
 
 ## 2. Workspace: the memory
 

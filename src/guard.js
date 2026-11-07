@@ -4,6 +4,7 @@
 // It reads files and writes files. It calls nothing.
 import fs from 'node:fs';
 import path from 'node:path';
+import { erasedKeys, guardCompanies, guardPeople, personKey } from './accounts.js';
 import { addEntry } from './log.js';
 import { fail } from './output.js';
 import { loadConfig, loadExclusions, normalizeDomain, parseCsv } from './workspace.js';
@@ -97,23 +98,27 @@ function readCustomers(file, market) {
 export function guardRules(ws, { customersFile } = {}) {
   const market = MARKETS.includes(loadConfig(ws).company.market) ? loadConfig(ws).company.market : 'b2b';
   const extra = readCustomers(customersFile, market);
-  const companies = [...loadExclusions(ws).rows.filter((r) => r.domain || r.name), ...extra.companies];
-  const people = [...loadPeople(ws), ...extra.people];
+  const companies = [...loadExclusions(ws).rows.filter((r) => r.domain || r.name), ...guardCompanies(ws), ...extra.companies];
+  const people = [...loadPeople(ws), ...guardPeople(ws), ...extra.people];
   return {
     market,
     companies,
     people,
+    erased: erasedKeys(ws),
     customers: companies.filter(isCustomer).length,
     customer_people: people.filter(isCustomer).length,
   };
 }
 
 // One row in, one decision out. Held beats owner, and owner beats clear.
-export function sortRow(row, { companies, people, market = 'b2b', customer_people: customerPeople = 0 }) {
+export function sortRow(row, { companies, people, erased = new Set(), market = 'b2b', customer_people: customerPeople = 0 }) {
   const domain = companyDomain(row, market);
   const company = pick(row, 'company');
   const email = pick(row, 'email').trim().toLowerCase();
   const profile = normalizeProfile(pick(row, 'linkedin'));
+  if ((email && erased.has(personKey(email))) || (profile && erased.has(personKey(profile)))) {
+    return { bucket: 'held', reason: 'asked to be erased. Never contact them or send their details anywhere' };
+  }
   const names = new Set([normalizeName(company), domainName(domain)].filter(Boolean));
 
   const byDomain = domain && companies.find((c) => c.domain && normalizeDomain(c.domain) === domain);

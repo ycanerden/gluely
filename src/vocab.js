@@ -30,6 +30,11 @@ export const SIGNALS = [
 export const REPLY_LABELS = ['positive', 'question', 'not_now', 'negative', 'ooo', 'referral', 'unsubscribe'];
 export const ICP_BANDS = ['hot', 'warm', 'ignore'];
 
+// Where a company stands, and the part each person plays in the deal.
+export const STAGES = ['lead', 'in_conversation', 'customer', 'former_customer'];
+export const COMMITTEE_ROLES = ['champion', 'buyer', 'blocker', 'user', 'influencer'];
+export const NOTE_KINDS = ['call', 'meeting', 'email', 'chat', 'other'];
+
 export const CHANNELS = ['email', 'linkedin_note', 'linkedin_message', 'phone', 'other'];
 
 // `reasoned` kinds need the user's agent. `deterministic` kinds run with no model at all.

@@ -7,6 +7,7 @@ const PAINT = { working: color.green, started: color.yellow, later: color.dim, t
 
 export function buildFlow(state) {
   const { context, plays, tests, stack } = state;
+  const accounts = state.accounts || { total: 0, people: 0, signals: 0 };
   const yours = (layer, fallback) => (stack[layer] ? `${stack[layer]}, your choice` : fallback);
   const filled = context.confirmed + context.draft;
   const stage = (id, label, status, detail) => ({ id, label, status, detail });
@@ -15,18 +16,22 @@ export function buildFlow(state) {
     stages: [
       stage('context', 'Context', filled ? 'working' : 'started', `${filled}/${context.total} files filled, ${context.personas} personas`),
       stage('plays', 'Plays and ideas', plays.length ? 'working' : 'started', `${plays.length} plays, ${plays.filter((p) => p.status === 'active').length} active. Costs checked before spending`),
-      stage('signals', 'Signals', 'later', 'content, inbound, job switch. Phase 1'),
+      stage('signals', 'Signals', 'started', accounts.signals
+        ? `${accounts.signals} kept on accounts by hand. Signal sources in phase 1`
+        : 'kept by hand with gluely accounts signal. Sources in phase 1'),
       stage('excuse', 'Excuse', 'started', 'rules and draft check work. Link to signals in phase 2'),
       stage('gate', 'Exclusion gate', context.excluded_companies ? 'working' : 'started', `${context.excluded_companies} companies, ${context.known_people} known people. gluely guard sorts every list before it leaves`),
       stage('enrichment', 'Enrichment', 'tool', yours('enrichment', 'any tool you like')),
       stage('outbound', 'Outbound tool', 'tool', `${yours('outreach', 'any tool you like')}. Gluely never sends`),
-      stage('database', 'Database', 'later', `Person 360 in ${stack.store || 'any store'}. Phase 1`),
+      stage('database', 'Database', 'started', accounts.total
+        ? `${accounts.total} accounts, ${accounts.people} people in the file store. ${stack.store ? `${stack.store} and other` : 'Other'} stores in phase 1`
+        : `account memory in a plain file. Person 360 in ${stack.store || 'any store'} in phase 1`),
       stage('crm', 'CRM', 'tool', `${yours('crm', 'any CRM')}. Sales-ready sync in phase 4`),
       stage('replies', 'Replies', 'later', 'opt-outs in phase 2, labels in phase 3'),
       stage('bdr', 'BDR agent', 'later', 'reply to demo. Phase 3'),
       stage('sales', 'Sales reps, demo, close', 'tool', 'won and lost tracked in phase 4'),
       stage('transcripts', 'Transcripts', 'later', `${stack.transcripts ? `${stack.transcripts}, ` : ''}with consent. Phase 4`),
-      stage('learning', 'Learning', 'started', `${tests.deterministic.total + tests.reasoned.total} brain tests, ${state.learning.open} open lessons, ${state.learning.promoted} promoted`),
+      stage('learning', 'Learning', 'started', `${tests.deterministic.total + tests.reasoned.total} brain tests, ${state.learning.open} open lessons, ${state.learning.promoted} promoted, ${state.learning.skill_runs || 0} skill runs kept`),
     ],
   };
 }

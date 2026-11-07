@@ -189,7 +189,7 @@ test('setting the stack keeps the comments in workspace.yaml', () => {
 });
 
 test('core gives no vendor special treatment', () => {
-  const core = ['brain-tests', 'context', 'cost', 'doctor', 'flow', 'init', 'library', 'log', 'playbooks', 'plays', 'skills', 'ui', 'walk', 'workspace']
+  const core = ['accounts', 'brain-tests', 'context', 'cost', 'doctor', 'flow', 'init', 'library', 'log', 'playbooks', 'plays', 'skills', 'ui', 'walk', 'workspace']
     .map((f) => fs.readFileSync(path.join(ROOT, 'src', `${f}.js`), 'utf8')).join('');
   assert.doesNotMatch(core, /hubspot|salesforce|snowflake|supabase|instantly|apify/i);
 });
@@ -198,7 +198,8 @@ test('flow never claims an unbuilt stage works, and marks outside tools', () => 
   const ws = makeWorkspace();
   const { stages } = gluely(['flow', '--json'], ws).json;
   const status = Object.fromEntries(stages.map((s) => [s.id, s.status]));
-  assert.equal(status.database, 'later');
+  assert.equal(status.database, 'started', 'account memory is a file store, not Person 360 yet');
+  assert.notEqual(status.signals, 'working', 'signals are kept by hand, with no sources yet');
   assert.equal(status.bdr, 'later');
   assert.equal(status.outbound, 'tool');
   assert.equal(status.context, 'started');
