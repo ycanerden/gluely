@@ -45,7 +45,7 @@ Brain
   gluely plays list | validate | new <id>                        hypotheses with kill rules
   gluely playbooks                                               example plays to start from
   gluely check draft --channel <c> (--text <t> | --file <f>)     test a draft against your voice
-  gluely check company <domain>                                  is this company excluded?
+  gluely check company <domain or name>                          is this company excluded? (same matcher as guard)
   gluely guard <list.csv> [--to <tool>] [--customers <csv>]      sort a list before it leaves: clear, to owners, held
 
 Tests
@@ -275,12 +275,12 @@ export const commands = {
   check(args) {
     const ws = requireWorkspace();
     if (args._[0] === 'company') {
-      if (!args._[1]) fail('usage', 'Usage: gluely check company <domain>');
+      if (!args._[1]) fail('usage', 'Usage: gluely check company <domain or name>');
       const data = checkCompany(ws, args._[1]);
       return {
         data,
         exit: data.blocked ? 1 : 0,
-        render: () => line(!data.blocked, data.blocked ? `${data.domain} is excluded: ${data.reason}` : `${data.domain} is not on your exclusion list`),
+        render: () => line(!data.blocked, data.blocked ? `${data.domain || data.company}: ${data.why}` : `${data.domain || data.company} is not on your exclusion list`),
       };
     }
     if (args._[0] !== 'draft') fail('usage', 'Usage: gluely check draft --channel <c> (--text <t> | --file <f>) | gluely check company <domain>');

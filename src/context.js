@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { loadPeople } from './guard.js';
 import { CONTEXT_STATUSES, EVIDENCE } from './vocab.js';
-import { loadConfig, loadExclusions, readFrontmatter } from './workspace.js';
+import { columnIndexes, loadConfig, loadExclusions, readFrontmatter } from './workspace.js';
 
 const REQUIRED = ['company.md', 'icp.md', 'positioning.md', 'messaging/voice.md', 'messaging/excuses.md', 'exclusions/rules.md'];
 const CLAIM_DIRS = ['personas', 'objections', 'proof'];
@@ -97,8 +97,12 @@ export function scanContext(ws, { now = Date.now() } = {}) {
   if (!personas.length) issues.push({ level: 'warn', file: 'context/personas/', message: 'add at least one persona' });
 
   const exclusions = loadExclusions(ws);
-  if (exclusions.header.length && !exclusions.header.includes('domain')) {
-    issues.push({ level: 'error', file: 'context/exclusions/companies.csv', message: 'needs a domain column' });
+  for (const { line, problem } of exclusions.problems) {
+    issues.push({ level: 'error', file: 'context/exclusions/companies.csv', message: `line ${line}: ${problem}` });
+  }
+  const readable = ['domain', 'name', 'company'].some((kind) => columnIndexes(exclusions.header, kind).length);
+  if (exclusions.header.length && !readable) {
+    issues.push({ level: 'error', file: 'context/exclusions/companies.csv', message: 'needs a domain or name column' });
   }
   if (!exclusions.rows.length) {
     issues.push({ level: 'warn', file: 'context/exclusions/companies.csv', message: 'no excluded companies yet: add clients, investors and partners before any outreach' });

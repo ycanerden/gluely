@@ -7,7 +7,11 @@ import YAML from 'yaml';
 import { loadExcuses, loadVoice } from './context.js';
 import { fail } from './output.js';
 import { TEST_KINDS } from './vocab.js';
-import { contextVersion, loadExclusions, normalizeDomain } from './workspace.js';
+import { checkCompany } from './guard.js';
+import { contextVersion } from './workspace.js';
+
+// One matcher: an exclusion test asks exactly what the guard would answer.
+export { checkCompany };
 
 const testsDir = (ws) => path.join(ws, 'tests');
 const resultsFile = (ws) => path.join(testsDir(ws), 'results.jsonl');
@@ -55,12 +59,6 @@ export function checkDraft(ws, text, channel) {
     }
   }
   return { pass: violations.length === 0, violations, words, chars };
-}
-
-export function checkCompany(ws, value) {
-  const domain = normalizeDomain(value);
-  const hit = loadExclusions(ws).rows.find((row) => normalizeDomain(row.domain) === domain);
-  return { domain, blocked: Boolean(hit), reason: hit?.reason || (hit ? 'excluded' : null) };
 }
 
 function runDeterministic(ws, item) {

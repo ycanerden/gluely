@@ -38,7 +38,7 @@ Gluely makes no calls. The agent carries data through the two doors with your ow
 | **Vocabulary** | The fixed nouns every company shares | `src/vocab.js` | Partial |
 | **Workspace** | The company's memory, versioned in git | your private repo | Works |
 | **In door: mapping** | Turns your custom CRM into the vocabulary | `mapping.yaml` | Proposed |
-| **Out door: gate** | Decides what may leave, and holds when in doubt | `src/guard.js` | Works, but fails open (see below) |
+| **Out door: gate** | Decides what may leave, and holds when in doubt | `src/guard.js` | Works, fails closed (see below) |
 | **The loop** | Runs every experiment the same way, and keeps what it taught | plays, results, log, tests | Works for plays, partial for experiments |
 | **Skills** | Tell any agent how to think about GTM | `skills/` | Works |
 
@@ -126,20 +126,24 @@ Every list that leaves for an outside tool passes `gluely guard`. Each row ends 
 | `owner` | Someone on the team owns this relationship | That teammate |
 | `held` | A customer, a look-alike, or anything that couldn't be checked | A human, and it stays home |
 
-**The rule that must hold: clear only what's positively checked. When in doubt, hold.** Today the gate fails open. The tryout got about 36 real customer or relationship rows into `clear`:
-- a junk domain column overrode a customer's email
-- a stray quote swallowed rows without a warning
-- unknown customer-export columns were ignored
-- known people matched only by exact email
+**The rule that must hold: clear only what's positively checked. When in doubt, hold.** The Northwind tryout got 46 rows into `clear` from about 12 root causes (a junk domain column overriding a customer's email, a stray quote swallowing rows, an unreadable customer export ignored without a word, known people matched only by exact email). All 46 now land in `held` or `owner`, or the file is refused; `test/guard.test.js` replays them.
 
-Fixing that is the first piece of work, because experiments bring in exactly this kind of messy list.
+What the gate does now:
+- **Every identifier counts.** Domain and website columns, every email address in any column, company names (a domain typed as a name too), LinkedIn company pages and profiles. Any one match holds the row.
+- **Names are folded before they're compared.** Case, accents, look-alike Cyrillic and Greek letters, `&`, dotted abbreviations (`S.A.`, `L.L.C.`) and legal words. Whole-word prefixes (`Contoso Labs`, `Contoso (UK)`, `Tailspin` for `Tailspin Toys`) are look-alikes for any exclusion; glued suffixes (`ContosoLtd`, `contosogroup.example`) and one-letter typos only for customers.
+- **People match by inbox, not by string.** Plus addresses, Gmail dots and `googlemail.com` collapse to one inbox, and a known person's name at the same company goes to their owner.
+- **Customer reasons are read as CRM text.** `Active Customer`, `ex-customer` and `Customer (enterprise)` are customers, so they're held, never sent to an owner.
+- **A file must be intact.** Non-UTF-8 input, an unclosed quote, or a quoted cell that holds whole rows refuses the file. A stray quote inside a cell, or a row with the wrong number of cells, holds that row. A customer export or exclusion file with no readable column is refused, never skipped.
+- **Columns are matched by name, not by spelling.** `Work Email`, `work-email` and `WORK_EMAIL` are one column. Duplicate columns keep their data, and output files keep the original header.
+
+Still open: a real `mapping.yaml` (below), name-only matching of people in B2C, and a list of a customer's other domains and subsidiaries.
 
 The gate's other rules:
 
 - One matcher. `guard`, `check company` and the exclusion tests must give the same answer.
 - Check every identifier. A match on email domain, domain or company name holds the row.
 - The file must be intact. If parsed rows don't equal physical lines, refuse.
-- Every decision says why: `matched_on`, `matched_rule`, `parsed_rows`, `unread_columns`.
+- Every decision says why. `--json` gives `matched_on` and `rule` (the exclusion file and line) per held or owner row, plus `total`, `lines`, `columns_read`, `unread_columns` and, with `--customers`, `customers_loaded`.
 
 ## 5. The loop: every experiment runs the same way
 
@@ -159,7 +163,7 @@ An experiment is a play. A play runs this lifecycle, and each step names who act
 | **Brief** | The agent reads context, exclusions and **what we tried before**, then proposes 2–3 routes with honest arithmetic | `/experiment` skill, `gluely plays history` | Proposed |
 | **Draft** | The chosen route becomes `plays/<id>.yaml`: hypothesis, signal, audience, excuse, tools, kill rule | `plays start`, `plays validate` | Works |
 | **Approved** | A person sets it active and approves the cost | `cost`, `cost approve` | Works |
-| **Running** | The agent finds people with your tools, the gate sorts them, drafts are checked, a human sends | `guard`, `check draft`, `recall` | Works (gate fails open) |
+| **Running** | The agent finds people with your tools, the gate sorts them, drafts are checked, a human sends | `guard`, `check draft`, `recall` | Works |
 | **Judged** | Results come in, with honest ranges and the kill rule | `results add`, `results` | Works |
 | **Closed** | A human records the verdict and why. Lessons become context changes and tests | verdict record, `log`, `learn`, `test` | Partial: there's no verdict record yet |
 
