@@ -87,9 +87,9 @@ const TOOLS = [
   { name: 'results', title: 'How a play is doing', cli: ['results'], args: ['play'],
     description: 'What a play produced, judged against its kill rules: keep, kill or wait.', input: schema({ play: str('Play id') }, ['play']) },
   { name: 'results_add', title: 'Record play results', cli: ['results', 'add'], args: ['play'], writes: true,
-    flags: { touches: 'touches', positive: 'positive', replies: 'replies', meetings: 'meetings', spent: 'spent', placement: 'placement' },
-    description: 'Record a batch of results for a play.',
-    input: schema({ play: str('Play id'), touches: num('Touches sent'), positive: num('Positive replies'), replies: num('All replies'), meetings: num('Meetings booked'), spent: num('Money spent'), placement: str('inbox or spam') }, ['play', 'touches', 'positive']) },
+    flags: { touches: 'touches', positive: 'positive', replies: 'replies', meetings: 'meetings', spent: 'spent', placement: 'placement', on: 'on' },
+    description: "Record a batch of results for a play. Pass on with the day the touches went out. When importing from a sender, add one batch per day from its daily stats, so the dashboard shows when things happened. Read warnings: a day added twice counts twice.",
+    input: schema({ play: str('Play id'), touches: num('Touches sent'), positive: num('Positive replies'), replies: num('All replies'), meetings: num('Meetings booked'), spent: num('Money spent'), placement: str('inbox or spam'), on: str('The day the touches went out, YYYY-MM-DD. Defaults to today') }, ['play', 'touches', 'positive']) },
 
   { name: 'cost_estimate', title: 'Estimate before spending', cli: ['cost'], args: ['play'], flags: { fit: 'fit', touches: 'touches', checks: 'checks', meeting_rate: 'meeting-rate', hit_rate: 'hit-rate' }, writes: true,
     description: 'Estimate what a play will cost before any credits are spent. Saves the assumptions. Only a person can approve, by running gluely cost approve <play> in a terminal.',

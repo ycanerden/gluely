@@ -887,3 +887,29 @@ test('the dashboard counts what was logged, keeps workspace text inert, and stay
   assert.equal(gluely(['dashboard', '--out', '../outside.html', '--json'], ws).json.error.code, 'bad_path');
   assert.equal(gluely(['dashboard', '--weeks', '0', '--json'], ws).json.error.code, 'bad_number');
 });
+
+test('results carry the day they happened, so a weekly import lands on the right days', () => {
+  const ws = makeWorkspace();
+  fillContext(ws);
+  write(ws, 'plays/first-play.yaml', PLAY().replace(/kill: .*/, 'kill: { after_days: 14, if: "positive_rate < 1%" }'));
+  const add = (...flags) => gluely(['results', 'add', 'first-play', ...flags, '--json'], ws);
+  const day = (offset) => new Date(Date.now() - offset * 86400000).toISOString().slice(0, 10);
+
+  assert.equal(add('--touches', '5', '--on', '2026-02-30').json.error.code, 'bad_date');
+  assert.equal(add('--touches', '5', '--on', 'last week').json.error.code, 'bad_date');
+  assert.equal(add('--touches', '5', '--on', day(-2)).json.error.code, 'bad_date', 'no results from the future');
+
+  // A backfill: three weeks of daily sender stats, added in one sitting.
+  for (const offset of [20, 13, 6]) assert.deepEqual(add('--touches', '20', '--replies', '2', '--on', day(offset)).json.warnings, []);
+  const judged = gluely(['results', 'first-play', '--json'], ws).json;
+  assert.equal(judged.since, day(20));
+  assert.equal(judged.days, 20, 'the kill clock starts on the first real day, not the day of the import');
+  assert.equal(judged.verdict, 'kill', 'after_days is due and no positive came back');
+
+  const repeat = add('--touches', '20', '--on', day(6)).json;
+  assert.match(repeat.warnings[0], /already has a batch on/);
+
+  const days = gluely(['dashboard', '--json'], ws).json.calendar.days.filter((d) => d.touches);
+  assert.deepEqual(days.map((d) => [d.date, d.touches]), [[day(20), 20], [day(13), 20], [day(6), 40]]);
+  assert.equal(add('--touches', '3').json.added.on, day(0), 'without --on a batch counts today');
+});
