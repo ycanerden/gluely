@@ -11,7 +11,7 @@ import { contextVersion } from './workspace.js';
 export const KILL_FROM = 50;
 export const DECIDE_AT = 100;
 const PLACEMENTS = ['inbox', 'spam', 'unchecked'];
-const COUNTS = ['touches', 'replies', 'positive', 'meetings'];
+const COUNTS = ['touches', 'replies', 'positive', 'meetings', 'unsubscribes'];
 const MONEY = ['spent', 'pipeline'];
 
 const file = (ws) => path.join(ws, 'learning', 'plays.jsonl');
@@ -46,20 +46,28 @@ const count = (flag, value) => {
 };
 
 export function addResult(ws, id, flags) {
-  readPlay(ws, id);
+  const spec = readPlay(ws, id);
   const at = new Date().toISOString();
   const entry = { at, on: readDay(flags.on, at.slice(0, 10)), play: id };
   for (const key of [...COUNTS, ...MONEY]) entry[key] = count(key, flags[key]);
+  const variants = spec.excuse?.variants;
+  if (flags.variant !== undefined && flags.variant !== true) {
+    const variant = String(flags.variant);
+    if (Array.isArray(variants) && !variants.map(String).includes(variant)) {
+      fail('unknown_variant', `${id} has no variant "${variant}". Its variants are ${variants.join(', ')}.`, `Add it under excuse.variants in plays/${id}.yaml first.`);
+    }
+    entry.variant = variant;
+  }
   if (!entry.touches && !entry.replies && !entry.spent) fail('usage', 'Pass at least --touches, and what came back: --replies, --positive, --meetings, --spent.');
-  for (const [part, whole] of [['replies', 'touches'], ['positive', 'replies'], ['meetings', 'positive']]) {
+  for (const [part, whole] of [['replies', 'touches'], ['positive', 'replies'], ['meetings', 'positive'], ['unsubscribes', 'touches']]) {
     if (entry[part] > entry[whole] && entry[whole]) fail('bad_number', `--${part} can't be more than --${whole}.`);
   }
   const placement = flags.placement ?? 'unchecked';
   if (!PLACEMENTS.includes(placement)) fail('usage', `--placement must be one of ${PLACEMENTS.join(', ')}: where test emails landed.`);
   Object.assign(entry, { placement, by: flags.by || 'human', context_version: contextVersion(ws).version });
   // Results are append-only, so a day added twice counts twice. Say so instead of guessing.
-  const warnings = readResults(ws).some((e) => e.play === id && dayOf(e) === entry.on)
-    ? [`${id} already has a batch on ${entry.on}. If this one repeats it, the day now counts twice.`]
+  const warnings = readResults(ws).some((e) => e.play === id && dayOf(e) === entry.on && (e.variant ?? null) === (entry.variant ?? null))
+    ? [`${id}${entry.variant ? ` variant ${entry.variant}` : ''} already has a batch on ${entry.on}. If this one repeats it, the day now counts twice.`]
     : [];
   fs.mkdirSync(path.dirname(file(ws)), { recursive: true });
   fs.appendFileSync(file(ws), `${JSON.stringify(entry)}\n`);
@@ -107,6 +115,7 @@ export function judgePlay(ws, id, now = Date.now()) {
     reply_rate: share(totals.replies, totals.touches),
     positive_rate: share(totals.positive, totals.touches),
     meeting_rate: share(totals.meetings, totals.touches),
+    unsubscribe_rate: share(totals.unsubscribes, totals.touches),
   };
   const roi = {
     per_positive: totals.positive ? totals.spent / totals.positive : null,
@@ -144,8 +153,10 @@ export function judgePlay(ws, id, now = Date.now()) {
       reply: metrics.reply_rate,
       positive: metrics.positive_rate,
       meeting: metrics.meeting_rate,
+      unsubscribe: metrics.unsubscribe_rate,
       positive_could_be: interval(totals.positive, totals.touches),
     },
+    variants: variantRows(entries),
     roi,
     placement,
     ...judged,
@@ -153,16 +164,69 @@ export function judgePlay(ws, id, now = Date.now()) {
   };
 }
 
+const sumOf = (entries) => Object.fromEntries([...COUNTS, ...MONEY].map((k) => [k, entries.reduce((sum, e) => sum + (e[k] || 0), 0)]));
+
+// Batches recorded with --variant, one row per variant. Batches without one stay out.
+function variantRows(entries) {
+  const names = [...new Set(entries.filter((e) => e.variant !== undefined).map((e) => e.variant))].sort();
+  return names.map((variant) => {
+    const totals = sumOf(entries.filter((e) => e.variant === variant));
+    return { variant, totals, positive_rate: share(totals.positive, totals.touches), positive_could_be: interval(totals.positive, totals.touches) };
+  });
+}
+
+// "Better" only when the two ranges don't overlap. Under KILL_FROM touches on either side,
+// nothing is known yet, so nothing is called. The baseline is always the company's own.
+export function versus(hits, total, baseHits, baseTotal, { lowerIsBetter = false } = {}) {
+  const mine = interval(hits, total);
+  const base = interval(baseHits, baseTotal);
+  const row = { rate: share(hits, total), could_be: mine, touches: total, baseline_rate: share(baseHits, baseTotal), baseline_could_be: base, baseline_touches: baseTotal };
+  if (total < KILL_FROM || baseTotal < KILL_FROM) return { ...row, call: 'too_early' };
+  const above = mine[0] > base[1];
+  const below = mine[1] < base[0];
+  const call = above ? (lowerIsBetter ? 'worse' : 'better') : below ? (lowerIsBetter ? 'better' : 'worse') : 'unclear';
+  return { ...row, call };
+}
+
+// Every play against everything else the company ran, and every variant against its siblings.
+export function compareAll(ws) {
+  const results = readResults(ws);
+  const ids = [...new Set(results.map((e) => e.play))];
+  const all = sumOf(results);
+  return ids.map((play) => {
+    const mine = results.filter((e) => e.play === play);
+    const own = sumOf(mine);
+    const rest = Object.fromEntries(Object.keys(all).map((k) => [k, all[k] - own[k]]));
+    const variants = variantRows(mine).map((row, _, rows) => {
+      const siblings = rows.filter((r) => r.variant !== row.variant);
+      const touches = siblings.reduce((n, r) => n + r.totals.touches, 0);
+      const positive = siblings.reduce((n, r) => n + r.totals.positive, 0);
+      return { variant: row.variant, positive: siblings.length ? versus(row.totals.positive, row.totals.touches, positive, touches) : null };
+    });
+    return {
+      play,
+      totals: own,
+      positive: versus(own.positive, own.touches, rest.positive, rest.touches),
+      unsubscribes: versus(own.unsubscribes, own.touches, rest.unsubscribes, rest.touches, { lowerIsBetter: true }),
+      variants,
+    };
+  });
+}
+
 export function renderJudgement(data, { color, line }) {
   console.log(color.bold(`Results: ${data.play}`) + color.dim(`   ${data.status}, ${data.batches} batches${data.since ? `, since ${data.since.slice(0, 10)}` : ''}`));
   if (data.batches) {
     const t = data.totals;
-    console.log(`  ${t.touches} touches, ${t.replies} replies, ${t.positive} positive, ${t.meetings} meetings`);
+    console.log(`  ${t.touches} touches, ${t.replies} replies, ${t.positive} positive, ${t.meetings} meetings${t.unsubscribes ? `, ${t.unsubscribes} unsubscribed` : ''}`);
     const range = data.rates.positive_could_be;
     if (range) console.log(`  positive rate ${pct(data.rates.positive)} ${color.dim(`(could really be ${pct(range[0])} to ${pct(range[1])})`)}`);
     if (data.roi.per_meeting !== null) console.log(`  ${data.roi.per_meeting.toFixed(2)} spent per meeting`);
     else if (data.roi.per_positive !== null) console.log(`  ${data.roi.per_positive.toFixed(2)} spent per positive reply`);
     if (data.roi.pipeline_per_spent !== null) console.log(`  ${data.roi.pipeline_per_spent.toFixed(1)}x pipeline for what it cost`);
+    for (const v of data.variants || []) {
+      const r = v.positive_could_be;
+      console.log(color.dim(`  variant ${v.variant}: ${v.totals.touches} touches, ${v.totals.positive} positive${r ? `, could really be ${pct(r[0])} to ${pct(r[1])}` : ''}`));
+    }
   }
   const good = ['keep', 'keep_going', 'too_early', 'no_results'].includes(data.verdict);
   line(good, `${data.verdict.replace(/_/g, ' ')}: ${data.why}`);

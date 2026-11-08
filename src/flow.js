@@ -26,7 +26,7 @@ export function buildFlow(state) {
       stage('bdr', 'BDR agent', 'later', 'reply to demo. Phase 3'),
       stage('sales', 'Sales reps, demo, close', 'tool', 'won and lost tracked in phase 4'),
       stage('transcripts', 'Transcripts', 'later', `${stack.transcripts ? `${stack.transcripts}, ` : ''}with consent. Phase 4`),
-      stage('learning', 'Learning', 'started', `${tests.deterministic.total + tests.reasoned.total} brain tests, ${state.learning.open} open lessons, ${state.learning.promoted} promoted`),
+      stage('learning', 'Learning', 'started', `${tests.deterministic.total + tests.reasoned.total} brain tests, ${state.learning.open} open lessons, ${state.learning.promoted} promoted. gluely retro ranks the week. Results are still added by hand until phase 1`),
     ],
   };
 }

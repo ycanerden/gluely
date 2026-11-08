@@ -120,14 +120,23 @@ export function runTests(ws) {
     expected: c.expect,
     by: current.get(c.id).by,
   }));
-  const regressions = reasoned.filter((c) => current.has(c.id) && right(c, previous) && !right(c, current)).map((c) => c.id);
+  // A regression is a case that was right under ANY committed version and is wrong now,
+  // not just under the last one. A dirty or uncommitted context proves nothing.
+  const committed = earlier.filter((v) => v !== 'uncommitted' && !v.endsWith('-dirty')).map((v) => [v, answersFor(results, v)]);
+  const rightUnder = (item) => committed.filter(([, answers]) => right(item, answers)).map(([v]) => v).at(-1) ?? null;
+  const regressionDetails = reasoned.filter((c) => current.has(c.id) && !right(c, current) && rightUnder(c)).map((c) => ({
+    id: c.id, was_right_under: rightUnder(c), answered: current.get(c.id).answer, expected: c.expect,
+  }));
+  const regressions = regressionDetails.map((r) => r.id);
   const improved = reasoned.filter((c) => current.has(c.id) && previous.has(c.id) && !right(c, previous) && right(c, current)).map((c) => c.id);
+  // Answered under an earlier committed context but not this one: the change is not proven yet.
+  const unproven = reasoned.filter((c) => !current.has(c.id) && committed.some(([, answers]) => answers.has(c.id))).map((c) => c.id);
   const pending = reasoned.filter((c) => !current.has(c.id)).map((c) => c.id);
 
   const failed = deterministic.filter((r) => !r.ok);
   return {
     context_version: version,
-    passed: !invalid.length && !failed.length && !regressions.length,
+    passed: !invalid.length && !failed.length && !regressions.length && !unproven.length,
     invalid,
     deterministic: { total: deterministic.length, passed: deterministic.length - failed.length, failed },
     reasoned: {
@@ -135,6 +144,8 @@ export function runTests(ws) {
       pending,
       wrong,
       regressions,
+      regression_details: regressionDetails,
+      unproven,
       improved,
       previous_version: previousVersion,
       previous: previousVersion ? score(reasoned, previous) : null,

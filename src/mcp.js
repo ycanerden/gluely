@@ -14,6 +14,8 @@ You do the thinking and the outside calls with your own tools. Gluely remembers 
 - Before writing anything for a prospect, call gluely_recall for that area and gluely_check_draft on the result.
 - Before a company or list leaves for an outside tool, call gluely_check_company or gluely_guard.
 - When a person corrects or decides something, keep it with gluely_log_add. That is how the brain learns.
+- Once a week, or when asked how things are going, call gluely_retro. It ranks what needs the person and what needs you. Draft each change on a branch with its evidence; the person approves.
+- Before proposing a new play, call gluely_plays_history, so a killed idea is not tried again blind.
 - Before spending credits, call gluely_cost_estimate. Only a person can approve, in a terminal: gluely cost approve <play>.`;
 
 const str = (description, extra = {}) => ({ type: 'string', description, ...extra });
@@ -32,6 +34,14 @@ const TOOLS = [
     input: schema({ out: str('Where to write the page, relative to the workspace. Defaults to exports/dashboard.html'), weeks: num('Weeks of activity to show, 1 to 104') }) },
   { name: 'context_check', title: 'Check the context', cli: ['context', 'check'], description: 'Is the company context filled in and valid? Lists errors and hunches.' },
 
+  { name: 'retro', title: 'The weekly retro', cli: ['retro'], flags: { days: 'days' },
+    description: 'The week turned into decisions: ranked proposals for the person (each with evidence, who approves and the next command), tasks for you, and plays still collecting. Writes nothing.',
+    input: schema({ days: num('Days the retro covers, 1 to 90. Defaults to 7') }) },
+  { name: 'plays_history', title: 'Every play and what it taught', cli: ['plays', 'history'],
+    description: 'Every play, killed ones included, with results, what Gluely suggests and every verdict a person gave with their reason. Read before proposing a new play.' },
+  { name: 'play_close', title: "Record a person's verdict", cli: ['plays', 'close'], args: ['play'], flags: { verdict: 'verdict', why: 'why', by: 'by' }, writes: true,
+    description: 'Record the verdict the person gave on a play: kept, paused or killed, with their reason. Only call this after the person has decided. It sets the play status and keeps the numbers it was decided on.',
+    input: schema({ play: str('Play id'), verdict: str('kept, paused or killed'), why: str("The person's reason, in their words"), by: BY }, ['play', 'verdict', 'why']) },
   { name: 'playbooks', title: 'Example playbooks', cli: ['playbooks'], description: 'Playbooks a new play can start from.' },
   { name: 'plays_list', title: 'List plays', cli: ['plays', 'validate'], description: 'Every play with its status and signal, and any problems with them.' },
   { name: 'play_start', title: 'Start a play', cli: ['plays', 'start'], args: ['playbook'], flags: { as: 'as' }, writes: true,
@@ -87,9 +97,9 @@ const TOOLS = [
   { name: 'results', title: 'How a play is doing', cli: ['results'], args: ['play'],
     description: 'What a play produced, judged against its kill rules: keep, kill or wait.', input: schema({ play: str('Play id') }, ['play']) },
   { name: 'results_add', title: 'Record play results', cli: ['results', 'add'], args: ['play'], writes: true,
-    flags: { touches: 'touches', positive: 'positive', replies: 'replies', meetings: 'meetings', spent: 'spent', placement: 'placement', on: 'on' },
+    flags: { touches: 'touches', positive: 'positive', replies: 'replies', meetings: 'meetings', unsubscribes: 'unsubscribes', spent: 'spent', variant: 'variant', placement: 'placement', on: 'on' },
     description: "Record a batch of results for a play. Pass on with the day the touches went out. When importing from a sender, add one batch per day from its daily stats, so the dashboard shows when things happened. Read warnings: a day added twice counts twice.",
-    input: schema({ play: str('Play id'), touches: num('Touches sent'), positive: num('Positive replies'), replies: num('All replies'), meetings: num('Meetings booked'), spent: num('Money spent'), placement: str('inbox or spam'), on: str('The day the touches went out, YYYY-MM-DD. Defaults to today') }, ['play', 'touches', 'positive']) },
+    input: schema({ play: str('Play id'), touches: num('Touches sent'), positive: num('Positive replies'), replies: num('All replies'), meetings: num('Meetings booked'), unsubscribes: num('People who asked to stop'), spent: num('Money spent'), variant: str('Which excuse variant these touches used, from the play'), placement: str('inbox or spam'), on: str('The day the touches went out, YYYY-MM-DD. Defaults to today') }, ['play', 'touches', 'positive']) },
 
   { name: 'cost_estimate', title: 'Estimate before spending', cli: ['cost'], args: ['play'], flags: { fit: 'fit', touches: 'touches', checks: 'checks', meeting_rate: 'meeting-rate', hit_rate: 'hit-rate' }, writes: true,
     description: 'Estimate what a play will cost before any credits are spent. Saves the assumptions. Only a person can approve, by running gluely cost approve <play> in a terminal.',

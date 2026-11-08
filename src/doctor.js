@@ -2,6 +2,7 @@ import { scanContext } from './context.js';
 import { runTests } from './brain-tests.js';
 import { learn } from './log.js';
 import { validatePlays } from './plays.js';
+import { readResults } from './results.js';
 import { installedSkills } from './skills.js';
 import { loadStack } from './stack.js';
 import { contextVersion, git, loadConfig } from './workspace.js';
@@ -40,6 +41,7 @@ export function diagnose(ws) {
   else if (tests.reasoned.pending.length) next = { step: 'Test the brain', how: inAgent('/gtm-mode, then ask it to run the brain tests') };
   else if (learned.open >= 3) next = { step: `Review ${learned.open} open lessons`, how: 'See what keeps coming up', command: 'gluely learn' };
   else if (!plays.plays.some((p) => p.status === 'active')) next = { step: 'Choose a first play', how: 'Answer a few questions to set one up', command: 'gluely plays start' };
+  else if (readResults(ws).length) next = { step: 'Run the weekly retro', how: 'See what needs you, what needs your agent and what is still collecting', command: 'gluely retro' };
   else next = { step: 'Run the play and log what you learn', how: inAgent('/gtm-mode') };
 
   return {

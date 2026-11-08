@@ -49,7 +49,7 @@ export function refuseNames(fields) {
 
 export const redact = (text) => PERSONAL.reduce((value, [pattern]) => value?.replace(new RegExp(pattern, 'gi'), '{redacted}'), text);
 
-export function addEntry(ws, { kind, area, text, why, before, after, scope, play, by, source = 'human' }) {
+export function addEntry(ws, { kind, area, text, why, before, after, scope, play, by, source = 'human', verdict, snapshot }) {
   if (!LOG_KINDS.includes(kind)) fail('bad_kind', `--kind must be one of ${LOG_KINDS.join(', ')}.`);
   if (!LOG_AREAS.includes(area)) fail('bad_area', `--area must be one of ${LOG_AREAS.join(', ')}.`);
   if (!text && !(before && after)) fail('usage', 'Pass --text, or both --before and --after.');
@@ -60,6 +60,7 @@ export function addEntry(ws, { kind, area, text, why, before, after, scope, play
     id, at, kind, area, text: text || `Changed "${before}" to "${after}"`,
     ...(why ? { why } : {}), ...(before ? { before } : {}), ...(after ? { after } : {}),
     ...(scope ? { scope } : {}), ...(play ? { play } : {}),
+    ...(verdict ? { verdict } : {}), ...(snapshot ? { snapshot } : {}),
     by: by || (source === 'human' ? 'human' : 'agent'), source,
     context_version: contextVersion(ws).version,
   });
