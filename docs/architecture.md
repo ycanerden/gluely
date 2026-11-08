@@ -156,17 +156,17 @@ An experiment is a play. A play runs this lifecycle, and each step names who act
 | Step | What happens | Gluely's part | Status |
 |---|---|---|---|
 | **Idea** | "Reach sales leaders after they speak at a conference" | nothing yet | — |
-| **Brief** | The agent reads context, exclusions and **what we tried before**, then proposes 2–3 routes with honest arithmetic | `/experiment` skill, `gluely plays history` | Proposed |
+| **Brief** | The agent reads context, exclusions and **what we tried before**, then proposes 2–3 routes with honest arithmetic | `gluely plays history` works. The `/experiment` skill is proposed | Partial |
 | **Draft** | The chosen route becomes `plays/<id>.yaml`: hypothesis, signal, audience, excuse, tools, kill rule | `plays start`, `plays validate` | Works |
 | **Approved** | A person sets it active and approves the cost | `cost`, `cost approve` | Works |
 | **Running** | The agent finds people with your tools, the gate sorts them, drafts are checked, a human sends | `guard`, `check draft`, `recall` | Works (gate fails open) |
 | **Judged** | Results come in, with honest ranges and the kill rule | `results add`, `results` | Works |
-| **Closed** | A human records the verdict and why. Lessons become context changes and tests | verdict record, `log`, `learn`, `test` | Partial: there's no verdict record yet |
+| **Closed** | A human records the verdict and why. Lessons become context changes and tests | `plays close`, `retro`, `log`, `learn`, `test` | Works |
 
 **What "experiments" adds is memory, not a new concept.** A killed play with its verdict is as valuable as a winning one, because it stops the next agent from trying the same thing blind. Proposed additions:
 
-- `gluely plays history --json`: every play, including killed ones, with results, verdict and why. The brief reads it first.
-- A verdict when a play closes: `kept` or `killed`, the reason, and the context version.
+- `gluely plays history --json`: every play, including killed ones, with results, verdict and why. The brief reads it first. *(Works.)*
+- A verdict when a play closes: `kept`, `paused` or `killed`, the reason, the numbers it was decided on, and the context version. `gluely plays close` records it in the decision log and sets the play's status. *(Works.)*
 - `audience.expands_icp: true` marks an experiment outside the ICP on purpose. Its results don't count against the normal ICP. If it wins, it proposes an ICP change.
 - `kind: outreach | asset`. Outreach goes signal → person → touch. An asset is something you build and distribute, such as a newsletter, a report or a workshop, and it's judged by subscribers and sourced meetings. These are the only two kinds.
 
@@ -175,8 +175,8 @@ An experiment is a play. A play runs this lifecycle, and each step names who act
 Every correction becomes a case in `tests/`. The agent answers the cases under each context version, and Gluely compares the versions:
 
 - **Improved:** wrong before, right now.
-- **Regression:** right under some committed version, wrong now. *(Proposed. Today it only compares against the previous version, which the tryout got past five ways.)*
-- **Pending that was answered before** blocks a pass. *(Proposed.)*
+- **Regression:** right under any committed version, wrong now, not only the previous one. *(Works.)*
+- **Unproven:** a case answered under an earlier committed version but not this one blocks a pass, so a change can't ship untested. *(Works.)*
 - Answers on a dirty context are refused, and an edited or deleted expectation is flagged. *(Proposed.)*
 
 ### Outcomes come in on their own (proposed)
@@ -203,7 +203,7 @@ Today a person types results in with `gluely results add`. The self-learning ver
 The rules that keep it honest:
 
 - **Your baseline, not industry benchmarks.** "Better" means better than your own other plays, measured the same way. The library holds no benchmarks, just as it holds no prices.
-- **Better only when the ranges don't overlap.** 3 replies from 30 touches is "10%", but it could really be anywhere from 3.5% to 25.6%. 10 from 100 is 5.5%–17.4%, and against a 4% baseline over 500 touches (2.6%–6.1%) that is a real win. Gluely already computes these ranges in `results`. It must refuse to favor a play before they separate.
+- **Better only when the ranges don't overlap.** 3 replies from 30 touches is "10%", but it could really be anywhere from 3.5% to 25.6%. 10 from 100 is 5.5%–17.4%, which still touches a 4% baseline over 500 touches (2.6%–6.1%), so it isn't a win yet. 12 from 100 is 7.0%–19.8%, and that is. `gluely retro` refuses to favor a play or a variant before the ranges separate. *(Works on the counts you add. The touch ledger that brings them in on their own is phase 1.)*
 - **Judge positive replies and meetings, not replies.** A 12% reply rate made of "remove me" is a problem, not a winner. Unsubscribes and negative replies count against a play.
 - **Diagnose in order.** No replies: check where emails landed first, then whether the people fit the ICP, then the excuse, and only then the copy. The deliverability step works today.
 - **The loop proposes, and a human closes it.** Favoring a play means proposing a higher `priority` or more volume, which needs a fresh cost approval because volume changed. A winning angle becomes a proposed claim in `context/` (from `hunch` toward `measured`). A play may opt in to shifting volume between its own approved variants, but only inside an approved budget. New copy and context changes always need a person.

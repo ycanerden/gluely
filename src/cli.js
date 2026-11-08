@@ -16,6 +16,8 @@ import { validatePlays } from './plays.js';
 import { answerStep, nextStep, startPlay } from './playbooks.js';
 import { serve } from './mcp.js';
 import { addResult, judgePlay, renderJudgement } from './results.js';
+import { buildRetro, renderRetro } from './retro.js';
+import { closePlay, playsHistory } from './verdicts.js';
 import { planWaterfall, recordTest, renderWaterfall } from './waterfall.js';
 import { loadPrices } from './cost.js';
 import { HOSTS, installSkills, listSkills } from './skills.js';
@@ -43,6 +45,8 @@ Brain
   gluely plays start [playbook] [--as id]                        set up a play, one question at a time
   gluely plays next <id> | answer <id> <step> <value>            the same steps, for agents
   gluely plays list | validate | new <id>                        hypotheses with kill rules
+  gluely plays history                                           every play, killed ones too, with what it taught
+  gluely plays close <id> --verdict kept|paused|killed --why <w> a person's verdict, kept with its numbers
   gluely playbooks                                               example plays to start from
   gluely check draft --channel <c> (--text <t> | --file <f>)     test a draft against your voice
   gluely check company <domain>                                  is this company excluded?
@@ -64,7 +68,10 @@ Learning
 
 Results
   gluely results <play>                                          what a play produced, and keep or kill
-  gluely results add <play> --touches <n> --positive <n> [--replies n] [--meetings n] [--spent n] [--placement inbox|spam] [--on YYYY-MM-DD]
+  gluely results add <play> --touches <n> --positive <n> [--replies n] [--meetings n] [--unsubscribes n] [--spent n] [--variant v] [--placement inbox|spam] [--on YYYY-MM-DD]
+
+Weekly loop
+  gluely retro [--days 7]                                        the week as decisions: what needs you, your agent, and what is still collecting
 
 Cost
   gluely cost <play> [--fit 30%] [--touches 2] [--checks 1]      estimate before spending credits
@@ -204,6 +211,22 @@ export const commands = {
     const sub = args._[0] || 'list';
     if (sub === 'new') return newPlay(ws, args._[1]);
     if (sub === 'start') return startCommand(ws, args);
+    if (sub === 'history') {
+      const data = playsHistory(ws);
+      return { data, render: () => renderHistory(data) };
+    }
+    if (sub === 'close') {
+      const { verdict, why, by } = args.flags;
+      const data = closePlay(ws, args._[1], { verdict, why, by });
+      return {
+        data,
+        render() {
+          line(true, `${data.play} ${data.verdict}${data.status !== data.was ? `, status is now ${data.status}` : ''}`);
+          if (data.suggested && !['too_early', 'keep_going', 'no_results'].includes(data.suggested)) console.log(color.dim(`  Gluely suggested ${data.suggested.replace(/_/g, ' ')}. Your reason is what the next play reads.`));
+          else console.log(color.dim(`  Decided before the numbers could say much (${data.suggested.replace(/_/g, ' ')}). That's allowed. The reason is kept.`));
+        },
+      };
+    }
     if (sub === 'next') {
       if (!args._[1]) fail('usage', 'Usage: gluely plays next <id>');
       const data = nextStep(ws, args._[1]);
@@ -215,7 +238,7 @@ export const commands = {
       const data = answerStep(ws, id, step, value.join(' '), args.flags.by);
       return { data, render: () => { line(true, `Saved ${step}: ${data.saved.value}`); renderStep(data.next); } };
     }
-    if (!['list', 'validate'].includes(sub)) fail('usage', 'Usage: gluely plays start | next | answer | list | validate | new <id>');
+    if (!['list', 'validate'].includes(sub)) fail('usage', 'Usage: gluely plays start | next | answer | list | validate | history | close <id> | new <id>');
     const data = validatePlays(ws);
     const failed = data.issues.some((i) => i.level === 'error');
     return {
@@ -254,6 +277,11 @@ export const commands = {
       ? recordTest(ws, args._.slice(1).join(' '), { job, tried, right, wrong, unprovable, by })
       : args._[0] ? planWaterfall(ws, args._[0], { tools }) : fail('usage', 'Usage: gluely waterfall <job> [--tools "A, B"] | gluely waterfall test <tool> --job <job> --tried 20 --right <n>');
     return { data, render: () => renderWaterfall(data, { color, line, mark }, loadPrices(ws).currency) };
+  },
+
+  retro(args) {
+    const data = buildRetro(requireWorkspace(), { days: args.flags.days ?? 7 });
+    return { data, render: () => renderRetro(data, { color, mark }) };
   },
 
   results(args) {
@@ -336,7 +364,8 @@ export const commands = {
         const compare = r.previous ? color.dim(`   was ${r.previous.correct}/${r.previous.answered} on ${r.previous_version}`) : '';
         line(!r.regressions.length, `Agent tests  ${r.correct}/${r.answered} correct${compare}`);
         for (const w of r.wrong) console.log(`  ${mark.bad()} ${w.id}: answered ${w.answered}, expected ${w.expected} (${w.by})`);
-        for (const id of r.regressions) console.log(`  ${mark.bad()} ${id} got worse under this context`);
+        for (const d of r.regression_details) console.log(`  ${mark.bad()} ${d.id} got worse: right under ${d.was_right_under}, now ${d.answered}`);
+        if (r.unproven.length) console.log(`  ${mark.bad()} ${r.unproven.length} answered under an earlier context but not this one, so the change is not proven yet`);
         for (const id of r.improved) console.log(`  ${mark.ok()} ${id} got better under this context`);
         if (r.pending.length) console.log(`${mark.next()} ${r.pending.length} waiting for your agent: run /gtm-mode`);
         for (const bad of data.invalid) console.log(`  ${mark.bad()} ${bad.file}: ${bad.id || 'case'} ${bad.problem}`);
@@ -520,6 +549,19 @@ async function startCommand(ws, args) {
   }
   const data = startPlay(ws, playbook, id);
   return { data, render: () => renderStep(data) };
+}
+
+function renderHistory(data) {
+  console.log(color.bold('Every play') + color.dim(`   ${data.counts.active} active, ${data.counts.paused} paused, ${data.counts.killed} killed, ${data.counts.draft} draft`));
+  if (!data.plays.length) console.log(color.dim('No plays yet.'));
+  for (const p of data.plays) {
+    const t = p.totals;
+    const numbers = t ? `${t.touches} touches, ${t.positive} positive, ${t.meetings} meetings` : '';
+    console.log(`\n${color.bold(p.id)} ${color.dim(`${p.status}${p.signal ? `, ${p.signal}` : ''}`)}`);
+    if (p.hypothesis) console.log(`  ${String(p.hypothesis).trim()}`);
+    if (numbers) console.log(color.dim(`  ${numbers}. Gluely says: ${String(p.suggested).replace(/_/g, ' ')}`));
+    for (const v of p.verdicts) console.log(`  ${mark.next()} ${color.dim(v.at.slice(0, 10))} ${v.verdict}: ${v.why}`);
+  }
 }
 
 function renderStep(state) {

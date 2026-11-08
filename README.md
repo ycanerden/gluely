@@ -8,7 +8,7 @@ Gluely isn't an outbound tool, and it doesn't pick your vendors. Bring any scrap
 
 ![Gluely architecture: your agent thinks, Gluely remembers and checks, your brain stays in your own private repo, and your tools do the work](docs/architecture.svg)
 
-> **Early preview.** Gluely is at version 0.0.1, phase 0 of 5. The brain works: context, plays, cost checks, draft checks, the customer-data guard, play results, the decision log and brain tests. Signals, the Person 360 database, replies and CRM sync don't exist yet. See [Status](#status).
+> **Early preview.** Gluely is at version 0.0.1, phase 0 of 5. The brain works: context, plays, cost checks, draft checks, the customer-data guard, play results, verdicts, the weekly retro, the decision log and brain tests. Signals, the Person 360 database, replies and CRM sync don't exist yet. See [Status](#status).
 
 ## Try it
 
@@ -56,7 +56,7 @@ Green works today, yellow has started, blue is next, grey is a later phase, and 
 
 ```bash
 gluely test add --kind reply --input "Who else uses this?" --expect question
-gluely test          # compares this context version with the last, and fails on a regression
+gluely test          # compares this context with every committed version, and fails on a regression
 ```
 
 **A claim earns its weight.** Every proof point and objection says how sure the brain is: `hunch`, `repeated` or `measured`. `repeated` needs two independent sources listed in the file, and `measured` needs the number. An active play can only lean on proof that is repeated or measured, so one good call can't become your whole pitch. `gluely context check` also warns about claims nobody has reviewed in a while, and about "last quarter" where a date belongs.
@@ -72,7 +72,22 @@ sources: [deal-2026-03, call-2026-04]
 gluely guard exports/list.csv --to "your enrichment tool"
 ```
 
-**Plays are judged by what they produced.** `gluely results add` records touches, replies, meetings and spend. `gluely results` shows the range a rate could really be, the cost per meeting, and a verdict: under 50 touches it's too early, from 50 a play with no positive reply can die, and at 100 its kill rule decides. Zero replies on email asks where the emails landed before anyone blames the copy. A person makes the final call.
+**Plays are judged by what they produced.** `gluely results add` records touches, replies, meetings and spend. `gluely results` shows the range a rate could really be, the cost per meeting, and a verdict: under 50 touches it's too early, from 50 a play with no positive reply can die, and at 100 its kill rule decides. Zero replies on email asks where the emails landed before anyone blames the copy. A person makes the final call with `gluely plays close`, and the reason is kept.
+
+**Once a week, the brain tells you what it learned.** `gluely retro` reads everything the loop recorded and turns it into a short, ranked list of decisions. Each one comes with its evidence, who approves it and the exact command. It writes nothing, and nothing in it is a guess:
+
+- **One decision per play.** "job-switch is your best play: keep it and scale it" folds the verdict, the volume and the winning variant into one call, instead of four.
+- **Better only against your own baseline, and only when the ranges don't overlap.** A play is compared with everything else you ran, and a variant with its siblings. 10 positive from 100 touches is not yet better than 4% over 500. 12 is.
+- **A broken brain comes first.** A test that was right under any earlier context and is wrong now tops the list, above deliverability, verdicts and upgrades.
+- **At most three context changes a week**, so each one can be measured. The rest wait.
+- **Decided means decided.** Once you give a verdict, the play stays off the list until new numbers arrive.
+
+```bash
+gluely results add job-switch --touches 120 --positive 12 --variant b --unsubscribes 1
+gluely retro
+gluely plays close post-engagers --verdict killed --why "Commenters are fans, not buyers"
+gluely plays history   # every play, killed ones too, with the reason. A new play reads it first
+```
 
 **Product-led too.** The product lifecycle playbook answers a trial ending, a cancel or a downgrade with a stage-specific note. A work address gets a founder's plain note, a personal one gets the brand.
 
@@ -116,7 +131,7 @@ Phase 0 of 5: the brain pack.
 
 | Phase | Adds | Status |
 |---|---|---|
-| 0 | Stack map, onboarding, context, guided plays, tool library, cost checks, decision log, skills, brain tests, customer-data guard, play results, MCP server | Working |
+| 0 | Stack map, onboarding, context, guided plays, tool library, cost checks, decision log, skills, brain tests, customer-data guard, play results, verdicts and play history, weekly retro, MCP server | Working |
 | 1 | The ledger on any store: Person 360 and Account 360 with buying committees, freshness on every enrichment, content, imports | Next |
 | 2 | Work queue, excuses linked to signals, opt-outs | Planned |
 | 3 | Conversations, BDR drafts, reply-to-demo rate | Planned |

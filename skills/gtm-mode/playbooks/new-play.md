@@ -2,7 +2,7 @@
 
 A play is a hypothesis you can kill, not a campaign. If `gluely playbooks --json` already has this play, use `run-play.md` instead.
 
-1. Get the idea in the founder's words.
+1. Get the idea in the founder's words, then run `gluely plays history --json`. If a killed or paused play already tried something close, read its verdict and say what is different this time before going on.
 2. Name the signal. If it's new, add it under `extensions.signals` in `workspace.yaml`.
 3. Estimate volume honestly: how many people per month survive ICP and exclusions? Write the arithmetic down. If 100 touches would take more than a quarter, say so and suggest a stronger or wider signal.
 4. Write the excuse. If you can't make it honest and specific, stop here.

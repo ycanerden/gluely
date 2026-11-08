@@ -29,7 +29,7 @@ Read the file next to this one, in `playbooks/`.
 | Sort replies | `triage-replies.md` |
 | Turn a reply into a demo | `bdr-reply.md` |
 | Learn from calls, won deals or lost deals | `mine-calls.md` |
-| Run the weekly loop | `weekly-learn.md` |
+| Run the weekly loop, or asks how things are going | `weekly-learn.md` |
 | Keep a decision or edit, or review what the brain has learned | `learn.md` |
 | Run or extend the brain tests | `brain-tests.md` |
 
