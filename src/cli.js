@@ -241,6 +241,7 @@ export const commands = {
         for (const warning of data.warnings) console.log(`  ${mark.warn()} ${warning}`);
         for (const row of data.rows.slice(0, 20)) console.log(`  ${row.bucket === 'held' ? mark.bad() : mark.next()} line ${row.line}: ${row.reason}`);
         if (data.rows.length > 20) console.log(color.dim(`  and ${data.rows.length - 20} more in the files below`));
+        if (data.unread_columns.length) console.log(color.dim(`  Not read: ${data.unread_columns.join(', ')}. If one names a person or a company, call it email, domain, company or linkedin.`));
         for (const [bucket, file] of Object.entries(data.files)) console.log(`  ${bucket.padEnd(5)} ${color.dim(file)}`);
         if (data.counts.clear) console.log(`${mark.next()} Only ${data.files.clear} may go to an outside tool.`);
       },
@@ -280,7 +281,7 @@ export const commands = {
       return {
         data,
         exit: data.blocked ? 1 : 0,
-        render: () => line(!data.blocked, data.blocked ? `${data.domain} is excluded: ${data.reason}` : `${data.domain} is not on your exclusion list`),
+        render: () => line(!data.blocked, data.blocked ? `${data.domain} is excluded: ${data.reason}${data.matched_on === 'domain' ? '' : ` (matched on ${data.matched_on.replace('_', ' ')})`}` : `${data.domain} is not on your exclusion list`),
       };
     }
     if (args._[0] !== 'draft') fail('usage', 'Usage: gluely check draft --channel <c> (--text <t> | --file <f>) | gluely check company <domain>');

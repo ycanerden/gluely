@@ -66,7 +66,7 @@ evidence: repeated
 sources: [deal-2026-03, call-2026-04]
 ```
 
-**Customer data stays home.** Before any list goes to an enrichment tool, a scraper or a sender, `gluely guard` sorts it. Customers (anyone who trialed, paid or churned) and look-alike names are held. Investors, people at customers and close relationships go to the teammate who owns them. Only the `clear` file leaves. In B2C it checks people against your user export instead of companies.
+**Customer data stays home.** Before any list goes to an enrichment tool, a scraper or a sender, `gluely guard` sorts it. Customers (anyone who trialed, paid or churned) and look-alike names are held. Investors, people at customers and close relationships go to the teammate who owns them. Only the `clear` file leaves. In B2C it checks people against your user export instead of companies. When the guard can't be sure, it holds: a row is cleared only when something in it was checked, a file with a broken quote is refused, and every held row says what it matched on.
 
 ```bash
 gluely guard exports/list.csv --to "your enrichment tool"
