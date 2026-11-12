@@ -8,7 +8,7 @@ import { loadPrices } from './cost.js';
 import { loadEntries } from './log.js';
 import { loadPlays } from './plays.js';
 import { judgePlay } from './results.js';
-import { envNeeded, listRuns, loadEnv, loadRun, planRun, readEvents, summary } from './run.js';
+import { envNeeded, flatten, listRuns, loadEnv, loadRun, planRun, readEvents, summary } from './run.js';
 import { pricePer } from './waterfall.js';
 import { GLUELY_ROOT, loadConfig } from './workspace.js';
 
@@ -50,6 +50,7 @@ function playView(ws, { spec, parseError, file }) {
     kill: spec.kill || null,
     budget: spec.budget?.monthly_limit ?? null,
     steps: steps.map(view),
+    flat: flatten(steps).map((x) => ({ id: x.id, type: x.type, scope: x.scope })),
     plan: steps.length ? safe(() => planRun(ws, id), null) : null,
     results: safe(() => judgePlay(ws, id), null),
     lessons: safe(() => loadEntries(ws).filter((e) => e.play === id).slice(-30).reverse(), []),
@@ -74,7 +75,8 @@ export function runDetail(ws, id) {
     ...summary(ws, run),
     created: run.created,
     input: run.input,
-    records: run.rows.map((r) => ({ n: r.n, data: r.data, stopped: r.stopped })),
+    records: run.rows.map((r) => ({ n: r.n, data: r.data, stopped: r.stopped, route: r.route || {} })),
+    step_index: run.step,
     events: readEvents(ws, id).slice(-MAX_EVENTS),
   };
 }
