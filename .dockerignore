@@ -1,0 +1,8 @@
+node_modules
+.git
+test
+site/index.html
+site/data.js
+docs
+**/.env
+**/runs

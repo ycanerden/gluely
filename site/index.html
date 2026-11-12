@@ -6,6 +6,9 @@
 <title>Gluely: the GTM brain for your agent</title>
 <meta name="description" content="Gluely is an open-source GTM brain for agents. Your agent does the thinking. Gluely remembers, checks the work, and learns from every correction.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' shape-rendering='crispEdges'%3E%3Cpath fill='%23ffb42e' d='M6 0h4v4H6z'/%3E%3Cpath fill='%23fff4d6' d='M3 5h10v1h1v7h-1v1H3v-1H2V6h1z'/%3E%3Cpath fill='%231c1636' d='M5 8h2v2H5zM9 8h2v2H9z'/%3E%3C/svg%3E">
+<script>
+try { const t = localStorage.getItem('gluely-theme'); if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t; } catch {}
+</script>
 <style>
 @font-face { font-family: "Jersey 20"; src: url("fonts/jersey20.woff2") format("woff2"); font-weight: 400; font-display: swap; }
 @font-face { font-family: "Atkinson Hyperlegible Next"; src: url("fonts/atkinson.woff2") format("woff2"); font-weight: 200 800; font-display: swap; }
@@ -23,10 +26,59 @@
   --honey: #ffb42e;
   --no: #b8324f;
   --ok: #1f7a55;
+  --on-sky: #ffffff;
+  --sky-hover: #3a47b8;
+  --plain: #eeeff6;
+  --dots: #dfe0ea;
+  --back: #b4730f;
+  --mute: #85829b;
+  color-scheme: light;
   --side: 14rem;
   --main: 52rem;
   --pad: 2.5rem;
   --gutter: max(1.25rem, calc((100vw - var(--side) - var(--main)) / 2));
+}
+
+/* Night: the same page after dark. Indigo paper, milk-white ink, the sky lifted so it still reads. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+  --paper: #151129;
+  --ink: #f4f1ff;
+  --body: #c9c5dc;
+  --quiet: #9692b0;
+  --sky: #8f9bff;
+  --haze: #2f2c5c;
+  --rule: #2c2848;
+  --wash: #1d1936;
+  --no: #ff8b9e;
+  --ok: #5fd6a0;
+  --on-sky: #151129;
+  --sky-hover: #b0b8ff;
+  --plain: #26223f;
+  --dots: #2e2a4c;
+  --back: #ffb42e;
+  --mute: #8b87a6;
+  color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #151129;
+  --ink: #f4f1ff;
+  --body: #c9c5dc;
+  --quiet: #9692b0;
+  --sky: #8f9bff;
+  --haze: #2f2c5c;
+  --rule: #2c2848;
+  --wash: #1d1936;
+  --no: #ff8b9e;
+  --ok: #5fd6a0;
+  --on-sky: #151129;
+  --sky-hover: #b0b8ff;
+  --plain: #26223f;
+  --dots: #2e2a4c;
+  --back: #ffb42e;
+  --mute: #8b87a6;
+  color-scheme: dark;
 }
 
 * { box-sizing: border-box; margin: 0; }
@@ -34,6 +86,7 @@ html { background: var(--paper); overflow-x: clip; scroll-padding-top: 2rem; }
 body {
   font: 400 1.0625rem/1.65 "Atkinson Hyperlegible Next", system-ui, sans-serif;
   color: var(--body);
+  background: var(--paper);
   -webkit-font-smoothing: antialiased;
   display: grid;
   grid-template-columns: var(--gutter) var(--side) minmax(0, var(--main)) var(--gutter);
@@ -64,6 +117,10 @@ code { font: 0.92em/1.4 ui-monospace, "SF Mono", Menlo, Consolas, monospace; col
 .side .more { margin-top: 2rem; }
 .state { margin-top: auto; display: flex; align-items: center; gap: 0.5rem; font-size: 0.85rem; color: var(--quiet); }
 .state i { width: 6px; height: 6px; background: var(--sky); flex: none; }
+.theme { margin-top: 1.25rem; display: inline-flex; align-self: flex-start; box-shadow: inset 0 0 0 1px var(--rule); }
+.theme button { font: 400 0.82rem/1 "Atkinson Hyperlegible Next", sans-serif; color: var(--quiet); background: transparent; border: 0; padding: 0.42rem 0.6rem; cursor: pointer; }
+.theme button:hover { color: var(--ink); }
+.theme button[aria-pressed="true"] { color: var(--ink); background: var(--wash); box-shadow: inset 0 0 0 1px var(--rule); }
 
 /* The main column, held between two hairlines */
 main { grid-column: 3; position: relative; border-right: 1px solid var(--rule); min-width: 0; }
@@ -75,7 +132,7 @@ section::before { content: ""; position: absolute; z-index: 2; left: -8px; top: 
 .hero::before { top: calc(7rem + 0.9rem); }
 .block { padding: 0 var(--pad); }
 section { padding-top: 6.5rem; }
-.figure::after { content: ""; position: absolute; inset: -1.5rem 0 3.5rem 0; z-index: -1; background: radial-gradient(circle, #dfe0ea 1px, transparent 1.2px) 0 0 / 8px 8px; -webkit-mask: linear-gradient(90deg, transparent, #000 12%, #000 80%, transparent); mask: linear-gradient(90deg, transparent, #000 12%, #000 80%, transparent); }
+.figure::after { content: ""; position: absolute; inset: -1.5rem 0 3.5rem 0; z-index: -1; background: radial-gradient(circle, var(--dots) 1px, transparent 1.2px) 0 0 / 8px 8px; -webkit-mask: linear-gradient(90deg, transparent, #000 12%, #000 80%, transparent); mask: linear-gradient(90deg, transparent, #000 12%, #000 80%, transparent); }
 .hero { padding-top: 7rem; }
 .hero p { font-size: 1.125rem; margin-top: 1.4rem; max-width: 62ch; }
 .hero h1 + p { margin-top: 1.6rem; }
@@ -84,10 +141,10 @@ section { padding-top: 6.5rem; }
 .button {
   font: 500 0.98rem/1 "Atkinson Hyperlegible Next", sans-serif; text-decoration: none; cursor: pointer;
   display: inline-block; padding: 0.62rem 0.9rem 0.66rem; border: 0;
-  color: #fff; background: var(--sky);
+  color: var(--on-sky); background: var(--sky);
 }
-.button:hover { background: #3a47b8; }
-.button.plain { color: var(--ink); background: #eeeff6; }
+.button:hover { background: var(--sky-hover); }
+.button.plain { color: var(--ink); background: var(--plain); }
 .button.plain:hover { background: var(--haze); }
 
 /* The diagram runs out past the right hairline, to the edge of the window. */
@@ -96,10 +153,10 @@ section { padding-top: 6.5rem; }
 #loop { display: block; image-rendering: pixelated; }
 .labels { position: relative; height: 3.4rem; margin-top: 0.7rem; font-size: 0.82rem; line-height: 1.3; color: var(--quiet); }
 .labels span { position: absolute; top: 0; }
-.labels [data-at="back"] { color: #b4730f; white-space: nowrap; }
+.labels [data-at="back"] { color: var(--back); white-space: nowrap; }
 
 .works { margin-top: 3.5rem; background: var(--wash); border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule); padding: 1.6rem var(--pad); display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.6rem 2.25rem; }
-.works span { display: inline-flex; align-items: center; gap: 0.55rem; font: 400 1.6rem/1 "Jersey 20", sans-serif; color: #85829b; }
+.works span { display: inline-flex; align-items: center; gap: 0.55rem; font: 400 1.6rem/1 "Jersey 20", sans-serif; color: var(--mute); }
 .works svg { width: 22px; height: 22px; fill: currentColor; flex: none; }
 .works small { font-size: 0.85rem; color: var(--quiet); margin-right: 0.5rem; }
 
@@ -130,7 +187,7 @@ section { padding-top: 6.5rem; }
   border: 0; box-shadow: inset 0 0 0 1px var(--rule); padding: 0.5rem 0.7rem;
 }
 .tab:hover { background: var(--wash); }
-.tab[aria-pressed="true"] { color: #fff; background: var(--sky); box-shadow: none; }
+.tab[aria-pressed="true"] { color: var(--on-sky); background: var(--sky); box-shadow: none; }
 .play-grid { display: grid; gap: 1.5rem; grid-template-columns: minmax(0, 1fr) minmax(0, 15rem); align-items: start; margin-top: 0.9rem; }
 .play-term { white-space: normal; min-height: 23rem; display: flex; flex-direction: column; gap: 0.15rem; margin-top: 0; font-size: 0.86rem; }
 .play-bar { color: var(--sky); letter-spacing: -0.02em; }
@@ -195,6 +252,7 @@ footer a { color: var(--ink); }
   .mark { margin-bottom: 0.9rem; }
   .side nav { display: flex; flex-wrap: wrap; gap: 0.2rem 1rem; }
   .side .more, .state { display: none; }
+  .theme { margin-top: 0.9rem; }
   main { border: 0; }
   main::before, section::before, .figure::after { display: none; }
   .hero { padding-top: 3rem; }
@@ -227,6 +285,11 @@ footer a { color: var(--ink); }
     <a href="https://github.com/ycanerden/gluely">GitHub</a>
     <a href="https://github.com/ycanerden/gluely/blob/main/docs/try-it.md">Try it in 10 minutes</a>
   </nav>
+  <div class="theme" role="group" aria-label="Colour theme" id="theme">
+    <button type="button" data-theme="auto">Auto</button>
+    <button type="button" data-theme="light">Light</button>
+    <button type="button" data-theme="dark">Dark</button>
+  </div>
   <p class="state"><i aria-hidden="true"></i>Open source, early preview</p>
 </aside>
 
@@ -391,7 +454,7 @@ Brain tests   <span class="dim">context 319e1d3</span>
       <div class="faq">
         <details>
           <summary>Does Gluely send emails or messages?</summary>
-          <p>No. Gluely never sends anything and never calls a model. Your agent drafts, Gluely checks the draft, and a person decides what goes out through the tool you already use.</p>
+          <p>Only when a person says yes. Gluely never calls a model: your agent drafts, and Gluely checks the draft. A play's workflow can send through the tool you already use, but only after a person approves the rows, in a terminal.</p>
         </details>
         <details>
           <summary>Does Gluely see my data?</summary>
@@ -442,17 +505,20 @@ Brain tests   <span class="dim">context 319e1d3</span>
       <a href="https://github.com/ycanerden/gluely/issues/new?template=tester-report.md">Send a tester report</a>
       <a href="https://github.com/ycanerden/gluely/blob/main/LICENSE">MIT license</a>
     </nav>
-    Gluely is open source, and it never sends a message for you.
+    Gluely is open source, and nothing goes out without your yes.
   </footer>
 </main>
 
 <script>
 // The loop, drawn on a pixel grid: your tools, the brain's rows, the guard, the way out, and the glue back.
 (() => {
-  const C = {
-    ink: '#1c1636', line: '#c3c3d3', faint: '#e1e1ea', dot: '#a9a6ba', num: '#aaa7bb', hatch: '#d3d3df',
-    sky: '#4a58cf', haze: '#d3d8fa', out: '#9aa3ea', honey: '#ffb42e', honeyDark: '#d4851a', milk: '#fff4d6', shade: '#e8d6a6', blush: '#ff9aa8',
-  };
+  // 'outline' is the glue blob's own ink, and stays dark at night so the blob still pops.
+  const BRAND = { honey: '#ffb42e', honeyDark: '#d4851a', milk: '#fff4d6', shade: '#e8d6a6', blush: '#ff9aa8', outline: '#1c1636' };
+  const DAY = { ...BRAND, ink: '#1c1636', line: '#c3c3d3', faint: '#e1e1ea', dot: '#a9a6ba', num: '#aaa7bb', hatch: '#d3d3df', sky: '#4a58cf', haze: '#d3d8fa', out: '#9aa3ea', brick: '#ffffff' };
+  const NIGHT = { ...BRAND, ink: '#f4f1ff', line: '#4a4566', faint: '#2e2a4a', dot: '#7c78a0', num: '#5f5b80', hatch: '#3a3658', sky: '#8f9bff', haze: '#2f2c5c', out: '#5d67c9', brick: '#1d1936' };
+  const darkQuery = matchMedia('(prefers-color-scheme: dark)');
+  const isDark = () => { const t = document.documentElement.dataset.theme; return t ? t === 'dark' : darkQuery.matches; };
+  let C = isDark() ? NIGHT : DAY;
   const FONT = {
     A:[14,17,17,31,17,17,17],C:[14,17,16,16,16,17,14],D:[30,17,17,17,17,17,30],E:[31,16,16,30,16,16,31],G:[14,17,16,23,17,17,15],
     H:[17,17,17,31,17,17,17],I:[14,4,4,4,4,4,14],L:[16,16,16,16,16,16,31],M:[17,27,21,21,17,17,17],N:[17,25,21,19,17,17,17],
@@ -468,7 +534,7 @@ Brain tests   <span class="dim">context 319e1d3</span>
     '.kmmmmmmmmmmmmmmmmk.', '.kmmmmmmmmmmmmmmmsk.', '.kmmmmmmmmmmmmmmmsk.', '.kmmmmmmmmmmmmmmssk.', '.kmmmmmmmmmmmmmsssk.',
     '.ksmmmmmmmmmmmssssk.', '..kssssssssssssssk..', '...kkkkkkkkkkkkkk...',
   ];
-  const BLOB_C = { k: 'ink', o: 'honey', O: 'honeyDark', m: 'milk', s: 'shade' };
+  const BLOB_C = { k: 'outline', o: 'honey', O: 'honeyDark', m: 'milk', s: 'shade' };
   const LOCK = ['..kkk..', '.k...k.', '.k...k.', 'kkkkkkk', 'k.....k', 'k..k..k', 'k.....k', 'kkkkkkk'];
   const BRICKS = ['DATA STORE', 'CRM', 'OUTREACH', 'SIGNALS', 'AGENT']; // bottom to top
   const SIGNALS = 3, AGENT = 4;
@@ -528,13 +594,13 @@ Brain tests   <span class="dim">context 319e1d3</span>
     BRICKS.forEach((label, i) => {
       const y = brickY(i);
       px(0, y, TW, BH, 'line');
-      px(1, y + 1, TW - 2, BH - 2, '#ffffff');
+      px(1, y + 1, TW - 2, BH - 2, 'brick');
       text(label, 6, y + 7, i === AGENT && flash > 0 ? 'honeyDark' : 'ink');
       for (let s = 0; s < 3; s++) {
         const sx = TW - 30 + s * 9;
         const lit = (i === SIGNALS && s === Math.floor(tick / 6) % 3) || (i === AGENT && flash > 0 && s === 2);
         px(sx, y + 8, 7, 4, lit ? (i === AGENT ? 'honey' : 'sky') : 'line');
-        if (!lit) px(sx + 1, y + 9, 5, 2, '#ffffff');
+        if (!lit) px(sx + 1, y + 9, 5, 2, 'brick');
       }
       if (i > 0) {
         const sy = y + BH;
@@ -548,10 +614,10 @@ Brain tests   <span class="dim">context 319e1d3</span>
     const bx = Math.floor((TW - 20) / 2), by = brickY(4) - 3 - 18;
     sprite(BLOB, BLOB_C, bx, by);
     for (const ex of [bx + 5, bx + 12]) {
-      if (blink) px(ex, by + 11, 3, 1, 'ink');
-      else { px(ex, by + 9, 3, 4, 'ink'); px(ex + 1, by + 9, 2, 2, 'milk'); }
+      if (blink) px(ex, by + 11, 3, 1, 'outline');
+      else { px(ex, by + 9, 3, 4, 'outline'); px(ex + 1, by + 9, 2, 2, 'milk'); }
     }
-    px(bx + 8, by + 13, 1, 1, 'ink'); px(bx + 11, by + 13, 1, 1, 'ink'); px(bx + 9, by + 14, 2, 1, 'ink');
+    px(bx + 8, by + 13, 1, 1, 'outline'); px(bx + 11, by + 13, 1, 1, 'outline'); px(bx + 9, by + 14, 2, 1, 'outline');
     px(bx + 3, by + 13, 2, 1, 'blush'); px(bx + 15, by + 13, 2, 1, 'blush');
   }
 
@@ -676,6 +742,9 @@ Brain tests   <span class="dim">context 319e1d3</span>
   }
 
   addEventListener('resize', layout);
+  const repaint = () => { C = isDark() ? NIGHT : DAY; render(); };
+  darkQuery.addEventListener?.('change', repaint);
+  addEventListener('gluely-theme', repaint);
   document.addEventListener('visibilitychange', () => (document.hidden ? stop() : start()));
   reduced.addEventListener?.('change', () => (reduced.matches ? stop() : start()));
   layout();
@@ -698,8 +767,20 @@ Brain tests   <span class="dim">context 319e1d3</span>
 })();
 </script>
 <script>
-// Copy the setup prompt, and mark the section you are reading in the sidebar.
+// Copy the setup prompt, mark the section you are reading, and switch the colour theme.
 (() => {
+  const root = document.documentElement;
+  const themeButtons = [...document.querySelectorAll('#theme button')];
+  const showTheme = () => { const t = root.dataset.theme || 'auto'; for (const b of themeButtons) b.setAttribute('aria-pressed', String(b.dataset.theme === t)); };
+  for (const b of themeButtons) b.addEventListener('click', () => {
+    const t = b.dataset.theme;
+    if (t === 'auto') delete root.dataset.theme; else root.dataset.theme = t;
+    try { if (t === 'auto') localStorage.removeItem('gluely-theme'); else localStorage.setItem('gluely-theme', t); } catch {}
+    showTheme();
+    dispatchEvent(new Event('gluely-theme'));
+  });
+  showTheme();
+
   const copy = document.getElementById('copy-prompt');
   const prompt = document.getElementById('agent-prompt');
   copy.addEventListener('click', async () => {

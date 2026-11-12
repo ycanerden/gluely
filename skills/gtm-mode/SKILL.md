@@ -50,7 +50,7 @@ Read the one that applies, at `../principle-<name>/SKILL.md`:
 
 ## Hard rules
 
-- Gluely never sends. Neither do you. Hand over drafts and let a human use their tool.
+- You never send. Hand over drafts and let a human use their tool, or put the send in a workflow, where a person approves the rows first.
 - Check exclusions before spending money or attention: `gluely check company <domain> --json`.
 - Before any list goes to an outside tool, run `gluely guard <list.csv> --to <tool> --json`. Only the `clear` file leaves.
 - Record what each play produced with `gluely results add`, one batch per day with `--on <YYYY-MM-DD>` for the day the touches went out. Take the days from the sender's own stats, and never add a day twice. Judge it with `gluely results <play> --json`. Never judge a play's copy before you know where its emails landed.

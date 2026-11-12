@@ -104,7 +104,7 @@ for (const name of ['Claude Code', 'Cursor', 'Codex', 'Grok', 'yours']) x += chi
 
 // 2. Gluely remembers and checks
 text(LEFT, 334, 'Gluely remembers and checks', { size: 52, face: 'display' });
-text(LEFT, 372, 'Open source. It never sends a message and never calls a model.', { size: 23 });
+text(LEFT, 372, 'Open source. It never calls a model, and nothing goes out without your yes.', { size: 23 });
 panel(LEFT, 398, 290, 170, 'Skills');
 ['/setup-gluely', '/gtm-mode', '/check-cost', '/waterfall'].forEach((name, i) => text(LEFT + 22 + (i % 2) * 140, 486 + Math.floor(i / 2) * 40, name, { size: 21 }));
 const CLI = LEFT + 310;

@@ -211,7 +211,7 @@ text { shape-rendering: auto; }
 <rect x="557" y="180" width="79" height="40" fill="#fff4d6"/>
 <text x="596.5" y="208.84" font-family="'Jersey 20', monospace" font-size="26" font-weight="400" fill="#1c1636" text-anchor="middle">yours</text>
 <text x="120" y="334" font-family="'Jersey 20', monospace" font-size="52" font-weight="400" fill="#fff4d6" text-anchor="start">Gluely remembers and checks</text>
-<text x="120" y="372" font-family="'Atkinson', Helvetica, Arial, sans-serif" font-size="23" font-weight="400" fill="#fff4d6" text-anchor="start">Open source. It never sends a message and never calls a model.</text>
+<text x="120" y="372" font-family="'Atkinson', Helvetica, Arial, sans-serif" font-size="23" font-weight="400" fill="#fff4d6" text-anchor="start">Open source. It never calls a model, and nothing goes out without your yes.</text>
 <rect x="120" y="398" width="290" height="170" fill="#120c2e"/>
 <rect x="120" y="398" width="290" height="4" fill="#7d70c9"/>
 <text x="142" y="442" font-family="'Jersey 20', monospace" font-size="30" font-weight="400" fill="#fff4d6" text-anchor="start">Skills</text>

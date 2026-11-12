@@ -38,7 +38,7 @@ It updates Gluely itself and never touches your workspace. Run `gluely skills in
 
 ## How it works
 
-**The brain asks, your agent reasons, the brain validates.** The CLI never calls a model, and it never sends a message.
+**The brain asks, your agent reasons, the brain validates.** The CLI never calls a model. When you want it to, it runs a play's workflow itself, with your own keys, inside a spend a person approved, and nothing is sent until a person says yes.
 
 **Every motion runs the same loop.** Context feeds plays, plays meet signals, every list passes the gate, your tools do the work, and what happens comes back as lessons.
 
@@ -78,7 +78,11 @@ gluely guard exports/list.csv --to "your enrichment tool"
 
 **Set up a play one question at a time.** `gluely plays start` walks you through a playbook: job switch, post engagers, hiring signal, inbound demo request or own network. At each step it shows your options, saves your answer and tells you the honest arithmetic. If you stop, it picks up where you left off. Agents use the same steps with `gluely plays next` and `gluely plays answer --json`.
 
-**Waterfalls are recipes, not calls.** At the contact step, name several tools in order, such as `Findymail, Hunter, Treg`. The play stores the order and the stop rule, `gluely cost` prices each try, and your agent runs it through your own connections after approval. Gluely still makes no calls.
+**Waterfalls are recipes.** At the contact step, name several tools in order, such as `Findymail, Hunter, Treg`. The play stores the order and the stop rule, and `gluely cost` prices each try. Your agent can run it through your own connections, or `gluely run` can run it for you, as below.
+
+**Plays can run themselves.** Add a `workflow` to a play: guard, filter, tool, agent and approve steps. `gluely run <play> --input list.csv --plan` shows what it would do and cost at most, and runs nothing. A run that spends waits for a person to approve the ceiling. Tool steps call your tools with the keys in your workspace `.env`. Agent steps wait for your agent to answer each row, with the row marked as untrusted data, and drafts are checked against your voice rules. A send step only runs after a person approves the rows. Every row and step lands in `runs/<id>/`, which git ignores. `gluely studio` shows it all in your browser, on your machine only. See [docs/workflows.md](docs/workflows.md).
+
+**Runs keep going without you.** `gluely worker` starts plays on a schedule, carries on every run, waits out outages and tells you when a run needs you. Every row is saved as it finishes, so a crash or a redeploy picks up at the next row, and a send is never repeated on its own. Run it on any box with a disk, such as Fly.io: [docs/self-host.md](docs/self-host.md).
 
 `gluely waterfall contact-data` orders the tools you already have by what one real find costs you: your own price, divided by what each tool got right in a blind test on the same 20 people. Addresses at an old employer count as wrong, and accept-all domains count as unprovable. The library still ranks nobody. Your numbers rank your tools, and `/waterfall` walks your agent through it.
 
@@ -102,7 +106,7 @@ gluely learn
 ## Your data
 
 - **Your brain stays yours.** It's a private git repo on your machine. `gluely init` refuses to create one inside this public repo, and `exports/` and `transcripts/` are ignored by git. Keep the brain's remote private.
-- **The CLI calls nothing.** It never calls a model or another service, and never sends a message. Its only outside command is `git`, run on your own files.
+- **The CLI calls only what you approve.** It never calls a model. Outside of `gluely run`, it calls no other service, and its only outside command is `git`, run on your own files. A run calls the tools its workflow names, with your keys, inside the ceiling a person approved, and sends nothing a person hasn't approved.
 - **Your agent sees what you connect.** When `/setup-gluely` reads your CRM or deals, it reads them through your agent and its model provider. Gluely can't see or limit that, so connect only what you'd show that provider, and keep connections read-only.
 - **Most rules are instructions to your agent.** The skills tell it to treat prospect text as data, ask before it sends and never spend without approval. A good agent follows them, but Gluely can't force it. The one hard lock is spending: only a person in a terminal can approve it, and `gluely cost` reports `can_spend: false` until they do.
 

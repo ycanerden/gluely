@@ -2,6 +2,7 @@ import { scanContext } from './context.js';
 import { runTests } from './brain-tests.js';
 import { learn } from './log.js';
 import { validatePlays } from './plays.js';
+import { listRuns } from './run.js';
 import { installedSkills } from './skills.js';
 import { loadStack } from './stack.js';
 import { contextVersion, git, loadConfig } from './workspace.js';
@@ -16,6 +17,7 @@ export function diagnose(ws) {
   const stack = loadStack(ws);
   const version = contextVersion(ws);
   const learned = learn(ws);
+  const waiting = listRuns(ws).filter((r) => r.status.startsWith('waiting'));
   const isRepo = git(ws, ['rev-parse', '--is-inside-work-tree']) === 'true';
 
   const { summary } = context;
@@ -35,6 +37,10 @@ export function diagnose(ws) {
   const inAgent = (text) => `Open your agent in this folder and type ${text}`;
   let next;
   if (summary.template > 0) next = { step: 'Fill your context', how: inAgent('/setup-gluely') };
+  else if (waiting.some((r) => r.status !== 'waiting_agent')) {
+    const r = waiting.find((x) => x.status !== 'waiting_agent');
+    next = { step: `A person approves run ${r.id} of ${r.play}`, how: 'Read what it will spend or send, then type yes', command: `gluely runs approve ${r.id}` };
+  } else if (waiting.length) next = { step: `Answer the rows run ${waiting[0].id} waits on`, how: 'Your agent reads each row and answers it', command: `gluely runs next ${waiting[0].id}` };
   else if (errors.length) next = { step: 'Fix the errors', how: 'See what these report, then fix each one', command: context.issues.some(isError) ? 'gluely context check' : 'gluely plays validate' };
   else if (!summary.excluded_companies) next = { step: 'Add your exclusions', how: 'List clients, investors and partners in context/exclusions/companies.csv' };
   else if (tests.reasoned.pending.length) next = { step: 'Test the brain', how: inAgent('/gtm-mode, then ask it to run the brain tests') };
@@ -53,6 +59,7 @@ export function diagnose(ws) {
     context: summary,
     plays: plays.plays.map(({ id, status, signal }) => ({ id, status, signal })),
     tests,
+    runs_waiting: waiting.map((r) => ({ id: r.id, play: r.play, status: r.status })),
     learning: { open: learned.open, promoted: learned.promoted, decisions: learned.decisions },
   };
 }
