@@ -19,11 +19,22 @@ gluely init ../my-brain --company "Acme" --domain acme.example --market b2b --mo
 cd ../my-brain
 gluely            # your home screen
 gluely flow       # the loop, drawn from your real state
+gluely dashboard  # results, activity, plays and decisions on one page (exports/dashboard.html)
 ```
 
 Then open your agent in that folder and run `/setup-gluely`. It maps your stack, asks for read-only connections, analyzes your real deals and challenges your ICP before it writes anything.
 
 Testing Gluely for real? [Try it in 10 minutes](docs/try-it.md) with any agent, then [tell us where it hurt](https://github.com/ycanerden/gluely/issues/new?template=tester-report.md).
+
+### Stay up to date
+
+Gluely changes fast while it's early, so update now and then:
+
+```bash
+gluely update     # pulls the latest Gluely with git and lists what changed
+```
+
+It updates Gluely itself and never touches your workspace. Run `gluely skills install` in your workspace afterwards to refresh the skills too. When your copy is more than 30 days old, `gluely` and `gluely doctor` remind you. That reminder reads the date of your local copy, because Gluely doesn't go online on its own.
 
 ## How it works
 

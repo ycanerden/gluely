@@ -848,3 +848,68 @@ test('a waterfall is ordered by your own price per real find, never by the libra
   assert.deepEqual(gluely(['waterfall', 'contact-data', '--tools', 'Other, Zeta Data', '--json'], ws).json.order, ['Zeta Data', 'Other']);
   assert.match(gluely(['log', '--json'], ws).out, /Zeta Data for contact-data: 18 right/);
 });
+
+test('the dashboard counts what was logged, keeps workspace text inert, and stays in the workspace', () => {
+  const ws = makeWorkspace();
+  fillContext(ws);
+  write(ws, 'plays/first-play.yaml', PLAY());
+
+  const empty = gluely(['dashboard', '--json'], ws);
+  assert.equal(empty.code, 0, empty.out);
+  assert.equal(empty.json.totals.touches, 0);
+  assert.equal(empty.json.calendar.days.every((d) => d.touches === 0), true);
+  assert.equal(empty.json.plays[0].verdict, 'no_results');
+
+  gluely(['results', 'add', 'first-play', '--touches', '40', '--replies', '4', '--positive', '2', '--meetings', '1', '--spent', '20', '--json'], ws);
+  gluely(['log', 'add', '--kind', 'decision', '--area', 'play', '--text', '</script><script>alert(1)</script>', '--json'], ws);
+  gluely(['cost', 'price', 'Some Tool', '--job', 'contact-data', '--each', '0.1', '--json'], ws);
+
+  const result = gluely(['dashboard', '--weeks', '4', '--json'], ws);
+  assert.equal(result.code, 0, result.out);
+  const data = result.json;
+  assert.equal(data.file, path.join('exports', 'dashboard.html'));
+  assert.equal(data.calendar.weeks, 4);
+  assert.equal(data.calendar.days.at(-1).date, new Date().toISOString().slice(0, 10));
+  assert.equal(new Date(`${data.calendar.start}T00:00:00Z`).getUTCDay(), 1, 'weeks start on Monday');
+  assert.deepEqual([data.totals.touches, data.totals.positive, data.totals.meetings], [40, 2, 1]);
+  assert.equal(data.calendar.days.at(-1).touches, 40);
+  assert.equal(data.roi.per_meeting, 20);
+  assert.equal(data.plays[0].verdict, 'too_early');
+  assert.equal(data.log.length, 1, 'bookkeeping Gluely writes for itself is not a decision');
+  assert.match(data.note, /not tracked yet/, 'the page says what it cannot count');
+
+  const page = fs.readFileSync(path.join(ws, data.file), 'utf8');
+  assert.match(page, /^<!DOCTYPE html>/);
+  assert.ok(!page.includes('</script><script>alert(1)'), 'workspace text cannot close the data script');
+  const embedded = JSON.parse(page.match(/<script type="application\/json" id="gluely-data">(.*?)<\/script>/s)[1]);
+  assert.equal(embedded.log[0].text, '</script><script>alert(1)</script>');
+
+  assert.equal(gluely(['dashboard', '--out', '../outside.html', '--json'], ws).json.error.code, 'bad_path');
+  assert.equal(gluely(['dashboard', '--weeks', '0', '--json'], ws).json.error.code, 'bad_number');
+});
+
+test('results carry the day they happened, so a weekly import lands on the right days', () => {
+  const ws = makeWorkspace();
+  fillContext(ws);
+  write(ws, 'plays/first-play.yaml', PLAY().replace(/kill: .*/, 'kill: { after_days: 14, if: "positive_rate < 1%" }'));
+  const add = (...flags) => gluely(['results', 'add', 'first-play', ...flags, '--json'], ws);
+  const day = (offset) => new Date(Date.now() - offset * 86400000).toISOString().slice(0, 10);
+
+  assert.equal(add('--touches', '5', '--on', '2026-02-30').json.error.code, 'bad_date');
+  assert.equal(add('--touches', '5', '--on', 'last week').json.error.code, 'bad_date');
+  assert.equal(add('--touches', '5', '--on', day(-2)).json.error.code, 'bad_date', 'no results from the future');
+
+  // A backfill: three weeks of daily sender stats, added in one sitting.
+  for (const offset of [20, 13, 6]) assert.deepEqual(add('--touches', '20', '--replies', '2', '--on', day(offset)).json.warnings, []);
+  const judged = gluely(['results', 'first-play', '--json'], ws).json;
+  assert.equal(judged.since, day(20));
+  assert.equal(judged.days, 20, 'the kill clock starts on the first real day, not the day of the import');
+  assert.equal(judged.verdict, 'kill', 'after_days is due and no positive came back');
+
+  const repeat = add('--touches', '20', '--on', day(6)).json;
+  assert.match(repeat.warnings[0], /already has a batch on/);
+
+  const days = gluely(['dashboard', '--json'], ws).json.calendar.days.filter((d) => d.touches);
+  assert.deepEqual(days.map((d) => [d.date, d.touches]), [[day(20), 20], [day(13), 20], [day(6), 40]]);
+  assert.equal(add('--touches', '3').json.added.on, day(0), 'without --on a batch counts today');
+});
