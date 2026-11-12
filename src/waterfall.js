@@ -48,7 +48,7 @@ export function recordTest(ws, tool, { job, tried, right, wrong = 0, unprovable 
   return { recorded: entry, ...planWaterfall(ws, job, {}) };
 }
 
-function pricePer(prices, tool, job) {
+export function pricePer(prices, tool, job) {
   const entry = Object.entries(prices.tools).find(([name]) => same(name, tool))?.[1];
   const price = entry?.[job];
   if (!price) return null;

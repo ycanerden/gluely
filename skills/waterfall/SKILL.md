@@ -5,7 +5,7 @@ description: Build an enrichment waterfall from the tools a company already has,
 
 # Build a waterfall
 
-A waterfall tries tools in order and stops at the first good result, so each tool only pays for the people the last one missed. Gluely never calls these tools. You run them through the company's own connections, after `/check-cost`.
+A waterfall tries tools in order and stops at the first good result, so each tool only pays for the people the last one missed. You run them through the company's own connections after `/check-cost`, or write them as a `try:` list in a workflow tool step and let `gluely run` call them inside an approved ceiling.
 
 Read `../principle-recommend-never-require/SKILL.md` and `../principle-customer-data-stays-home/SKILL.md` first.
 

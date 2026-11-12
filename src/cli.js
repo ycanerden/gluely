@@ -1,3 +1,4 @@
+import { spawn } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { addCase, checkCompany, checkDraft, pendingCases, runTests, submitAnswer } from './brain-tests.js';
@@ -13,18 +14,22 @@ import { guardFile } from './guard.js';
 import { validatePlays } from './plays.js';
 import { answerStep, nextStep, startPlay } from './playbooks.js';
 import { serve } from './mcp.js';
+import { startStudio } from './studio.js';
+import { work } from './worker.js';
 import { addResult, judgePlay, renderJudgement } from './results.js';
 import { planWaterfall, recordTest, renderWaterfall } from './waterfall.js';
+import { advance, answerTask, listRuns, nextTasks, pendingApproval, planRun, runTrace, startRun, stopRun } from './run.js';
+import { confirmRunApproval, renderPlan, renderRun } from './run-ui.js';
 import { loadPrices } from './cost.js';
 import { HOSTS, installSkills, listSkills } from './skills.js';
 import { loadStack, setStack } from './stack.js';
 import { CHANNELS } from './vocab.js';
 import { beside, Cancelled, interactive, mascot, say } from './ui.js';
 import { confirmApproval, costFlow, pickPlaybook, renderCost, walkPlay } from './walk.js';
-import { contextVersion, findWorkspace, GLUELY_ROOT, requireWorkspace } from './workspace.js';
+import { contextVersion, findWorkspace, GLUELY_ROOT, parseCsv, requireWorkspace } from './workspace.js';
 
 const VERSION = JSON.parse(fs.readFileSync(path.join(GLUELY_ROOT, 'package.json'), 'utf8')).version;
-const BOOLEAN_FLAGS = new Set(['json', 'help', 'version', 'no-git', 'no-skills', 'strict']);
+const BOOLEAN_FLAGS = new Set(['json', 'help', 'version', 'no-git', 'no-skills', 'strict', 'plan', 'pull', 'once']);
 
 const HELP = `gluely ${VERSION}: an open-source GTM brain. Your agent thinks. Gluely remembers and checks.
 
@@ -75,13 +80,27 @@ Tools
   gluely waterfall <job> [--tools "A, B"]                        order your tools by your own price and tests
   gluely waterfall test <tool> --job <j> --tried 20 --right <n> [--wrong n] [--unprovable n]   a blind test
 
+Run
+  gluely run <play> --input <list.csv> --plan                    what a run would do and cost at most, before anything runs
+  gluely run <play> --input <list.csv> [--limit n]               run the play's workflow over a list
+  gluely runs [--play id] | status <run>                         every run, or one run step by step
+  gluely runs next <run> | answer <run> <row> <text>             agent steps: read the rows, answer each
+  gluely runs approve <run> [--reject 2,5]                       a person approves spending, or rows before a send
+  gluely runs continue <run> | stop <run>                        carry on after an answer or approval, or stop
+
 Skills
   gluely skills list | install [--host claude,cursor]            the GTM skill pack
+
+Worker
+  gluely worker [--every 30] [--pull] [--once]                    keeps runs moving: schedules, retries, and tells you when one waits
+
+Studio
+  gluely studio [--port 4600] [--workspace <dir>]                your plays, workflows and runs in a browser, on this machine only
 
 Agents
   gluely mcp [--workspace <dir>]                                 every command above as MCP tools, over stdio
 
-Add --json to any command for agents. Gluely never sends a message and never calls a model.`;
+Add --json to any command for agents. Gluely never calls a model, never spends without a person's approval,\nand never sends anything a person hasn't approved.`;
 
 export function parseArgs(argv) {
   const parsed = { _: [], flags: {} };
@@ -98,6 +117,7 @@ export function parseArgs(argv) {
   return parsed;
 }
 
+const spawnOpen = (url) => spawn('open', [url], { stdio: 'ignore', detached: true }).unref();
 const activeWorkspace = () => process.env.GLUELY_WORKSPACE || findWorkspace();
 const line = (ok, text) => console.log(`${ok ? mark.ok() : mark.bad()} ${text}`);
 
@@ -447,6 +467,69 @@ export const commands = {
     };
   },
 
+  async run(args) {
+    const ws = requireWorkspace();
+    const play = args._[0];
+    if (!play) fail('usage', 'Usage: gluely run <play> --input <list.csv> [--plan] [--limit n]');
+    const { input, limit, by } = args.flags;
+    const plan = args.flags.plan === true || args.flags.plan === 'true';
+    if (plan) {
+      let rows = null;
+      if (input) {
+        if (!fs.existsSync(path.resolve(input))) fail('missing_file', `No file at ${input}.`);
+        rows = parseCsv(fs.readFileSync(path.resolve(input), 'utf8')).rows;
+        if (limit) rows = rows.slice(0, Number(limit));
+      }
+      const data = planRun(ws, play, { rows, input });
+      return { data, render: () => renderPlan(data), exit: ['ready', 'needs_approval'].includes(data.status) ? 0 : 1 };
+    }
+    const run = startRun(ws, play, { input, limit, by });
+    const data = await advance(ws, run.id);
+    return { data, render: () => renderRun(data) };
+  },
+
+  async runs(args) {
+    const ws = requireWorkspace();
+    const [sub, id, ...rest] = args._;
+    if (!sub) {
+      const data = { runs: listRuns(ws, { play: args.flags.play }).map((r) => ({ id: r.id, play: r.play, status: r.status, created: r.created, rows: r.rows.length, live: r.rows.filter((x) => !x.stopped).length, spent: r.spent })) };
+      return {
+        data,
+        render() {
+          if (!data.runs.length) console.log(color.dim('No runs yet. Start one with gluely run <play> --input <list.csv>.'));
+          for (const r of data.runs) console.log(`${color.dim(r.created.slice(0, 10))} ${r.id}  ${r.play.padEnd(22)} ${r.status.replace(/_/g, ' ').padEnd(24)} ${r.live}/${r.rows} rows`);
+        },
+      };
+    }
+    if (sub === 'status') { const data = runTrace(ws, id); return { data, render: () => renderRun(data) }; }
+    if (sub === 'continue') { const data = await advance(ws, id, { now: true }); return { data, render: () => renderRun(data) }; }
+    if (sub === 'stop') { const data = stopRun(ws, id, { by: args.flags.by }); return { data, render: () => renderRun(data) }; }
+    if (sub === 'next') {
+      const data = nextTasks(ws, id, { limit: args.flags.limit });
+      return {
+        data,
+        render() {
+          if (!data.tasks.length) { console.log(data.next); return; }
+          console.log(`${color.bold(data.step)}  ${data.left} rows waiting\n${data.ask}\n${color.dim(data.untrusted)}`);
+          for (const t of data.tasks) console.log(`  ${String(t.row).padStart(3)}  ${color.dim(JSON.stringify(t.data))}`);
+          console.log(`${mark.next()} ${data.answer}`);
+        },
+      };
+    }
+    if (sub === 'answer') {
+      const { skip, why, by } = args.flags;
+      const data = answerTask(ws, id, { row: rest[0], text: rest.slice(1).join(' ') || args.flags.text, skip, why, by });
+      return { data, render: () => line(true, `Row ${data.row} answered. ${data.next}`) };
+    }
+    if (sub === 'approve') {
+      if (!interactive() || args.flags.json) fail('needs_a_person', 'Only a person can approve a run.', `Ask them to run gluely runs approve ${id || '<run>'} in a terminal.`);
+      const reject = args.flags.reject ? String(args.flags.reject).split(',').map((n) => n.trim()).filter(Boolean) : [];
+      const data = await confirmRunApproval(ws, id, reject);
+      return { data, render: () => data && renderRun(data) };
+    }
+    fail('usage', 'Usage: gluely runs [status | next | answer | approve | continue | stop] <run>');
+  },
+
   skills(args) {
     const sub = args._[0] || 'list';
     if (sub === 'list') {
@@ -555,6 +638,21 @@ export async function main(argv) {
     args._ = rest;
     if (args.flags.version) { console.log(VERSION); return 0; }
     if (args.flags.help) { console.log(HELP); return 0; }
+    if (name === 'studio') {
+      const ws = args.flags.workspace ? path.resolve(args.flags.workspace) : requireWorkspace();
+      const { url } = await startStudio(ws, { port: args.flags.port ? Number(args.flags.port) : 4600 });
+      console.log(`${mark.ok()} Studio for ${path.basename(ws)} at ${color.cyan(url)}`);
+      console.log(color.dim('  It reads your files and changes nothing. Ctrl+C stops it.'));
+      if (args.flags.open !== 'false' && process.platform === 'darwin') spawnOpen(url);
+      await new Promise(() => {});
+    }
+    if (name === 'worker') {
+      const ws = path.resolve(args.flags.workspace || process.env.GLUELY_WORKSPACE || findWorkspace() || 'workspace');
+      const every = args.flags.every ? Number(args.flags.every) : 30;
+      if (!Number.isFinite(every) || every < 5) fail('usage', '--every is in seconds, 5 or more.');
+      await work(ws, { every, doPull: Boolean(args.flags.pull), once: Boolean(args.flags.once) });
+      return 0;
+    }
     if (name === 'mcp') { await serve(commands, { workspace: args.flags.workspace, version: VERSION }); return 0; }
     const command = name ? commands[name] : home;
     if (!command) fail('unknown_command', `Unknown command "${name}".`, 'Run gluely --help.');

@@ -1,0 +1,22 @@
+# A Gluely worker on Fly.io: one machine, one disk, no public ports.
+# Copy it to the repo root (next to the Dockerfile), change app, and follow docs/self-host.md.
+app = "gluely-worker-CHANGE-ME"
+primary_region = "CHANGE-ME"   # the Fly region closest to you, see fly platform regions
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  GLUELY_WORKSPACE = "/data/brain"
+  TZ = "UTC"                 # schedules run in this time zone: set your own
+
+[[mounts]]
+  source = "gluely_data"
+  destination = "/data"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"
+
+[[restart]]
+  policy = "always"

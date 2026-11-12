@@ -40,7 +40,7 @@ steps:
     writes: excuse.angle
   - id: send
     ask: What will send the message?
-    why: Gluely never sends. A human approves the template first, then your tool does it.
+    why: A person approves the template first. Then your tool sends it, or a Gluely run does.
     type: tool
     job: outreach
     writes: action.tool

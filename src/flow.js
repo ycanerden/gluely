@@ -19,7 +19,7 @@ export function buildFlow(state) {
       stage('excuse', 'Excuse', 'started', 'rules and draft check work. Link to signals in phase 2'),
       stage('gate', 'Exclusion gate', context.excluded_companies ? 'working' : 'started', `${context.excluded_companies} companies, ${context.known_people} known people. gluely guard sorts every list before it leaves`),
       stage('enrichment', 'Enrichment', 'tool', yours('enrichment', 'any tool you like')),
-      stage('outbound', 'Outbound tool', 'tool', `${yours('outreach', 'any tool you like')}. Gluely never sends`),
+      stage('outbound', 'Outbound tool', 'tool', `${yours('outreach', 'any tool you like')}. Nothing goes out without a person's yes`),
       stage('database', 'Database', 'later', `Person 360 in ${stack.store || 'any store'}. Phase 1`),
       stage('crm', 'CRM', 'tool', `${yours('crm', 'any CRM')}. Sales-ready sync in phase 4`),
       stage('replies', 'Replies', 'later', 'opt-outs in phase 2, labels in phase 3'),
