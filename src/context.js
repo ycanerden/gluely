@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { loadPeople } from './guard.js';
+import { loadPeopleCsv } from './guard.js';
 import { CONTEXT_STATUSES, EVIDENCE } from './vocab.js';
 import { loadConfig, loadExclusions, readFrontmatter } from './workspace.js';
 
@@ -97,6 +97,13 @@ export function scanContext(ws, { now = Date.now() } = {}) {
   if (!personas.length) issues.push({ level: 'warn', file: 'context/personas/', message: 'add at least one persona' });
 
   const exclusions = loadExclusions(ws);
+  const people = loadPeopleCsv(ws);
+  // A broken quote hides rows, and a hidden customer is an unprotected one.
+  for (const [file, parsed] of [['companies.csv', exclusions], ['people.csv', people]]) {
+    for (const problem of parsed.problems) {
+      issues.push({ level: 'error', file: `context/exclusions/${file}`, message: `${problem.message}. The guard refuses to sort a list until this is fixed` });
+    }
+  }
   if (exclusions.header.length && !exclusions.header.includes('domain')) {
     issues.push({ level: 'error', file: 'context/exclusions/companies.csv', message: 'needs a domain column' });
   }
@@ -117,7 +124,7 @@ export function scanContext(ws, { now = Date.now() } = {}) {
       proof: files.filter((f) => f.rel.startsWith('proof/')).length,
       hunches: files.filter((f) => f.evidence === 'hunch').length,
       excluded_companies: exclusions.rows.length,
-      known_people: loadPeople(ws).length,
+      known_people: people.rows.length,
     },
     issues,
     claim_dirs: CLAIM_DIRS,

@@ -61,33 +61,69 @@ export function readFrontmatter(file) {
   }
 }
 
+// Reads a CSV and says when it can't be trusted. A quote only opens a cell at its start,
+// so `5" pipe` stays one cell. A quoted cell that runs over a line break, or never closes,
+// is reported in `problems`: that is how one stray quote swallows the rows after it, and
+// the gate must refuse such a file instead of sorting what is left.
 export function parseCsv(text) {
-  const rows = [];
-  let row = [];
+  const records = [];
+  const problems = [];
+  const src = String(text).replace(/^\uFEFF/, '');
+  let cells = [];
   let cell = '';
   let quoted = false;
-  for (let i = 0; i < text.length; i++) {
-    const ch = text[i];
+  let closed = false;
+  let line = 1;
+  let start = 1;
+  const endCell = () => { cells.push(cell); cell = ''; closed = false; };
+  const endRecord = () => {
+    endCell();
+    if (line > start) problems.push({ line: start, message: `the row on line ${start} has a quoted cell that runs over a line break, so the rows after it may be swallowed` });
+    records.push({ cells, line: start });
+    cells = [];
+  };
+  for (let i = 0; i < src.length; i++) {
+    const ch = src[i];
     if (quoted) {
-      if (ch === '"' && text[i + 1] === '"') { cell += '"'; i++; }
-      else if (ch === '"') quoted = false;
-      else cell += ch;
-    } else if (ch === '"') quoted = true;
-    else if (ch === ',') { row.push(cell); cell = ''; }
-    else if (ch === '\n') { row.push(cell); rows.push(row); row = []; cell = ''; }
+      if (ch === '"' && src[i + 1] === '"') { cell += '"'; i++; }
+      else if (ch === '"') { quoted = false; closed = true; }
+      else { if (ch === '\n') line++; cell += ch; }
+    } else if (ch === '"' && cell === '' && !closed) quoted = true;
+    else if (ch === ',') endCell();
+    else if (ch === '\n') { endRecord(); line++; start = line; }
     else if (ch !== '\r') cell += ch;
   }
-  if (cell || row.length) { row.push(cell); rows.push(row); }
-  const [header = [], ...body] = rows.filter((r) => r.some((c) => c.trim()));
-  const keys = header.map((h) => h.trim().replace(/^﻿/, '').toLowerCase());
-  return { header: keys, rows: body.map((r) => Object.fromEntries(keys.map((k, i) => [k, (r[i] ?? '').trim()]))) };
+  if (quoted) problems.push({ line: start, message: `a quote opened on line ${start} never closes, so everything after it was read as one cell` });
+  if (cell || cells.length || closed || quoted) { line = start; endRecord(); }
+
+  const [head, ...body] = records.filter((r) => r.cells.some((c) => c.trim()));
+  // Two columns with one name would overwrite each other, so the later ones get a number.
+  const seen = new Map();
+  const keys = (head?.cells || []).map((h) => {
+    const key = h.trim().toLowerCase();
+    const count = (seen.get(key) || 0) + 1;
+    seen.set(key, count);
+    return count > 1 ? `${key}_${count}` : key;
+  });
+  return {
+    header: keys,
+    rows: body.map((r) => Object.fromEntries(keys.map((k, i) => [k, (r.cells[i] ?? '').trim()]))),
+    lines: body.map((r) => r.line),
+    // Rows with more cells than the header: an unquoted comma shifted their columns.
+    overflow: body.filter((r) => r.cells.slice(keys.length).some((c) => c.trim())).map((r) => r.line),
+    problems,
+  };
 }
 
-export const normalizeDomain = (value) =>
-  String(value || '').trim().toLowerCase().replace(/^https?:\/\//, '').replace(/^www\./, '').replace(/\/.*$/, '');
+// The host of a URL, an email or a bare domain: "https://www.Acme.com:443/pricing?x" is acme.com.
+export const normalizeDomain = (value) => String(value || '').trim().toLowerCase()
+  .replace(/^mailto:/, '').replace(/^[a-z][a-z0-9+.-]*:\/\//, '').replace(/[/?#].*$/, '')
+  .replace(/^.*@/, '').replace(/:\d+$/, '').replace(/^www\d*\./, '').replace(/\.+$/, '');
+
+const EMPTY_CSV = { header: [], rows: [], lines: [], overflow: [], problems: [] };
 
 export function loadExclusions(ws) {
   const file = path.join(ws, 'context', 'exclusions', 'companies.csv');
-  if (!fs.existsSync(file)) return { header: [], rows: [] };
+  if (!fs.existsSync(file)) return EMPTY_CSV;
   return parseCsv(fs.readFileSync(file, 'utf8'));
 }

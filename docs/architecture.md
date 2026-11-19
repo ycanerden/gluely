@@ -38,7 +38,7 @@ Gluely makes no calls. The agent carries data through the two doors with your ow
 | **Vocabulary** | The fixed nouns every company shares | `src/vocab.js` | Partial |
 | **Workspace** | The company's memory, versioned in git | your private repo | Works |
 | **In door: mapping** | Turns your custom CRM into the vocabulary | `mapping.yaml` | Proposed |
-| **Out door: gate** | Decides what may leave, and holds when in doubt | `src/guard.js` | Works, but fails open (see below) |
+| **Out door: gate** | Decides what may leave, and holds when in doubt | `src/guard.js` | Works. Holds when in doubt, and reads columns by a heuristic until the mapping exists |
 | **The loop** | Runs every experiment the same way, and keeps what it taught | plays, results, log, tests | Works for plays, partial for experiments |
 | **Skills** | Tell any agent how to think about GTM | `skills/` | Works |
 
@@ -113,7 +113,7 @@ unmapped: hold        # anything not listed is shown to a human, never guessed
 How it fits the rest:
 
 - **Onboarding means writing the mapping.** `/setup-gluely` reads your schema, drafts `mapping.yaml`, and turns a few real records into tests ("record 3 must map to `former_customer`"). A human approves.
-- **The gate reads the mapping.** Today the gate guesses columns from a hardcoded list of names. That's a tiny mapping in disguise, and it's where several tryout leaks came from: `Work Email` wasn't read, and a HubSpot customer export loaded zero customers without a word.
+- **The gate reads the mapping.** Today the gate reads headers by what they mean (`Work Email`, `Company Domain Name`, `Associated Company`), reads any email or LinkedIn profile wherever it sits, and lists the columns it read nothing from under `unread_columns`. A customer export that loads nobody is refused. That closes the tryout leaks, but it's still a mapping in disguise: a human-approved `mapping.yaml` replaces the guessing.
 - **Unmapped means held.** An unknown column or value is listed and held, never silently ignored.
 
 ## 4. The out door: the gate
@@ -126,20 +126,25 @@ Every list that leaves for an outside tool passes `gluely guard`. Each row ends 
 | `owner` | Someone on the team owns this relationship | That teammate |
 | `held` | A customer, a look-alike, or anything that couldn't be checked | A human, and it stays home |
 
-**The rule that must hold: clear only what's positively checked. When in doubt, hold.** Today the gate fails open. The tryout got about 36 real customer or relationship rows into `clear`:
-- a junk domain column overrode a customer's email
-- a stray quote swallowed rows without a warning
-- unknown customer-export columns were ignored
-- known people matched only by exact email
+**The rule that must hold: clear only what's positively checked. When in doubt, hold.** The gate used to fail open. The tryout got about 36 real customer or relationship rows into `clear`, in four ways. Each one is closed now, and each has a test in `test/guard.test.js`:
 
-Fixing that is the first piece of work, because experiments bring in exactly this kind of messy list.
+| The leak | What the gate does now |
+|---|---|
+| A junk domain column overrode a customer's email | Every identifier in the row is checked: the domain column, every email's domain and the company name. A junk cell names nothing |
+| A stray quote swallowed rows without a warning | A quoted cell that never closes or runs over a line break refuses the whole file, for lists and for the exclusion files. A row with more cells than the header is held |
+| Unknown customer-export columns were ignored | Headers are read by meaning, and an export that loads nobody is refused. Rows it can't read are counted in a warning |
+| Known people matched only by exact email | Emails are compared without case, `+tags` or Gmail dots, profiles without country sites or tracking tails, and a shared full name goes to the owner too |
+
+The tryout lists aren't in this repo, so run the tryout again to see the 36 land in `held` and `owner`.
 
 The gate's other rules:
 
-- One matcher. `guard`, `check company` and the exclusion tests must give the same answer.
-- Check every identifier. A match on email domain, domain or company name holds the row.
-- The file must be intact. If parsed rows don't equal physical lines, refuse.
+- One matcher. `guard`, `check company` and the exclusion tests give the same answer, because all three call `matchCompany` in `src/guard.js`.
+- Check every identifier. A match on email domain, domain or company name holds the row, and the strictest rule wins when several match.
+- The file must be intact. If a row runs over a line break, refuse.
 - Every decision says why: `matched_on`, `matched_rule`, `parsed_rows`, `unread_columns`.
+
+Still open: the gate clears a list when no customers are listed at all (it warns), subdomains are compared without a public suffix list, and a customer export is not matched by person name, because in B2C that would hold half of every list.
 
 ## 5. The loop: every experiment runs the same way
 
@@ -159,7 +164,7 @@ An experiment is a play. A play runs this lifecycle, and each step names who act
 | **Brief** | The agent reads context, exclusions and **what we tried before**, then proposes 2–3 routes with honest arithmetic | `/experiment` skill, `gluely plays history` | Proposed |
 | **Draft** | The chosen route becomes `plays/<id>.yaml`: hypothesis, signal, audience, excuse, tools, kill rule | `plays start`, `plays validate` | Works |
 | **Approved** | A person sets it active and approves the cost | `cost`, `cost approve` | Works |
-| **Running** | The agent finds people with your tools, the gate sorts them, drafts are checked, a human sends | `guard`, `check draft`, `recall` | Works (gate fails open) |
+| **Running** | The agent finds people with your tools, the gate sorts them, drafts are checked, a human sends | `guard`, `check draft`, `recall` | Works |
 | **Judged** | Results come in, with honest ranges and the kill rule | `results add`, `results` | Works |
 | **Closed** | A human records the verdict and why. Lessons become context changes and tests | verdict record, `log`, `learn`, `test` | Partial: there's no verdict record yet |
 

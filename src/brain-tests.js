@@ -5,9 +5,13 @@ import fs from 'node:fs';
 import path from 'node:path';
 import YAML from 'yaml';
 import { loadExcuses, loadVoice } from './context.js';
-import { fail } from './output.js';
+import { checkCompany } from './guard.js';
+import { fail, GluelyError } from './output.js';
 import { TEST_KINDS } from './vocab.js';
-import { contextVersion, loadExclusions, normalizeDomain } from './workspace.js';
+import { contextVersion } from './workspace.js';
+
+// One matcher: the exclusion tests ask the same question as `gluely guard`.
+export { checkCompany };
 
 const testsDir = (ws) => path.join(ws, 'tests');
 const resultsFile = (ws) => path.join(testsDir(ws), 'results.jsonl');
@@ -57,21 +61,21 @@ export function checkDraft(ws, text, channel) {
   return { pass: violations.length === 0, violations, words, chars };
 }
 
-export function checkCompany(ws, value) {
-  const domain = normalizeDomain(value);
-  const hit = loadExclusions(ws).rows.find((row) => normalizeDomain(row.domain) === domain);
-  return { domain, blocked: Boolean(hit), reason: hit?.reason || (hit ? 'excluded' : null) };
-}
-
 function runDeterministic(ws, item) {
   if (item.kind === 'voice') {
     const result = checkDraft(ws, item.input, item.channel);
     const actual = result.pass ? 'pass' : 'fail';
     return { ok: actual === item.expect, actual, detail: result.violations.join('; ') };
   }
-  const result = checkCompany(ws, item.input);
-  const actual = result.blocked ? 'blocked' : 'allowed';
-  return { ok: actual === item.expect, actual, detail: result.reason || '' };
+  try {
+    const result = checkCompany(ws, item.input);
+    const actual = result.blocked ? 'blocked' : 'allowed';
+    return { ok: actual === item.expect, actual, detail: result.reason || '' };
+  } catch (error) {
+    // A broken exclusion file fails the test instead of taking the whole run down.
+    if (!(error instanceof GluelyError)) throw error;
+    return { ok: false, actual: 'unreadable', detail: error.message };
+  }
 }
 
 export function loadResults(ws) {
