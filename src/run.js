@@ -13,6 +13,7 @@ import { loadLibrary } from './library.js';
 import { addEntry } from './log.js';
 import { fail } from './output.js';
 import { readPlay } from './playbooks.js';
+import { expandSteps } from './recipes.js';
 import { pricePer } from './waterfall.js';
 import { contextVersion, parseCsv } from './workspace.js';
 
@@ -57,7 +58,8 @@ export function readWorkflow(ws, playId) {
   if (!spec.workflow?.steps?.length) {
     fail('no_workflow', `${playId} has no workflow yet.`, 'Add workflow.steps to the play file: guard, filter, branch, set, stop, tool, agent and approve steps.');
   }
-  return { spec, tree: spec.workflow.steps, steps: flatten(spec.workflow.steps) };
+  const tree = expandSteps(ws, spec.workflow.steps);
+  return { spec, tree, steps: flatten(tree) };
 }
 
 // A run keeps the workflow it started with, so editing the play never changes a run halfway.
@@ -110,7 +112,9 @@ export function validateWorkflow(ws, steps) {
       }
       const tries = triesOf(step);
       if (tries.length > 1 && !step.writes) add(step, 'a waterfall needs writes: the column that stops it once filled');
+      if (step.source && !step.writes) add(step, 'source needs writes: the answer it backs up');
       for (const t of tries) {
+        if (t.unknown_recipe) { add(step, `no recipe "${t.recipe}". gluely recipes lists them`); continue; }
         if (!t.tool) add(step, 'every try needs a tool name, the same one your price is saved under');
         if (!t.request?.url) add(step, `${t.tool || 'a try'} needs request.url`);
         else if (!/^https?:\/\//.test(String(t.request.url))) add(step, `${t.tool}: request.url must start with http:// or https://`);
@@ -505,9 +509,16 @@ async function advanceLocked(ws, id, { now }) {
               if (value !== undefined && value !== null) out[column] = typeof value === 'object' ? JSON.stringify(value) : value;
             }
           }
+          // No source, no find: an answer the tool can't back with a link is dropped, so the
+          // next tool in the waterfall gets a go and nobody reads an unsourced claim as fact.
+          let unsourced = false;
+          if (step.source && step.writes && filled(out[step.writes]) && !filled(out[step.source])) {
+            delete out[step.writes];
+            unsourced = true;
+          }
           Object.assign(row.data, out);
-          found = step.writes ? filled(row.data[step.writes]) : res.ok;
-          event(ws, run, { step: step.id, row: row.n, tool: t.tool, status: res.ok ? (found ? 'found' : 'empty') : 'error', http: res.status, cost: each, ms: Date.now() - started, ...(res.ok ? { output: out } : { error: scrub(res.error || String(res.text || '').slice(0, 200), t.request, env) }) });
+          found = step.writes ? filled(row.data[step.writes]) && (!step.source || filled(row.data[step.source])) : res.ok;
+          event(ws, run, { step: step.id, row: row.n, tool: t.tool, status: res.ok ? (found ? 'found' : unsourced ? 'no_source' : 'empty') : 'error', http: res.status, cost: each, ms: Date.now() - started, ...(res.ok ? { output: out } : { error: scrub(res.error || String(res.text || '').slice(0, 200), t.request, env) }) });
           if (found) break;
         }
         if (!found && step.required) stop(row, step.id, step.writes ? `no ${step.writes} found` : 'the tool call failed');
@@ -610,33 +621,56 @@ export function nextTasks(ws, id, { limit = ANSWER_PAGE } = {}) {
 }
 
 export function answerTask(ws, id, { row, text, skip, why, by }) {
-  const run = loadRun(ws, id);
-  const steps = runSteps(ws, run);
-  const step = steps[run.step];
-  if (run.status !== 'waiting_agent' || step?.type !== 'agent') fail('not_waiting', `${id} is not waiting for an agent answer. It is ${run.status.replace(/_/g, ' ')}.`);
-  const n = Number(skip ?? row);
-  const target = reach(run, step).find((r) => r.n === n);
-  if (!target) fail('unknown_row', `Row ${skip ?? row} is not waiting in ${id}.`);
-  if (target.answers[step.id] !== undefined) fail('answered', `Row ${n} already has an answer for ${step.id}.`);
-  if (skip !== undefined) {
-    if (!why) fail('usage', 'Say why the row is dropped with --why.');
-    target.answers[step.id] = null;
-    stop(target, step.id, `dropped by the agent: ${why}`);
-    event(ws, run, { step: step.id, row: n, status: 'dropped', reason: why, by: by || 'agent' });
-  } else {
-    if (!filled(text)) fail('usage', 'The answer is empty.');
-    if (step.check) {
-      const checked = checkDraft(ws, text, step.check);
-      if (!checked.pass) fail('draft_failed', `This breaks the ${step.check} rules: ${checked.violations.join('; ')}.`, 'Rewrite it and answer again.');
+  const result = answerTasks(ws, id, { answers: [skip !== undefined ? { row: skip, skip: true, why } : { row, text }], by, strict: true });
+  return { id, row: result.answered[0]?.row ?? Number(skip ?? row), step: result.step, left: result.left, status: result.status, next: result.next };
+}
+
+// Many rows in one go, so an agent can judge 25 rows from one read instead of one call each.
+// Each item is { row, text } or { row, skip: true, why }. Good answers are kept even when
+// others in the batch fail, and every failure says why, so the agent fixes only those.
+export function answerTasks(ws, id, { answers, by, strict = false }) {
+  if (!Array.isArray(answers) || !answers.length) fail('usage', 'answers must be a list like [{ "row": 1, "text": "..." }, { "row": 2, "skip": true, "why": "..." }].');
+  const release = lock(ws, id);
+  try {
+    const run = loadRun(ws, id);
+    const steps = runSteps(ws, run);
+    const step = steps[run.step];
+    if (run.status !== 'waiting_agent' || step?.type !== 'agent') fail('not_waiting', `${id} is not waiting for an agent answer. It is ${run.status.replace(/_/g, ' ')}.`);
+    const answered = [];
+    const failed = [];
+    for (const item of answers) {
+      const n = Number(item?.row);
+      const problem = (code, message) => {
+        if (strict) fail(code, message, code === 'draft_failed' ? 'Rewrite it and answer again.' : undefined);
+        failed.push({ row: item?.row ?? null, code, message });
+      };
+      const target = reach(run, step).find((r) => r.n === n);
+      if (!target) { problem('unknown_row', `Row ${item?.row} is not waiting in ${id}.`); continue; }
+      if (target.answers[step.id] !== undefined) { problem('answered', `Row ${n} already has an answer for ${step.id}.`); continue; }
+      if (item.skip) {
+        if (!filled(item.why)) { problem('usage', 'Say why the row is dropped with --why.'); continue; }
+        target.answers[step.id] = null;
+        stop(target, step.id, `dropped by the agent: ${item.why}`);
+        event(ws, run, { step: step.id, row: n, status: 'dropped', reason: item.why, by: by || 'agent' });
+        answered.push({ row: n, dropped: true });
+        continue;
+      }
+      const text = item.text;
+      if (!filled(text)) { problem('usage', 'The answer is empty.'); continue; }
+      if (step.check) {
+        const checked = checkDraft(ws, String(text), step.check);
+        if (!checked.pass) { problem('draft_failed', `This breaks the ${step.check} rules: ${checked.violations.join('; ')}.`); continue; }
+      }
+      target.answers[step.id] = String(text);
+      target.data[step.writes] = String(text);
+      event(ws, run, { step: step.id, row: n, status: 'answered', by: by || 'agent' });
+      answered.push({ row: n });
     }
-    target.answers[step.id] = text;
-    target.data[step.writes] = text;
-    event(ws, run, { step: step.id, row: n, status: 'answered', by: by || 'agent' });
-  }
-  const left = reach(run, step).filter((r) => r.answers[step.id] === undefined).length;
-  if (!left) { run.step++; run.status = 'running'; }
-  saveRun(ws, run);
-  return { id, row: n, step: step.id, left, status: run.status, next: left ? `${left} rows left` : `gluely runs continue ${id}` };
+    const left = reach(run, step).filter((r) => r.answers[step.id] === undefined).length;
+    if (!left) { run.step++; run.status = 'running'; }
+    saveRun(ws, run);
+    return { id, step: step.id, answered, failed, left, status: run.status, next: left ? `${left} rows left: gluely runs next ${id}` : `gluely runs continue ${id}` };
+  } finally { release(); }
 }
 
 // What a person is about to say yes to.

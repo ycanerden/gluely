@@ -488,11 +488,11 @@ test('a kill rule still has to exist, whichever kind it is', () => {
   assert.match(result.out, /after_touches or after_days/);
 });
 
-test('Exa, Firecrawl and Treg are in the library, and nothing holds a price', () => {
+test('Exa, Firecrawl, Tavily and Treg are in the library, and nothing holds a price', () => {
   const text = fs.readFileSync(path.join(ROOT, 'library/tools.yaml'), 'utf8');
   assert.doesNotMatch(text, /[$€£]\d|price:/);
   const web = gluely(['tools', 'web-research', '--json'], ROOT).json.jobs[0].tools.map((t) => t.name);
-  assert.deepEqual(web, ['Exa', 'Firecrawl', 'Treg']);
+  assert.deepEqual(web, ['Exa', 'Firecrawl', 'Tavily', 'Treg']);
 });
 
 test('a blank or unclear price is refused, because an estimate must never look cheaper than it is', async () => {

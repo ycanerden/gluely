@@ -1,0 +1,13 @@
+# status is valid, invalid, accept_all, webmail, disposable or unknown.
+# accept_all can't be proven by any verifier, so never count it as a find.
+tool: Hunter
+job: email-verify
+what: Check whether an email is deliverable
+docs: https://hunter.io/api-documentation/v2#email-verifier
+request:
+  method: GET
+  url: https://api.hunter.io/v2/email-verifier?email={{row.email}}
+  headers: { x-api-key: "{{env.HUNTER_KEY}}" }
+pick: { email_status: data.status }
+writes: email_status
+tested: null

@@ -48,7 +48,7 @@ Green works today, yellow has started, blue is next, grey is a later phase, and 
 
 | Layer | What it is | Who owns it |
 |---|---|---|
-| Skills | `/setup-gluely`, `/gtm-mode`, `/check-cost`, playbooks, principles | Open source |
+| Skills | `/setup-gluely`, `/gtm-mode`, `/build-workflow`, `/check-cost`, playbooks, principles | Open source |
 | CLI | Rules, checks and tests. Every command supports `--json` | Open source |
 | Brain | `context/`, `plays/`, `tests/`, `learning/`, `prices.yaml` | You, in a private repo |
 
@@ -81,6 +81,10 @@ gluely guard exports/list.csv --to "your enrichment tool"
 **Waterfalls are recipes.** At the contact step, name several tools in order, such as `Findymail, Hunter, Treg`. The play stores the order and the stop rule, and `gluely cost` prices each try. Your agent can run it through your own connections, or `gluely run` can run it for you, as below.
 
 **Plays can run themselves.** Add a `workflow` to a play: guard, filter, tool, agent and approve steps. `gluely run <play> --input list.csv --plan` shows what it would do and cost at most, and runs nothing. A run that spends waits for a person to approve the ceiling. Tool steps call your tools with the keys in your workspace `.env`. Agent steps wait for your agent to answer each row, with the row marked as untrusted data, and drafts are checked against your voice rules. A send step only runs after a person approves the rows. Every row and step lands in `runs/<id>/`, which git ignores. `gluely studio` shows it all in your browser, on your machine only. See [docs/workflows.md](docs/workflows.md).
+
+**Ask for a workflow in plain English.** Tell your agent "find the work email for everyone on this list, check whether each company has SOC 2, and tier them against our ICP", and `/build-workflow` writes it as a play, shows the most it can cost, runs 10 rows first and waits for your yes before the rest. Recipes make the tool steps one line: `gluely recipes` lists ready-made calls, each with the columns it reads and writes and the key it needs, and a step says `recipe: hunter-find-email`. A research step answers a question for every row, and an answer with no source link is dropped instead of shown as fact. Your agent judges rows 25 at a time with `gluely runs answer --answers`, so a big list doesn't mean thousands of calls.
+
+**Watch it fill in.** The studio's Table tab shows a run as a spreadsheet: your list on the left, then every column under the step that filled it, with what's still to come, what waits on you, and why each stopped row stopped.
 
 **Runs keep going without you.** `gluely worker` starts plays on a schedule, carries on every run, waits out outages and tells you when a run needs you. Every row is saved as it finishes, so a crash or a redeploy picks up at the next row, and a send is never repeated on its own. Run it on any box with a disk, such as Fly.io: [docs/self-host.md](docs/self-host.md).
 

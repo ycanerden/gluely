@@ -1,0 +1,16 @@
+# Answers a question about each row from a web search, with the page it came from.
+# Write the question first, for example:
+#   - { id: q, type: set, values: { question: "Does {{row.company}} ({{row.domain}}) have SOC 2? Answer yes, no or unknown." } }
+tool: Exa
+job: web-research
+what: Answer a question from the web, with the page it came from
+docs: https://docs.exa.ai/reference/answer
+request:
+  method: POST
+  url: https://api.exa.ai/answer
+  headers: { x-api-key: "{{env.EXA_KEY}}" }
+  body: { query: "{{row.question}}" }
+pick: { answer: answer, answer_source: citations.0.url }
+writes: answer
+source: answer_source
+tested: null

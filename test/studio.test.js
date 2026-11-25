@@ -42,3 +42,31 @@ workflow:
     server.close();
   }
 });
+
+test('the table puts each column under the step that filled it, and says what is still to come', async () => {
+  const { runTable } = await import('../src/studio.js');
+  const run = {
+    step: 3,
+    status: 'waiting_agent',
+    workflow: [
+      { id: 'guard', type: 'guard' },
+      { id: 'email', type: 'tool', job: 'contact-data', writes: 'email', try: [{ tool: 'A', pick: { email: 'e', score: 's' } }] },
+      { id: 'q', type: 'set', values: { question: 'x' } },
+      { id: 'fit', type: 'agent', ask: 'fit?', writes: 'fit' },
+      { id: 'review', type: 'approve' },
+    ],
+    rows: [
+      { n: 1, data: { company: 'Alpha', email: 'a@alpha.example', score: 90, question: 'x', fit: 'yes' }, answers: { fit: 'yes' }, route: {}, stopped: null },
+      { n: 2, data: { company: 'Beta', question: 'x' }, answers: {}, route: {}, stopped: null },
+      { n: 3, data: { company: 'Client' }, answers: {}, route: {}, stopped: { step: 'guard', reason: 'client' } },
+    ],
+  };
+  const t = runTable(run);
+  assert.deepEqual(t.groups.map((g) => [g.step, g.columns]), [[null, ['company']], ['guard', []], ['email', ['email', 'score']], ['q', ['question']], ['fit', ['fit']], ['review', []]]);
+  const [one, two, three] = t.rows.map((r) => r.state);
+  assert.equal(one.fit, 'done', 'an answered row shows its answer');
+  assert.equal(two.fit, 'waiting');
+  assert.equal(two.review, 'to_come');
+  assert.equal(three.guard, 'stopped_here');
+  assert.equal(three.email, 'never');
+});

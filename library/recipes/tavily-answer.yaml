@@ -1,0 +1,16 @@
+# Answers a question about each row from a web search, with the page it came from.
+# Write the question first, for example:
+#   - { id: q, type: set, values: { question: "Is {{row.company}} hiring SDRs? Answer yes, no or unknown." } }
+tool: Tavily
+job: web-research
+what: Answer a question from the web, with the page it came from
+docs: https://docs.tavily.com/documentation/api-reference/endpoint/search
+request:
+  method: POST
+  url: https://api.tavily.com/search
+  headers: { authorization: "Bearer {{env.TAVILY_KEY}}" }
+  body: { query: "{{row.question}}", include_answer: true, max_results: 3 }
+pick: { answer: answer, answer_source: results.0.url }
+writes: answer
+source: answer_source
+tested: null

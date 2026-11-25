@@ -114,3 +114,53 @@ gluely runs status <run>                                rows in, stopped, calls,
 `gluely studio` draws every play's workflow in your browser, with the trace of any run on each step: rows in, rows stopped and why, calls, cost and errors. It runs on this machine only, reads your files and changes nothing. Edit the play file, or ask your agent to, and it redraws.
 
 `gluely status` shows when a run is waiting for you or your agent. Agents get the same commands as MCP tools, except approvals, which need a person.
+
+## Recipes
+
+A recipe is one call to one tool, written once. `gluely recipes` lists them alphabetically, with the columns each reads and writes and the keys it needs. `gluely recipes show <id>` prints one in full.
+
+```yaml
+    - { id: email, type: tool, recipe: hunter-find-email }       # job, writes and the call come from the recipe
+    - id: email
+      type: tool
+      try: [{ recipe: hunter-find-email }, { recipe: your-own-finder }]   # a waterfall of recipes
+```
+
+Anything a try sets itself wins, so you can change one field without copying the rest, for example a different `pick`. Your own recipes go in `recipes/<id>.yaml` in the workspace and win over the library's on a clash. A run keeps the recipes it started with, so editing one never changes a run halfway. A recipe holds no price: you still save your own with `gluely cost price`.
+
+```yaml
+# recipes/your-own-finder.yaml
+tool: Your tool              # the name your price is saved under, and in the tool library
+job: contact-data
+what: Find a work email from a domain
+docs: https://docs.your-tool.example/find
+request:
+  url: https://api.your-tool.example/find?domain={{row.domain}}
+  headers: { authorization: "Bearer {{env.YOURTOOL_KEY}}" }
+pick: { email: data.email }
+writes: email
+tested: null                 # the day someone last ran it against the real API
+```
+
+## Research with a source
+
+To answer a question for every row, write the question with a `set` step, then ask a research recipe. `source` names the column that must hold a link: an answer with no source is dropped, and the next tool in the waterfall gets a go.
+
+```yaml
+    - { id: ask, type: set, values: { question: "Does {{row.company}} ({{row.domain}}) have SOC 2? Answer yes, no or unknown." } }
+    - id: soc2
+      type: tool
+      try: [{ recipe: exa-answer, pick: { soc2: answer, soc2_source: citations.0.url } }]
+      writes: soc2
+      source: soc2_source
+```
+
+## Answering in batches
+
+`gluely runs next <run> --limit 25` gives your agent up to 25 rows at once. It answers them in one call:
+
+```bash
+gluely runs answer run-1a2b3c --answers '[{"row": 1, "text": "Tier 1"}, {"row": 2, "skip": true, "why": "wrong team"}]'
+```
+
+`--file answers.json` works too. Good answers are kept even when others in the batch fail, and each failure says why, so the agent fixes only those rows. An answer is never overwritten.

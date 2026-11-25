@@ -53,7 +53,7 @@ tools:
   - { name: Grok, jobs: [agent], access: software }
   - { name: HeyReach, jobs: [outreach], access: your-account }
   - { name: HubSpot, jobs: [crm, forms], access: software }
-  - { name: Hunter, jobs: [contact-data], access: database }
+  - { name: Hunter, jobs: [contact-data, email-verify], access: database }
   - { name: Icypeas, jobs: [contact-data], access: database }
   - { name: Instantly, jobs: [outreach], access: software }
   - { name: Lemlist, jobs: [outreach], access: software }
@@ -74,6 +74,7 @@ tools:
   - { name: SQLite, jobs: [store], access: software }
   - { name: Supabase, jobs: [store], access: software }
   - { name: Tally, jobs: [forms], access: software }
+  - { name: Tavily, jobs: [web-research], access: web-search }
   - { name: TheirStack, jobs: [hiring-data], access: database }
   - { name: Treg, jobs: [person-data, signal-data, contact-data, web-research], access: gateway }
   - { name: Typeform, jobs: [forms], access: software }

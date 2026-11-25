@@ -8,7 +8,8 @@ import { loadPrices } from './cost.js';
 import { loadEntries } from './log.js';
 import { loadPlays } from './plays.js';
 import { judgePlay } from './results.js';
-import { envNeeded, listRuns, loadEnv, loadRun, planRun, readEvents, summary } from './run.js';
+import { envNeeded, flatten, listRuns, loadEnv, loadRun, planRun, readEvents, summary } from './run.js';
+import { expandSteps } from './recipes.js';
 import { pricePer } from './waterfall.js';
 import { GLUELY_ROOT, loadConfig } from './workspace.js';
 
@@ -20,7 +21,7 @@ const safe = (fn, fallback = null) => { try { return fn(); } catch { return fall
 
 function playView(ws, { spec, parseError, file }) {
   const id = spec.id || file.replace(/\.ya?ml$/, '');
-  const steps = spec.workflow?.steps || [];
+  const steps = safe(() => expandSteps(ws, spec.workflow?.steps || []), spec.workflow?.steps || []);
   const prices = loadPrices(ws);
   const env = loadEnv(ws);
   const view = (s) => (!s || typeof s !== 'object' ? s : ({
@@ -68,6 +69,51 @@ export function studioState(ws) {
   };
 }
 
+// The run as a table: the list's own columns first, then the columns each step fills, grouped
+// under that step, in the order they run. Each row says, per step, whether it is filled,
+// still to come, waiting on someone, or never reached because the row stopped or took another path.
+export function runTable(run) {
+  const steps = flatten(run.workflow || []);
+  const fills = (s) => {
+    if (s.type === 'set') return Object.keys(s.values || {});
+    if (s.type === 'agent') return s.writes ? [s.writes] : [];
+    if (s.type === 'tool') {
+      const tries = s.try ? [s.try].flat() : [{ pick: s.pick }];
+      return [...new Set([s.writes, ...tries.flatMap((t) => Object.keys(t?.pick || {})), s.source].filter(Boolean))];
+    }
+    return [];
+  };
+  const index = Object.fromEntries(steps.map((s, i) => [s.id, i]));
+  const made = new Set(steps.flatMap(fills));
+  const input = [...new Set(run.rows.flatMap((r) => Object.keys(r.data)))].filter((c) => !made.has(c));
+  const groups = [
+    { step: null, type: 'input', columns: input },
+    ...steps.map((s, i) => ({ step: s.id, type: s.type, at: i, columns: fills(s), ...(s.source ? { source: s.source } : {}), ...(s.scope.length ? { path: s.scope.at(-1).path } : {}) }))
+      .filter((g) => g.columns.length || ['guard', 'filter', 'approve'].includes(g.type)),
+  ];
+  const onPath = (row, s) => s.scope.every((x) => row.route?.[x.branch] === x.path);
+  const rows = run.rows.map((r) => ({
+    n: r.n,
+    data: r.data,
+    stopped: r.stopped,
+    state: Object.fromEntries(groups.filter((g) => g.step).map((g) => {
+      const s = steps[g.at];
+      const stoppedAt = r.stopped ? index[r.stopped.step] : Infinity;
+      let state = 'done';
+      if (stoppedAt === g.at) state = 'stopped_here';
+      else if (stoppedAt < g.at) state = 'never';
+      else if (Object.keys(r.route || {}).length && s.scope.length && !onPath(r, s)) state = 'other_path';
+      else if (['stopped', 'over_ceiling'].includes(run.status) && g.at >= run.step) state = 'never';
+      else if (g.at > run.step || (g.at === run.step && run.status !== 'done')) {
+        const answered = s.type === 'agent' && r.answers?.[s.id] !== undefined && r.answers[s.id] !== null;
+        state = answered ? 'done' : g.at === run.step && run.status.startsWith('waiting') ? 'waiting' : 'to_come';
+      }
+      return [g.step, state];
+    })),
+  }));
+  return { groups, rows };
+}
+
 export function runDetail(ws, id) {
   const run = loadRun(ws, id);
   return {
@@ -75,6 +121,7 @@ export function runDetail(ws, id) {
     created: run.created,
     input: run.input,
     records: run.rows.map((r) => ({ n: r.n, data: r.data, stopped: r.stopped })),
+    table: runTable(run),
     events: readEvents(ws, id).slice(-MAX_EVENTS),
   };
 }

@@ -1,6 +1,7 @@
 import { spawn } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
+import YAML from 'yaml';
 import { addCase, checkCompany, checkDraft, pendingCases, runTests, submitAnswer } from './brain-tests.js';
 import { scanContext } from './context.js';
 import { estimateCost, setAssumptions, setPrice } from './cost.js';
@@ -10,6 +11,7 @@ import { diagnose } from './doctor.js';
 import { buildFlow, renderFlow } from './flow.js';
 import { initWorkspace } from './init.js';
 import { addTool, loadLibrary, loadPlaybooks, toolsForJob } from './library.js';
+import { getRecipe, listRecipes } from './recipes.js';
 import { addEntry, dropEntry, learn, listEntries, logCorrection, promoteEntry, recall } from './log.js';
 import { color, fail, GluelyError, mark, printIssues } from './output.js';
 import { guardFile } from './guard.js';
@@ -20,7 +22,7 @@ import { startStudio } from './studio.js';
 import { work } from './worker.js';
 import { addResult, judgePlay, renderJudgement } from './results.js';
 import { planWaterfall, recordTest, renderWaterfall } from './waterfall.js';
-import { advance, answerTask, listRuns, nextTasks, pendingApproval, planRun, runTrace, startRun, stopRun } from './run.js';
+import { advance, answerTask, answerTasks, listRuns, nextTasks, pendingApproval, planRun, runTrace, startRun, stopRun } from './run.js';
 import { confirmRunApproval, renderPlan, renderRun } from './run-ui.js';
 import { loadPrices } from './cost.js';
 import { HOSTS, installSkills, listSkills } from './skills.js';
@@ -81,6 +83,7 @@ Tools
   gluely stack set <layer> <any tool name>                       name a tool. Any tool works
   gluely tools [job]                                             the tool library, by job
   gluely tools add <name> --job <job> [--access <kind>]          add your own tool
+  gluely recipes [--job j] [--tool t] | show <id>                ready-made calls to a tool, for a workflow try
   gluely waterfall <job> [--tools "A, B"]                        order your tools by your own price and tests
   gluely waterfall test <tool> --job <j> --tried 20 --right <n> [--wrong n] [--unprovable n]   a blind test
 
@@ -89,6 +92,7 @@ Run
   gluely run <play> --input <list.csv> [--limit n]               run the play's workflow over a list
   gluely runs [--play id] | status <run>                         every run, or one run step by step
   gluely runs next <run> | answer <run> <row> <text>             agent steps: read the rows, answer each
+  gluely runs answer <run> --answers '<json>' | --file <f.json>  answer many rows at once
   gluely runs approve <run> [--reject 2,5]                       a person approves spending, or rows before a send
   gluely runs continue <run> | stop <run>                        carry on after an answer or approval, or stop
 
@@ -384,6 +388,28 @@ export const commands = {
     };
   },
 
+  recipes(args) {
+    const ws = activeWorkspace();
+    if (args._[0] === 'show') {
+      const data = getRecipe(ws, args._[1]);
+      return { data, render: () => console.log(YAML.stringify(data)) };
+    }
+    const data = listRecipes(ws, { job: args.flags.job, tool: args.flags.tool });
+    return {
+      data,
+      render() {
+        console.log(color.bold('Recipes') + color.dim('   alphabetical, nobody is ranked, any tool works'));
+        if (!data.recipes.length) console.log(color.dim('  None match.'));
+        for (const r of data.recipes) {
+          console.log(`  ${(r.issues.length ? color.red(r.id) : r.id).padEnd(30)} ${String(r.tool).padEnd(14)} ${color.dim(r.what || '')}`);
+          console.log(color.dim(`  ${' '.repeat(30)} reads ${r.reads.join(', ') || 'nothing'} · writes ${r.writes || '-'} · keys ${r.keys.join(', ') || 'none'} · ${r.tested ? `tested ${r.tested}` : 'not tested yet'}${r.own ? ' · yours' : ''}`));
+          for (const issue of r.issues) console.log(`  ${' '.repeat(30)} ${color.red(issue)}`);
+        }
+        console.log(`\n${mark.next()} ${color.dim('Use one in a workflow: - { id: email, type: tool, recipe: <id> }. gluely recipes show <id> prints it.')}`);
+      },
+    };
+  },
+
   tools(args) {
     if (args._[0] === 'add') {
       const data = addTool(requireWorkspace(), { name: args._.slice(1).join(' '), job: args.flags.job, access: args.flags.access });
@@ -556,6 +582,22 @@ export const commands = {
           console.log(`${color.bold(data.step)}  ${data.left} rows waiting\n${data.ask}\n${color.dim(data.untrusted)}`);
           for (const t of data.tasks) console.log(`  ${String(t.row).padStart(3)}  ${color.dim(JSON.stringify(t.data))}`);
           console.log(`${mark.next()} ${data.answer}`);
+        },
+      };
+    }
+    if (sub === 'answer' && (args.flags.answers || args.flags.file)) {
+      let answers;
+      try {
+        answers = JSON.parse(args.flags.file ? fs.readFileSync(path.resolve(String(args.flags.file)), 'utf8') : String(args.flags.answers));
+      } catch (error) {
+        fail('bad_answers', `The answers are not valid JSON: ${error.message.split('\n')[0]}`, 'Pass a list like [{ "row": 1, "text": "..." }, { "row": 2, "skip": true, "why": "..." }].');
+      }
+      const data = answerTasks(ws, id, { answers, by: args.flags.by });
+      return {
+        data,
+        render() {
+          line(true, `${data.answered.length} rows answered at ${data.step}. ${data.next}`);
+          for (const f of data.failed) line(false, `Row ${f.row}: ${f.message}`);
         },
       };
     }

@@ -156,6 +156,37 @@ tr.off td { color: var(--quiet); }
 .lesson .t { color: var(--ink); }
 .lesson .m { color: var(--quiet); font-size: 12.5px; margin-top: 2px; }
 
+/* the table: a run's rows, filled column by column, grouped under the step that filled them */
+.tbl { padding: 18px 32px 60px; }
+.tbl .bar { max-width: none; margin: 0 0 12px; font-size: 13px; }
+.tbl .waiting-banner { max-width: none; margin: 0 0 12px; }
+.grid td .miss { color: var(--no); font-size: 12px; }
+.seg { display: inline-flex; border: 1px solid var(--rule); border-radius: 7px; overflow: hidden; }
+.seg button { padding: 5px 11px; font-size: 13px; color: var(--quiet); }
+.seg button.on { background: var(--haze); color: var(--ink); }
+.grid { overflow: auto; border: 1px solid var(--rule); border-radius: 10px; box-shadow: var(--shadow); max-height: calc(100vh - 290px); background: var(--paper); }
+.grid table { border-collapse: separate; border-spacing: 0; font-size: 13px; min-width: 100%; }
+.grid th, .grid td { border-bottom: 1px solid var(--rule); border-right: 1px solid var(--rule); padding: 7px 10px; text-align: left; white-space: nowrap; max-width: 260px; overflow: hidden; text-overflow: ellipsis; }
+.grid thead th { position: sticky; background: var(--wash); color: var(--ink); font-weight: 600; z-index: 2; }
+.grid thead tr.g th { top: 0; height: 38px; font-weight: 600; }
+.grid thead tr.c th { top: 38px; font-weight: 500; color: var(--body); font-size: 12.5px; }
+.grid th.g-head { display: table-cell; }
+.grid .gh { display: flex; align-items: center; gap: 7px; }
+.grid .gh .icon { width: 18px; height: 18px; padding: 3px; border-radius: 5px; }
+.grid .gh small { color: var(--quiet); font-weight: 400; }
+.grid td.n, .grid th.n { position: sticky; left: 0; background: var(--wash); color: var(--quiet); text-align: right; z-index: 1; min-width: 44px; }
+.grid thead th.n { z-index: 3; }
+.grid tr.off td:not(.n) { color: var(--quiet); }
+.grid td .wait { color: var(--honey); font-weight: 600; font-size: 12px; }
+.grid td .soon { color: var(--dots); letter-spacing: .2em; }
+.grid td .never { color: var(--quiet); opacity: .45; }
+.grid td a { color: var(--sky); text-decoration: none; }
+.grid td a:hover { text-decoration: underline; }
+.grid td.why { color: var(--no); }
+.grid tr:hover td:not(.n) { background: var(--wash); }
+@media (max-width: 760px) {
+  .tbl { padding: 14px 16px 40px; }
+}
 @media (max-width: 900px) {
   .app, .app.inspecting { grid-template-columns: 1fr; grid-template-rows: 52px auto 1fr auto; height: auto; }
   nav { border-right: 0; border-bottom: 1px solid var(--rule); display: flex; gap: 6px; overflow-x: auto; padding: 8px 16px; }
@@ -183,7 +214,7 @@ tr.off td { color: var(--quiet); }
 <script>
 // Everything shown here comes from your files, and prospect text is data: it is only ever
 // set as text, never as HTML.
-const S = { state: null, raw: '', play: null, tab: 'workflow', step: null, run: null, runs: {} };
+const S = { state: null, raw: '', play: null, tab: 'workflow', step: null, run: null, runs: {}, show: 'all' };
 try { Object.assign(S, JSON.parse(localStorage.getItem('gluely-studio') || '{}'), { state: null, raw: '', runs: {} }); } catch {}
 const keep = () => { try { localStorage.setItem('gluely-studio', JSON.stringify({ play: S.play, tab: S.tab, step: S.step, run: S.run })); } catch {} };
 
@@ -273,6 +304,7 @@ function render() {
   if (!play) { main.append(h('div', { class: 'empty' }, h('h2', { class: 'pixel' }, 'No plays yet'), h('p', {}, 'Start one in your terminal.'), copyBtn('gluely plays start'))); renderAside(null); return; }
   main.append(renderHead(play), renderTabs(play));
   if (S.tab === 'workflow') main.append(renderFlow(play));
+  if (S.tab === 'table') main.append(renderTable(play));
   if (S.tab === 'runs') main.append(renderRuns(play));
   if (S.tab === 'learnings') main.append(renderLearnings(play));
   renderAside(play);
@@ -315,7 +347,7 @@ function renderTabs(play) {
   const runs = playRuns().length;
   const lessons = play.lessons.length;
   const tab = (id, label, n) => h('button', { class: `tab ${S.tab === id ? 'on' : ''}`, onclick: () => select({ tab: id }) }, label, n ? h('em', {}, n) : null);
-  return h('div', { class: 'tabs' }, tab('workflow', 'Workflow'), tab('runs', 'Runs', runs), tab('learnings', 'Learnings', lessons));
+  return h('div', { class: 'tabs' }, tab('workflow', 'Workflow'), tab('table', 'Table'), tab('runs', 'Runs', runs), tab('learnings', 'Learnings', lessons));
 }
 
 function stepSummary(s) {
@@ -473,6 +505,66 @@ function renderAside(play) {
     }
   }
   aside.append(h('p', { class: 'note' }, `Change this step in ${play.file}. The studio redraws when the file changes.`));
+}
+
+// The run as a spreadsheet: every row, filled column by column under the step that filled it.
+// Values are set as text. A link is only drawn for an https address, and opens on its own.
+function cellValue(value, isSource) {
+  const text = value === undefined || value === null ? '' : String(value);
+  if (isSource && /^https:\/\/[^\s]+$/.test(text)) {
+    let label = text;
+    try { label = new URL(text).host.replace(/^www\./, ''); } catch {}
+    return h('a', { href: text, target: '_blank', rel: 'noopener noreferrer', title: text }, label);
+  }
+  return text;
+}
+
+function renderTable(play) {
+  const wrap = h('div', { class: 'tbl' });
+  const runs = playRuns();
+  if (!runs.length) {
+    wrap.append(h('div', { class: 'empty' }, h('h2', { class: 'pixel' }, 'No rows yet'), h('p', {}, 'Run the play over a list and its rows fill in here, column by column.'), copyBtn(`gluely run ${play.id} --input <list.csv> --limit 10`)));
+    return wrap;
+  }
+  const run = S.runs[S.run];
+  const pickRun = h('select', { onchange: (e) => select({ run: e.target.value }) }, runs.map((r) => {
+    const o = h('option', { value: r.id }, `${r.id} · ${words(r.status)} · ${ago(r.created)}`);
+    if (r.id === S.run) o.selected = true;
+    return o;
+  }));
+  const seg = h('div', { class: 'seg' }, [['all', 'All'], ['live', 'Through'], ['stopped', 'Stopped']].map(([id, label]) =>
+    h('button', { class: S.show === id ? 'on' : '', onclick: () => { S.show = id; render(); } }, label)));
+  wrap.append(h('div', { class: 'bar' }, pickRun, seg, run ? h('span', {}, `${run.live}/${run.rows} rows through · ${money(run.spent)} spent`) : null));
+  if (run && String(run.status).startsWith('waiting')) wrap.append(h('div', { class: 'waiting-banner' }, h('span', { class: 'chip waiting' }, words(run.status)), h('span', {}, run.next), copyBtn(run.status === 'waiting_agent' ? `gluely runs next ${run.id}` : `gluely runs approve ${run.id}`)));
+  if (!run || !run.table) { wrap.append(h('p', { class: 'note' }, 'Loading the run…')); return wrap; }
+
+  const { groups, rows } = run.table;
+  const shown = rows.filter((r) => S.show === 'all' || (S.show === 'live' ? !r.stopped : r.stopped));
+  const label = (g) => g.type === 'input' ? h('div', { class: 'gh' }, h('span', {}, 'Your list'), h('small', {}, run.input || '')) :
+    h('div', { class: 'gh' }, pixel(g.type), h('span', {}, g.step), h('small', {}, g.path ? `${g.type} · ${g.path}` : g.type));
+  const span = (g) => Math.max(1, g.columns.length);
+  const head = h('thead', {},
+    h('tr', { class: 'g' }, h('th', { class: 'n', rowspan: 2 }, '#'), groups.map((g) => h('th', { colspan: span(g) }, label(g))), h('th', { rowspan: 2 }, 'Outcome')),
+    h('tr', { class: 'c' }, groups.flatMap((g) => (g.columns.length ? g.columns : ['']).map((c) => h('th', {}, c)))));
+  const cell = (r, g, c) => {
+    if (g.type === 'input') return h('td', { title: String(r.data[c] ?? '') }, cellValue(r.data[c]));
+    const st = r.state[g.step];
+    if (st === 'waiting') return h('td', {}, h('span', { class: 'wait' }, 'waiting'));
+    if (st === 'to_come') return h('td', {}, h('span', { class: 'soon' }, '···'));
+    if (st === 'never' || st === 'other_path') return h('td', { title: st === 'other_path' ? 'took another path' : 'stopped earlier' }, h('span', { class: 'never' }, '—'));
+    if (!c) return h('td', {}, st === 'stopped_here' ? h('span', { class: 'miss' }, 'stopped') : h('span', { style: 'color:var(--ok)' }, '✓'));
+    const empty = r.data[c] === undefined || r.data[c] === null || String(r.data[c]) === '';
+    if (empty && st === 'stopped_here') return h('td', {}, h('span', { class: 'miss' }, 'not found'));
+    if (empty && g.type === 'tool') return h('td', {}, h('span', { class: 'never' }, 'none'));
+    return h('td', { title: String(r.data[c] ?? '') }, cellValue(r.data[c], c === g.source));
+  };
+  const body = h('tbody', {}, shown.map((r) => h('tr', { class: r.stopped ? 'off' : '' },
+    h('td', { class: 'n' }, r.n),
+    groups.flatMap((g) => (g.columns.length ? g.columns : ['']).map((c) => cell(r, g, c))),
+    r.stopped ? h('td', { class: 'why', title: r.stopped.reason }, `${r.stopped.step}: ${r.stopped.reason}`) : h('td', {}, h('span', { class: 'chip done' }, run.status === 'done' ? 'through' : 'live')))));
+  wrap.append(h('div', { class: 'grid' }, h('table', {}, head, body)));
+  if (!shown.length) wrap.append(h('p', { class: 'note' }, 'No rows match.'));
+  return wrap;
 }
 
 function renderRuns(play) {
