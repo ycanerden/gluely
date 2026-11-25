@@ -283,14 +283,16 @@ async function load() {
   }
 }
 const playRuns = () => (S.state?.runs || []).filter((r) => r.play === S.play);
+// The newest run is shown until a person picks another one, so a run that just started
+// appears on its own.
 async function ensureRun() {
   const runs = playRuns();
-  if (!runs.some((r) => r.id === S.run)) S.run = runs[0]?.id || null;
+  if (!S.pinned || !runs.some((r) => r.id === S.run)) S.run = runs[0]?.id || null;
   if (S.run && !S.runs[S.run]) {
     try { S.runs[S.run] = await (await fetch(`/api/runs/${S.run}`, { cache: 'no-store' })).json(); } catch {}
   }
 }
-const select = async (patch) => { Object.assign(S, patch); keep(); await ensureRun(); render(); };
+const select = async (patch) => { if ('run' in patch) S.pinned = Boolean(patch.run); Object.assign(S, patch); keep(); await ensureRun(); render(); };
 
 // ---------- views ----------
 function render() {
@@ -300,11 +302,18 @@ function render() {
   renderNav(st);
   const play = st.plays.find((p) => p.id === S.play);
   const main = $('main');
+  // Redrawing every couple of seconds must not throw away where the person scrolled the table.
+  const grid = main.querySelector('.grid');
+  const kept = grid ? { left: grid.scrollLeft, top: grid.scrollTop } : null;
   main.replaceChildren();
   if (!play) { main.append(h('div', { class: 'empty' }, h('h2', { class: 'pixel' }, 'No plays yet'), h('p', {}, 'Start one in your terminal.'), copyBtn('gluely plays start'))); renderAside(null); return; }
   main.append(renderHead(play), renderTabs(play));
   if (S.tab === 'workflow') main.append(renderFlow(play));
-  if (S.tab === 'table') main.append(renderTable(play));
+  if (S.tab === 'table') {
+    main.append(renderTable(play));
+    const next = main.querySelector('.grid');
+    if (next && kept) { next.scrollLeft = kept.left; next.scrollTop = kept.top; }
+  }
   if (S.tab === 'runs') main.append(renderRuns(play));
   if (S.tab === 'learnings') main.append(renderLearnings(play));
   renderAside(play);
